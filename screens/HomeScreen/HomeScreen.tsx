@@ -1,0 +1,283 @@
+import React, { useEffect, useRef, useState, useContext } from "react";
+import { StyleSheet, NativeEventEmitter, View, FlatList, Text, ActivityIndicator, Animated, Dimensions, Modal, TouchableOpacity, NativeModules } from "react-native";
+import { DownloadsStore, useVideoStore } from "../../utils/Store";
+import TopBar from "./widgets/TopBar/TopBar";
+import Menu from "./widgets/TopBar/widgets/Menu";
+import VideoItemView from "./widgets/VideoItemView/VideoItemView";
+import ShortsItemView from "./widgets/ShortsItemView/ShortsItemView";
+import ShortsHeader from "./widgets/ShortsHeader/ShortsHeader";
+import { sendYoutubeSearchRequest } from "../../utils/sendYoutubeSearchRequest";
+import { useNavigation } from "@react-navigation/native";
+import { NativeStackNavigationProp } from "@react-navigation/native-stack";
+import { RootStackParamList } from "../../App";
+import { DownloadItem, Video } from "../../utils/types";
+import { getStreamingData, txt2filename, videoId } from "../../utils/Interact"
+import AskFormat from "./widgets/AskFormat/AskFormat";
+import { AskFormatModel } from "../../utils/types";
+import { mapAdaptiveFormatsToRequired } from "../../utils/praserHelpers";
+import { getSelectedFormats } from "../../utils/downloadFunctions";
+
+
+
+
+
+
+type NavigationProp = NativeStackNavigationProp<
+  RootStackParamList,
+  "SearchScreen"
+>;
+
+export default function HomeScreen() {
+  const navigation = useNavigation<NavigationProp>();
+  const { MyNativeModule } = NativeModules;
+
+  const eventEmitter = new NativeEventEmitter();
+
+
+
+  const {
+    totalVideos,
+    addVideo,
+    continuation,
+    setContinuation,
+    query,
+    addSeenVideoId, seenVideosIds
+  } = useVideoStore();
+
+  const { addDownloadItem, updateItem } = DownloadsStore();
+  const [isLoading, setLoading] = useState(false);
+  const [modalVisible, setModalVisible] = useState(false);
+  const [selectedVideo, setSelectedVideo] = useState<Video>();
+  const [requiredFmts, setRequiredFmts] = useState<AskFormatModel[]>([]);
+
+  const screenHeight = Dimensions.get('window').height;
+  const slideAnim = React.useRef(new Animated.Value(screenHeight)).current;
+
+  const openModal = () => {
+    setModalVisible(true);
+    Animated.timing(slideAnim, {
+      toValue: 0,
+      duration: 300,
+      useNativeDriver: true,
+    }).start();
+  };
+
+  const closeModal = () => {
+    Animated.timing(slideAnim, {
+      toValue: screenHeight,
+      duration: 300,
+      useNativeDriver: true,
+    }).start(() => setModalVisible(false));
+  };
+
+
+  const fetchVideos = async () => {
+    if (isLoading) return;
+    setLoading(true);
+    try {
+      const result = await sendYoutubeSearchRequest(query, continuation, "8AEB");
+      const shortsAndVideos = result.videos;
+      const token = result.continuation;
+
+      if (token != null) {
+        setContinuation(token);
+      }
+
+      shortsAndVideos.forEach((element) => {
+        if (element.type === "shorts") {
+          const freshShorts: Video[] = [];
+          let shortsHeaderVideoId = "videoId1";
+
+          element.videos.forEach(short => {
+            if (!seenVideosIds.includes(short.videoId)) {
+              addSeenVideoId(short.videoId);
+              freshShorts.push(short);
+              shortsHeaderVideoId = short.videoId;
+            }
+          });
+
+          if (freshShorts.length > 0) {
+            addVideo({ type: "shorts", videos: freshShorts, videoId: shortsHeaderVideoId });
+          }
+
+        } else {
+          if (!seenVideosIds.includes(element.videoId)) {
+            addSeenVideoId(element.videoId);
+            addVideo(element);
+          }
+        }
+      });
+    } catch (err) {
+      console.error("Error fetching videos:", err);
+    } finally {
+      setLoading(false);
+    }
+  };
+
+
+  useEffect(() => {
+    fetchVideos();
+  }, []);
+
+  const handleThreeDotClick = async (item: Video) => {
+    setSelectedVideo(item);
+
+    const response = await getStreamingData(item.videoId);
+    const streamingData = response.playerResponse.streamingData;
+    const adaptiveFormats = streamingData.adaptiveFormats || streamingData.adaptiveFromats;
+
+
+    const mappedFmts = mapAdaptiveFormatsToRequired(adaptiveFormats); // your helper
+
+    setRequiredFmts(mappedFmts); // update state with formats
+    openModal();
+  };
+
+
+  useEffect(() => {
+    const subscription = eventEmitter.addListener("DownloadProgress", (data) => {
+      const { videoId, progress, percent, speed,message } = data;
+
+      updateItem(videoId,{
+         transferInfo:progress,
+         progressPercent:percent,
+         speed:speed,
+         message:message
+      });
+
+
+
+    });
+
+    return () => subscription.remove();
+  }, []);
+
+
+
+
+  const mhandleFormatSelect = (itag: number) => {
+    if (selectedVideo != undefined) {
+      const { selectedVideoFmt, selectedAudioFmt } = getSelectedFormats(itag, requiredFmts);
+      const videoInformation = JSON.stringify(selectedVideoFmt);
+      const audioInformation = JSON.stringify(selectedAudioFmt);
+
+      const DownloadItmm:DownloadItem={
+        transferInfo:"Initiating",
+        progressPercent:0,
+        isFinished:false,
+        isStopped:false,
+        speed:"500KB/s",
+        message:"Video",
+        video:selectedVideo
+      }
+
+      addDownloadItem(DownloadItmm);
+
+      MyNativeModule.native_fileDownloader(videoInformation, audioInformation, selectedVideo.videoId,txt2filename(selectedVideo.title));
+
+
+
+    }
+  }
+
+
+  return (
+    <View style={styles.root}>
+      <TopBar onLensPress={() => navigation.navigate("SearchScreen")} />
+      <FlatList
+        data={totalVideos}
+        keyExtractor={(_, index) => index.toString()}
+        ListHeaderComponent={<Menu />}
+        renderItem={({ item, index }) =>
+          item.type === "video" ? (
+            <VideoItemView item={item} progress={0} onItemPress={() => navigation.navigate("VideoPlayerScreen", { mindex: index })} onDownload={() => handleThreeDotClick(item)} />
+          ) : (
+            <View style={styles.shortParentContainer}>
+              <ShortsHeader />
+              <FlatList
+                data={item.videos}
+                horizontal
+                keyExtractor={(short) => short.videoId}
+                renderItem={({ item: short }) => (
+                  <ShortsItemView item={short} onItemPress={() => navigation.navigate("ShortsPlayerScreen", {
+                    mindex: index, shortIndex: item.videos.indexOf(short)
+                  })} />
+                )}
+                showsHorizontalScrollIndicator={false}
+                contentContainerStyle={styles.shortsContainer}
+              />
+            </View>
+          )
+        }
+        contentContainerStyle={{ gap: 10, marginTop: 10 }}
+        onEndReached={fetchVideos}
+        onEndReachedThreshold={0.5}
+        ListFooterComponent={
+          isLoading ? (
+            <ActivityIndicator size="large" color="red" style={{ margin: 20 }} />
+          ) : null
+        }
+      />
+
+      <Modal
+        transparent
+        visible={modalVisible}
+        animationType="none"
+        onRequestClose={closeModal}
+      >
+
+        <TouchableOpacity style={styles.modalOverlay} activeOpacity={1} onPress={closeModal} />
+
+        <Animated.View
+          style={[
+            styles.bottomSheet,
+            {
+              height: screenHeight / 2, // Half screen height
+              transform: [{ translateY: slideAnim }],
+            }
+          ]}
+        >
+          <AskFormat onFormatSelection={(itag) => mhandleFormatSelect(itag)} closeRequest={closeModal} videoTitle={selectedVideo?.title ?? ""}
+            requiredFormats={requiredFmts} />
+        </Animated.View>
+
+      </Modal>
+
+    </View>
+  );
+}
+
+const styles = StyleSheet.create({
+  root: {
+    flex: 1,
+    marginTop: 50,
+  },
+  shortsContainer: {
+    gap: 10,
+  },
+  shortParentContainer: {
+    paddingLeft: 20,
+  },
+  modalOverlay: {
+    flex: 1,
+    backgroundColor: '#00000066',
+  },
+  bottomSheet: {
+    position: 'absolute',
+    bottom: 0,
+    left: 0,
+    right: 0,
+    backgroundColor: 'white',
+    padding: 10,
+    borderTopLeftRadius: 16,
+    borderTopRightRadius: 16,
+    elevation: 10,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: -3 },
+    shadowOpacity: 0.3,
+    shadowRadius: 4,
+  },
+});
+
+
+//  <AskFormat onFormatSelection={(itag) => handleFormatSelect(itag)} closeRequest={closeModal} videoTitle={selectedVideoTitle} requiredFormats={requiredFmts} />
