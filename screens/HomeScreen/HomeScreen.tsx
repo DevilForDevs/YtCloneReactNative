@@ -11,11 +11,14 @@ import { useNavigation } from "@react-navigation/native";
 import { NativeStackNavigationProp } from "@react-navigation/native-stack";
 import { RootStackParamList } from "../../App";
 import { DownloadItem, Video } from "../../utils/types";
-import { getStreamingData, txt2filename, videoId } from "../../utils/Interact"
+import { convertBytes, getStreamingData, txt2filename, videoId } from "../../utils/Interact"
 import AskFormat from "./widgets/AskFormat/AskFormat";
 import { AskFormatModel } from "../../utils/types";
 import { mapAdaptiveFormatsToRequired } from "../../utils/praserHelpers";
 import { getSelectedFormats } from "../../utils/downloadFunctions";
+import { SQLiteDatabase } from 'react-native-sqlite-storage';
+import { addDownload, createDownloadsTable, initDB, loadDownloads } from "../../utils/dbfunctions";
+import RNFS from 'react-native-fs';
 
 
 
@@ -49,6 +52,7 @@ export default function HomeScreen() {
   const [modalVisible, setModalVisible] = useState(false);
   const [selectedVideo, setSelectedVideo] = useState<Video>();
   const [requiredFmts, setRequiredFmts] = useState<AskFormatModel[]>([]);
+  const [db, setDb] = useState<SQLiteDatabase | null>(null);
 
   const screenHeight = Dimensions.get('window').height;
   const slideAnim = React.useRef(new Animated.Value(screenHeight)).current;
@@ -69,7 +73,6 @@ export default function HomeScreen() {
       useNativeDriver: true,
     }).start(() => setModalVisible(false));
   };
-
 
   const fetchVideos = async () => {
     if (isLoading) return;
@@ -115,8 +118,71 @@ export default function HomeScreen() {
   };
 
 
+ 
+
+  async function loadInfoFromDb() {
+    if (db == null) {
+      const dbInstance = await initDB();
+      await createDownloadsTable(dbInstance);
+      const downloadItems = await loadDownloads(dbInstance);
+      setDb(dbInstance);
+
+      for (const element of downloadItems) {
+        var mediaType="Video"
+        if(element.folder=="movies"){
+          mediaType="Video"
+        }else{
+          mediaType="Audio"
+        }
+        const vid: Video = {
+          videoId: element.videoId,
+          title: element.title,
+          views: mediaType,
+          type: "video",
+        };
+
+        let fileSize = 0;
+
+        try {
+          if (element.folder === "movies") {
+            const movieDir = RNFS.ExternalStorageDirectoryPath + '/Movies';
+            const filePath = `${movieDir}/${element.title}`;
+
+            // Check if file exists
+            const exists = await RNFS.exists(filePath);
+            if (exists) {
+              const stats = await RNFS.stat(filePath);
+              fileSize = Number(stats.size);
+            } else {
+              console.warn("File not found:", filePath);
+            }
+          }
+        } catch (error) {
+          console.error("Error reading file size:", error);
+        }
+
+        const rDownloadItem: DownloadItem = {
+          video: vid,
+          speed: "Finished",
+          isFinished: true,
+          isStopped: false,
+          transferInfo: convertBytes(fileSize),
+          progressPercent: 100,
+          message: "Finished",
+        };
+
+        // Insert item into your store at index 0
+        addDownloadItem(rDownloadItem, 0);
+      }
+    }
+  }
+
+
+
   useEffect(() => {
+    loadInfoFromDb()
     fetchVideos();
+
   }, []);
 
   const handleThreeDotClick = async (item: Video) => {
@@ -136,15 +202,14 @@ export default function HomeScreen() {
 
   useEffect(() => {
     const subscription = eventEmitter.addListener("DownloadProgress", (data) => {
-      const { videoId, progress, percent, speed,message } = data;
+      const { videoId, progress, percent, speed, message } = data;
 
-      updateItem(videoId,{
-         transferInfo:progress,
-         progressPercent:percent,
-         speed:speed,
-         message:message
+      updateItem(videoId, {
+        transferInfo: progress,
+        progressPercent: percent,
+        speed: speed,
+        message: message
       });
-
 
 
     });
@@ -155,27 +220,34 @@ export default function HomeScreen() {
 
 
 
-  const mhandleFormatSelect = (itag: number) => {
+  const mhandleFormatSelect = async (itag: number) => {
     if (selectedVideo != undefined) {
       const { selectedVideoFmt, selectedAudioFmt } = getSelectedFormats(itag, requiredFmts);
       const videoInformation = JSON.stringify(selectedVideoFmt);
       const audioInformation = JSON.stringify(selectedAudioFmt);
 
-      const DownloadItmm:DownloadItem={
-        transferInfo:"Initiating",
-        progressPercent:0,
-        isFinished:false,
-        isStopped:false,
-        speed:"500KB/s",
-        message:"Video",
-        video:selectedVideo
+      const DownloadItmm: DownloadItem = {
+        transferInfo: "Initiating",
+        progressPercent: 0,
+        isFinished: false,
+        isStopped: false,
+        speed: "500KB/s",
+        message: "Video",
+        video: selectedVideo
       }
-
-      addDownloadItem(DownloadItmm);
-
-      MyNativeModule.native_fileDownloader(videoInformation, audioInformation, selectedVideo.videoId,txt2filename(selectedVideo.title));
-
-
+      console.log(videoInformation);
+      const prasedFileName = txt2filename(selectedVideo.title);
+      if (videoInformation == audioInformation) {
+        const insertedId = await addDownload(db, prasedFileName + ".mp3", "movies", selectedVideo.videoId, 0, 0);
+        addDownloadItem(DownloadItmm, 0);
+        console.log(insertedId);
+        console.log(selectedVideo.title + ".mp4");
+      } else {
+        const insertedId = await addDownload(db, `${prasedFileName}(${selectedVideoFmt.info}).mp4`, "movies", selectedVideo.videoId, 0, 0);
+        addDownloadItem(DownloadItmm, 0);
+        console.log(insertedId);
+      }
+      MyNativeModule.native_fileDownloader(videoInformation, audioInformation, selectedVideo.videoId, prasedFileName);
 
     }
   }
@@ -280,4 +352,3 @@ const styles = StyleSheet.create({
 });
 
 
-//  <AskFormat onFormatSelection={(itag) => handleFormatSelect(itag)} closeRequest={closeModal} videoTitle={selectedVideoTitle} requiredFormats={requiredFmts} />

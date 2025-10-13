@@ -6,7 +6,7 @@ import {
     Text,
     ActivityIndicator,
     StatusBar,
-    Image, FlatList
+    Image, FlatList, Modal, Animated, Dimensions, NativeModules
 } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
 import Player from "./widgets/Player";
@@ -21,8 +21,13 @@ import { RootStackParamList } from "../../App";
 import { RouteProp, useNavigation, useRoute } from "@react-navigation/native";
 import { getIosPlayerResponse } from "../../utils/EndPoints";
 import { NativeStackNavigationProp } from "@react-navigation/native-stack";
-
-
+import AskFormat from "../HomeScreen/widgets/AskFormat/AskFormat";
+import { getSelectedFormats } from "../../utils/downloadFunctions";
+import { AskFormatModel } from "../../utils/types";
+import { DownloadsStore } from "../../utils/Store";
+import { DownloadItem } from "../../utils/types";
+import { txt2filename, getStreamingData } from "../../utils/Interact";
+import { mapAdaptiveFormatsToRequired } from "../../utils/praserHelpers";
 
 type NavigationProp = RouteProp<
     RootStackParamList,
@@ -37,7 +42,7 @@ type navStack = NativeStackNavigationProp<
 export default function VideoPlayerScreen() {
     const route = useRoute<NavigationProp>();
     const navigation = useNavigation<navStack>();
-
+    const { MyNativeModule } = NativeModules;
     const { mindex } = route.params;
     const [showFlatList, setFlatList] = useState(true)
     const [mediaUrl, setMediaUrl] = useState("")
@@ -49,8 +54,13 @@ export default function VideoPlayerScreen() {
     const [currentChannelSubcriberNo, setCurrentChanelSubscriberNo] = useState(0)
     const [currentVideoLikes, setCurrentVideoLikes] = useState(0)
     const [currentVideoDisLikes, setCurrentVideoDisLikes] = useState(0)
-
-
+    const [modalVisible, setModalVisible] = useState(false);
+    const screenHeight = Dimensions.get('window').height;
+    const slideAnim = React.useRef(new Animated.Value(screenHeight)).current;
+    const [selectedVideo, setSelectedVideo] = useState<Video>();
+    const [requiredFmts, setRequiredFmts] = useState<AskFormatModel[]>([]);
+    const { addDownloadItem, updateItem } = DownloadsStore();
+    const [currentVideo,setCurrentVideo]=useState<Video>();
 
 
     const {
@@ -59,7 +69,7 @@ export default function VideoPlayerScreen() {
         continuation,
         setContinuation,
         query,
-        addSeenVideoId, seenVideosIds
+        addSeenVideoId, seenVideosIds,
     } = useVideoStore();
     const [isLoading, setLoading] = useState(true);
 
@@ -79,6 +89,9 @@ export default function VideoPlayerScreen() {
 
         try {
             const requiredVideoId = totalVideos[index].videoId
+            if(totalVideos[index].type=="video"){
+               setCurrentVideo(totalVideos[index])
+            }
             setCurrentVideoId(requiredVideoId)
             const result = await getIosPlayerResponse(requiredVideoId);
             const streamingData = result.streamingData
@@ -148,48 +161,134 @@ export default function VideoPlayerScreen() {
             setLoading(false);
         }
     };
-    const ITEM_HEIGHT = 280; // for example, video image 200 + padding + text
+
+    const openModal = () => {
+        setModalVisible(true);
+        Animated.timing(slideAnim, {
+            toValue: 0,
+            duration: 300,
+            useNativeDriver: true,
+        }).start();
+    };
+
+    const closeModal = () => {
+        Animated.timing(slideAnim, {
+            toValue: screenHeight,
+            duration: 300,
+            useNativeDriver: true,
+        }).start(() => setModalVisible(false));
+    };
+
+    const mhandleFormatSelect = (itag: number) => {
+        if (selectedVideo != undefined) {
+            const { selectedVideoFmt, selectedAudioFmt } = getSelectedFormats(itag, requiredFmts);
+            const videoInformation = JSON.stringify(selectedVideoFmt);
+            const audioInformation = JSON.stringify(selectedAudioFmt);
+
+            const DownloadItmm: DownloadItem = {
+                transferInfo: "Initiating",
+                progressPercent: 0,
+                isFinished: false,
+                isStopped: false,
+                speed: "500KB/s",
+                message: "Video",
+                video: selectedVideo
+            }
+
+            addDownloadItem(DownloadItmm,0);
+
+            MyNativeModule.native_fileDownloader(videoInformation, audioInformation, selectedVideo.videoId, txt2filename(selectedVideo.title));
+
+
+
+        }
+    }
+
+    const handleThreeDotClick = async (item: Video) => {
+
+        setSelectedVideo(item);
+
+        const response = await getStreamingData(item.videoId);
+        const streamingData = response.playerResponse.streamingData;
+        const adaptiveFormats = streamingData.adaptiveFormats || streamingData.adaptiveFromats;
+
+
+        const mappedFmts = mapAdaptiveFormatsToRequired(adaptiveFormats); // your helper
+
+        setRequiredFmts(mappedFmts); // update state with formats
+        openModal();
+    };
+
+
+
+
     return (
         <SafeAreaView style={styles.container}>
             <Player url={mediaUrl} toggleFlatList={toggleFlatList} videoId={currentVideoId} />
 
             {
-                showFlatList ? <FlatList
-                    data={totalVideos}
-                    keyExtractor={(_, index) => index.toString()}
-                    ListHeaderComponent={<VideoDetails title={currentVideoTitle} channelName={currentVideoChannelName} viewsAndUploaded={currentVideoViewsAndUploadDate} channelPhoto={currentChannelPhoto} />}
-                    renderItem={({ item, index }) => {
-                        if (item.type === "video") {
-                            return <VideoItemView item={item} progress={0} onItemPress={() => fetchStreamingData(index)} />;
-                        } else {
-                            return (
-                                <View style={styles.shortParentContainer}>
-                                    <ShortsHeader />
-                                    <FlatList
-                                        data={item.videos}
-                                        horizontal
-                                        keyExtractor={(short) => short.videoId}
-                                        renderItem={({ item: short }) => <ShortsItemView item={short} onItemPress={() =>navigation.navigate("ShortsPlayerScreen",{
-                                            mindex:index,shortIndex:item.videos.indexOf(short)
-                                        }) } />}
-                                        showsHorizontalScrollIndicator={false}
-                                        contentContainerStyle={styles.shortsContainer}
-                                    />
-                                </View>
-                            );
+                showFlatList ? <View>
+                    <FlatList
+                        data={totalVideos}
+                        keyExtractor={(_, index) => index.toString()}
+                        ListHeaderComponent={
+                            <VideoDetails title={currentVideoTitle}
+                                channelName={currentVideoChannelName}
+                                viewsAndUploaded={currentVideoViewsAndUploadDate}
+                                channelPhoto={currentChannelPhoto} onDownloadPress={() =>handleThreeDotClick(currentVideo!!)} />
                         }
-                    }}
-                    getItemLayout={(data, index) => (
-                        { length: ITEM_HEIGHT, offset: ITEM_HEIGHT * index, index }
-                    )}
-                    initialScrollIndex={mindex}
-                    contentContainerStyle={{ gap: 10, marginTop: 10 }}
-                    onEndReached={fetchVideos}
-                    onEndReachedThreshold={0.5}
-                    ListFooterComponent={
-                        isLoading ? <ActivityIndicator size="large" color="red" style={{ margin: 20 }} /> : null
-                    }
-                /> : <View />
+                        renderItem={({ item, index }) => {
+                            if (item.type === "video") {
+                                return <VideoItemView item={item} progress={0} onItemPress={() => fetchStreamingData(index)} onDownload={() =>handleThreeDotClick(currentVideo!!)} />;
+                            } else {
+                                return (
+                                    <View style={styles.shortParentContainer}>
+                                        <ShortsHeader />
+                                        <FlatList
+                                            data={item.videos}
+                                            horizontal
+                                            keyExtractor={(short) => short.videoId}
+                                            renderItem={({ item: short }) => <ShortsItemView item={short} onItemPress={() => navigation.navigate("ShortsPlayerScreen", {
+                                                mindex: index, shortIndex: item.videos.indexOf(short)
+                                            })} />}
+                                            showsHorizontalScrollIndicator={false}
+                                            contentContainerStyle={styles.shortsContainer}
+                                        />
+                                    </View>
+                                );
+                            }
+                        }}
+                        contentContainerStyle={{ gap: 10, marginTop: 10 }}
+                        onEndReached={fetchVideos}
+                        onEndReachedThreshold={0.5}
+                        ListFooterComponent={
+                            isLoading ? <ActivityIndicator size="large" color="red" style={{ margin: 20 }} /> : null
+                        }
+                    />
+                    <Modal
+                        transparent
+                        visible={modalVisible}
+                        animationType="none"
+                        onRequestClose={closeModal}
+                    >
+
+                        <TouchableOpacity style={styles.modalOverlay} activeOpacity={1} onPress={closeModal} />
+
+                        <Animated.View
+                            style={[
+                                styles.bottomSheet,
+                                {
+                                    height: screenHeight / 2, // Half screen height
+                                    transform: [{ translateY: slideAnim }],
+                                }
+                            ]}
+                        >
+                            <AskFormat onFormatSelection={(itag) => mhandleFormatSelect(itag)} closeRequest={closeModal} videoTitle={selectedVideo?.title ?? ""}
+                                requiredFormats={requiredFmts} />
+                        </Animated.View>
+
+                    </Modal>
+                </View> : <View />
             }
 
 
@@ -210,6 +309,25 @@ const styles = StyleSheet.create({
     },
     shortParentContainer: {
         paddingLeft: 20,
+    },
+    modalOverlay: {
+        flex: 1,
+        backgroundColor: '#00000066',
+    },
+    bottomSheet: {
+        position: 'absolute',
+        bottom: 0,
+        left: 0,
+        right: 0,
+        backgroundColor: 'white',
+        padding: 10,
+        borderTopLeftRadius: 16,
+        borderTopRightRadius: 16,
+        elevation: 10,
+        shadowColor: '#000',
+        shadowOffset: { width: 0, height: -3 },
+        shadowOpacity: 0.3,
+        shadowRadius: 4,
     },
 
 

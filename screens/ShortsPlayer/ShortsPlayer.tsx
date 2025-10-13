@@ -1,4 +1,8 @@
-import { StyleSheet, Text, View, Pressable, ActivityIndicator, Animated, TouchableOpacity } from 'react-native'
+import {
+    StyleSheet, Text, View, Pressable,
+    ActivityIndicator, Animated, TouchableOpacity,
+    Dimensions, Modal, NativeModules
+} from 'react-native'
 import React, { useEffect, useState } from 'react'
 import { useVideoStore } from '../../utils/Store';
 import { RootStackParamList } from '../../App';
@@ -11,22 +15,52 @@ import { getIosPlayerResponse } from '../../utils/EndPoints';
 import RightControls from './RightControls';
 import BottomControls from './BottomControls';
 import { NativeStackNavigationProp } from "@react-navigation/native-stack";
+import type { Video as VideoType } from "../../utils/types";
 type NavigationProp = RouteProp<RootStackParamList, "ShortsPlayerScreen">;
-
+import AskFormat from '../HomeScreen/widgets/AskFormat/AskFormat';
+import { AskFormatModel } from "../../utils/types";
+import { mapAdaptiveFormatsToRequired } from "../../utils/praserHelpers";
+import { getSelectedFormats } from "../../utils/downloadFunctions";
+import { DownloadItem } from '../../utils/types';
+import { txt2filename, getStreamingData } from '../../utils/Interact';
 type Navstack = NativeStackNavigationProp<RootStackParamList, "BottomNav">;
+import { DownloadsStore } from '../../utils/Store';
 
 export default function ShortsPlayer() {
     const route = useRoute<NavigationProp>();
     const navigation = useNavigation<Navstack>();
     const { mindex, shortIndex } = route.params;
     const [currentVideoId, setCurrentVideoId] = useState("")
-
-
+    const { addDownloadItem, updateItem } = DownloadsStore();
     const { totalVideos } = useVideoStore();
     const [mediaUrl, setMediaUrl] = useState("");
     const [paused, setPaused] = useState(false);
     const [showIcon, setShowIcon] = useState(false);
     const [buffering, setBuffering] = useState(false);
+    const [currentVideo, setCurrentVideo] = useState<VideoType>();
+    const screenHeight = Dimensions.get('window').height;
+    const slideAnim = React.useRef(new Animated.Value(screenHeight)).current;
+    const [modalVisible, setModalVisible] = useState(false);
+    const { MyNativeModule } = NativeModules;
+    const [requiredFmts, setRequiredFmts] = useState<AskFormatModel[]>([]);
+
+
+    const openModal = () => {
+        setModalVisible(true);
+        Animated.timing(slideAnim, {
+            toValue: 0,
+            duration: 300,
+            useNativeDriver: true,
+        }).start();
+    };
+
+    const closeModal = () => {
+        Animated.timing(slideAnim, {
+            toValue: screenHeight,
+            duration: 300,
+            useNativeDriver: true,
+        }).start(() => setModalVisible(false));
+    };
 
 
     const fetchStreamingData = async (videoId: string) => {
@@ -40,8 +74,9 @@ export default function ShortsPlayer() {
     };
 
     useEffect(() => {
-        const requiredGroup=totalVideos[mindex]
-        if(requiredGroup.type=="shorts"){
+        const requiredGroup = totalVideos[mindex]
+        if (requiredGroup.type == "shorts") {
+            setCurrentVideo(requiredGroup.videos[shortIndex]);
             fetchStreamingData(requiredGroup.videos[shortIndex].videoId);
         }
     }, [totalVideos, mindex]);
@@ -52,6 +87,48 @@ export default function ShortsPlayer() {
         setShowIcon(true);
         setTimeout(() => setShowIcon(false), 800); // icon disappears after 0.8s
     }
+
+    const mhandleFormatSelect = (itag: number) => {
+        if (currentVideo != undefined) {
+            const { selectedVideoFmt, selectedAudioFmt } = getSelectedFormats(itag, requiredFmts);
+            const videoInformation = JSON.stringify(selectedVideoFmt);
+            const audioInformation = JSON.stringify(selectedAudioFmt);
+
+            const DownloadItmm: DownloadItem = {
+                transferInfo: "Initiating",
+                progressPercent: 0,
+                isFinished: false,
+                isStopped: false,
+                speed: "500KB/s",
+                message: "Video",
+                video: currentVideo
+            }
+
+            addDownloadItem(DownloadItmm);
+
+            MyNativeModule.native_fileDownloader(videoInformation, audioInformation, currentVideo.videoId, txt2filename(currentVideo.title));
+
+
+
+        }
+    }
+
+    const handleThreeDotClick = async (item: VideoType) => {
+        setCurrentVideo(item);
+
+        const response = await getStreamingData(item.videoId);
+        const streamingData = response.playerResponse.streamingData;
+        const adaptiveFormats = streamingData.adaptiveFormats || streamingData.adaptiveFromats;
+
+
+        const mappedFmts = mapAdaptiveFormatsToRequired(adaptiveFormats); // your helper
+
+        setRequiredFmts(mappedFmts); // update state with formats
+        openModal();
+    };
+
+
+
 
     return (
         <SafeAreaView style={styles.root}>
@@ -96,9 +173,33 @@ export default function ShortsPlayer() {
                     </View>
                 )}
 
-                <RightControls />
+                <RightControls onDownload={() => handleThreeDotClick(currentVideo!!)} />
                 <BottomControls />
             </View>
+            <Modal
+                transparent
+                visible={modalVisible}
+                animationType="none"
+                onRequestClose={closeModal}
+            >
+
+                <TouchableOpacity style={styles.modalOverlay} activeOpacity={1} onPress={closeModal} />
+
+                <Animated.View
+                    style={[
+                        styles.bottomSheet,
+                        {
+                            height: screenHeight / 2, // Half screen height
+                            transform: [{ translateY: slideAnim }],
+                        }
+                    ]}
+                >
+                    <AskFormat onFormatSelection={(itag) => mhandleFormatSelect(itag)} closeRequest={closeModal} videoTitle={currentVideo?.title ?? ""}
+                        requiredFormats={requiredFmts} />
+                </Animated.View>
+
+            </Modal>
+
         </SafeAreaView>
     )
 }
@@ -126,5 +227,24 @@ const styles = StyleSheet.create({
         left: '45%',
         justifyContent: 'center',
         alignItems: 'center',
-    }
+    },
+    modalOverlay: {
+        flex: 1,
+        backgroundColor: '#00000066',
+    },
+    bottomSheet: {
+        position: 'absolute',
+        bottom: 0,
+        left: 0,
+        right: 0,
+        backgroundColor: 'white',
+        padding: 10,
+        borderTopLeftRadius: 16,
+        borderTopRightRadius: 16,
+        elevation: 10,
+        shadowColor: '#000',
+        shadowOffset: { width: 0, height: -3 },
+        shadowOpacity: 0.3,
+        shadowRadius: 4,
+    },
 });

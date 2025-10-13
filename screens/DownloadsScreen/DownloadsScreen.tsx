@@ -1,5 +1,5 @@
 import { FlatList, StyleSheet } from 'react-native'
-import React from 'react'
+import React, { useEffect } from 'react'
 import TopBar from './widgets/TopBar'
 import { SafeAreaView } from 'react-native-safe-area-context'
 import DownloadItem from './widgets/DownloadItem'
@@ -17,7 +17,7 @@ type navStack = NativeStackNavigationProp<
 
 export default function DownloadsScreen() {
     const navigation = useNavigation<navStack>();
-    const { totalDownloads, addDownloadItem,updateItem, updateFinished, updateStopped } = DownloadsStore();
+    const { totalDownloads } = DownloadsStore();
     return (
         <SafeAreaView style={styles.root}>
             <TopBar onLensPress={() => console.log("ranjan")} onBackPress={() => navigation.goBack()} />
@@ -26,9 +26,9 @@ export default function DownloadsScreen() {
                 keyExtractor={(item) => item.video.videoId}
                 renderItem={({ item }) => <DownloadItemView item={item} />}
                 contentContainerStyle={{
-                    marginTop:10,
-                    paddingHorizontal:10,
-                    gap:6
+                    marginTop: 10,
+                    paddingHorizontal: 10,
+                    gap: 12
                 }}
             />
         </SafeAreaView>

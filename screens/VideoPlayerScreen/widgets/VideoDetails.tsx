@@ -8,10 +8,11 @@ type Props={
     title:string,
     viewsAndUploaded:string,
     channelName:string,
-    channelPhoto:string
+    channelPhoto:string,
+    onDownloadPress:()=>void
 
 }
-export default function VideoDetails({title,viewsAndUploaded,channelName,channelPhoto}:Props) {
+export default function VideoDetails({title,viewsAndUploaded,channelName,channelPhoto,onDownloadPress}:Props) {
     return (
         <View style={styles.root}>
             <View style={styles.title}>
@@ -38,7 +39,7 @@ export default function VideoDetails({title,viewsAndUploaded,channelName,channel
                 </Text>
 
             </View>
-            <ActionButtons />
+            <ActionButtons onDownloadPress={()=>onDownloadPress()} />
             <ChannelDetails channelName={channelName} channelPhoto={channelPhoto}/>
 
             <View style={styles.commentBlock}>

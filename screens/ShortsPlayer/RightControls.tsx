@@ -2,7 +2,11 @@ import { StyleSheet, Text, View, TouchableOpacity, Image } from 'react-native'
 import React from 'react'
 import Icon from 'react-native-vector-icons/Ionicons';
 
-export default function RightControls() {
+type Props={
+    onDownload:()=>void
+}
+
+export default function RightControls({onDownload}:Props) {
     return (
         <View style={styles.rightControls}>
             <TouchableOpacity style={styles.button}>
@@ -24,7 +28,7 @@ export default function RightControls() {
                 <Text style={styles.text}>45</Text>
             </TouchableOpacity>
 
-            <TouchableOpacity style={styles.button}>
+            <TouchableOpacity style={styles.button} onPress={()=>onDownload()}>
                 <Image source={require("../../assets/shortsIcons/shareWhite.png")} style={styles.rightIconsBig} />
                 <Text style={styles.text}>Share</Text>
             </TouchableOpacity>

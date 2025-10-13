@@ -48,7 +48,7 @@ export interface DownloadItem {
 
 export interface DownloadStoreModel {
   totalDownloads: DownloadItem[];
-  addDownloadItem: (item: DownloadItem) => void;
+  addDownloadItem: (item: DownloadItem,index:number) => void;
   updateItem: (
     videoId: string,
     updates: Partial<Pick<DownloadItem, 'speed' | 'transferInfo' |'progressPercent'|"message">>

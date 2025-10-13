@@ -195,7 +195,7 @@ class DashedWriter(file: File, val sources: List<DashedParser>, val progress: (S
 
                     if (globalSampleCount - lastProgressReport >= 2000 || globalSampleCount == totalSamples) {
                         val percent = (globalSampleCount * 100 / totalSamples)
-                        progress("$globalSampleCount/$totalSamples",percent)
+                        progress("$globalSampleCount/$totalSamples Samples",percent)
                         lastProgressReport = globalSampleCount
                     }
                 }

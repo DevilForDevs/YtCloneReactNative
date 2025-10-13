@@ -1,7 +1,11 @@
 import { StyleSheet, Text, View, TouchableOpacity, Image } from 'react-native'
 import React from 'react'
 
-export default function ActionButtons() {
+
+type Props={
+    onDownloadPress:()=>void
+}
+export default function ActionButtons({onDownloadPress}:Props) {
     return (
         <View style={styles.actionbtns}>
             <TouchableOpacity>
@@ -22,7 +26,7 @@ export default function ActionButtons() {
                     <Text style={{ fontFamily: "Roboto-Regular", fontSize: 14 }} >Share</Text>
                 </View>
             </TouchableOpacity>
-            <TouchableOpacity>
+            <TouchableOpacity onPress={()=>onDownloadPress()}>
                 <View>
                     <Image source={require("../../../assets/actionIcons/downloadbtn.png")} style={styles.actionIcon} />
                     <Text style={{ fontFamily: "Roboto-Regular", fontSize: 14 }}>Download</Text>

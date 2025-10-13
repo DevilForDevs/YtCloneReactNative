@@ -31,16 +31,24 @@ export const useVideoStore = create<VideoStore>((set) => ({
 }))
 
 
-function addDownloadItemF(state: DownloadStoreModel, item: DownloadItem) {
+function addDownloadItemF(
+  state: DownloadStoreModel,
+  item: DownloadItem,
+  index: number
+) {
+  const newDownloads = [...state.totalDownloads];
+  newDownloads.splice(index, 0, item); // insert at index
+
   return {
-    totalDownloads: [...state.totalDownloads, item],
+    totalDownloads: newDownloads,
   };
 }
+
 
 export const DownloadsStore = create<DownloadStoreModel>((set) => ({
   totalDownloads: [],
 
-  addDownloadItem: (item) => set((state) => addDownloadItemF(state, item)),
+  addDownloadItem: (item,index) => set((state) => addDownloadItemF(state, item,index)),
 
   updateItem: (videoId, updates) =>
     set((state) => ({
@@ -49,12 +57,12 @@ export const DownloadsStore = create<DownloadStoreModel>((set) => ({
       ),
     })),
 
-  
+
 
   updateFinished: (videoId, isFinished) =>
     set((state) => ({
       totalDownloads: state.totalDownloads.map((item) =>
-        item.video.videoId ===videoId ? { ...item, isFinished } : item
+        item.video.videoId === videoId ? { ...item, isFinished } : item
       ),
     })),
 
