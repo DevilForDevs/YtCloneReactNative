@@ -25,7 +25,8 @@ export async function createDownloadsTable(db: SQLiteDatabase): Promise<void> {
       folder TEXT,
       videoId TEXT,
       isFinished INTEGER,
-      isMuxed INTEGER
+      isMuxed INTEGER,
+      duration TEXT
     );
   `;
     await db.executeSql(query);
@@ -49,11 +50,12 @@ export async function addDownload(
     folder: string,
     videoId: string,
     isMuxed: number,
-    isFinished: number
+    isFinished: number,
+    duration:string
 ): Promise<number> {
     const result = await db.executeSql(
-        'INSERT INTO downloads (title, folder, videoId, isFinished, isMuxed) VALUES (?, ?, ?, ?, ?)',
-        [title, folder, videoId, isFinished, isMuxed]
+        'INSERT INTO downloads (title, folder, videoId, isFinished, isMuxed, duration) VALUES (?, ?, ?, ?, ?, ?)',
+        [title, folder, videoId, isFinished, isMuxed,duration]
     );
 
     // ResultSet.insertId gives the auto-generated ID

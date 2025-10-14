@@ -22,7 +22,7 @@ export default function SearchScreen() {
         if (loading) return;
         setLoading(true);
         try {
-            const result = await sendYoutubeSearchRequest(query,"", "8AEB");
+            const result = await sendYoutubeSearchRequest(query, "", "8AEB");
             const shortsAndVideos = result.videos;
             const token = result.continuation;
 
@@ -64,12 +64,19 @@ export default function SearchScreen() {
 
 
     const handleSubmit = async () => {
-        setQuery(query)
-        setContinuation("")
-        clearVideos()
-        clearSeenVideosIds()
-        await fetchVideos()
-        navigation.goBack()
+        if (query.includes("playlist?list=")) {
+            navigation.navigate("PlaylistScreen", {
+                playlistlink: query
+            })
+        } else {
+            setQuery(query)
+            setContinuation("")
+            clearVideos()
+            clearSeenVideosIds()
+            await fetchVideos()
+            navigation.goBack()
+
+        }
 
 
     }

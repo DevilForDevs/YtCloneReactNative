@@ -1,6 +1,6 @@
 import { deepGet } from "./praserHelpers";
 import { Video, ShortVideo, SearchResponse } from "./types";
-import { generateContentPlaybackNonce,generateTParameter } from "./misfunction";
+import { generateContentPlaybackNonce, generateTParameter } from "./misfunction";
 // Build a Video object from JSON
 function createVideoTree(videoRenderer: Record<string, unknown>): Video {
   const videoId = videoRenderer["videoId"] as string;
@@ -47,7 +47,7 @@ function createVideoTree(videoRenderer: Record<string, unknown>): Video {
 function parseShorts(shorts: unknown[]): ShortVideo {
   const result: Video[] = [];
 
-  var sampleShortGroupId="grop1"
+  var sampleShortGroupId = "grop1"
 
   for (const s of shorts) {
     const short = deepGet(s, "shortsLockupViewModel") as Record<string, unknown>;
@@ -76,7 +76,7 @@ function parseShorts(shorts: unknown[]): ShortVideo {
       "content"
     ) as string;
 
-    sampleShortGroupId=videoId
+    sampleShortGroupId = videoId
 
     // wrap each short as Video
     const video: Video = {
@@ -89,7 +89,7 @@ function parseShorts(shorts: unknown[]): ShortVideo {
     result.push(video);
   }
 
-  return {type:"shorts",videoId:"randomVideoId",videos:result};
+  return { type: "shorts", videoId: "randomVideoId", videos: result };
 }
 
 // Parse videos & nested structures
@@ -112,7 +112,7 @@ function parseVideos(items: unknown[], totalVideos: (Video | ShortVideo)[]) {
       if (vr2) parseVideos(vr2, totalVideos);
     } else if ("gridShelfViewModel" in obj) {
       const shorts = deepGet(obj, "gridShelfViewModel", "contents") as unknown[];
-      const parsedShorts=parseShorts(shorts)
+      const parsedShorts = parseShorts(shorts)
       totalVideos.push(parsedShorts);
     }
   }
@@ -283,5 +283,9 @@ export async function getIosPlayerResponse(videoId: string): Promise<any> {
   });
 
   return res.json();
+}
+
+export async function playlistFromUrl(url:string) {
+
 }
 

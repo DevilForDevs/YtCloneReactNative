@@ -11,7 +11,6 @@ import { formatSeconds } from '../../../utils/misfunction';
 type Props = {
     url: string,
     toggleFlatList: () => void;
-
     videoId: string
 
 
@@ -25,6 +24,8 @@ export default function Player({ url, toggleFlatList, videoId }: Props) {
     const [isFullscreen, setFullScreen] = useState(false)
     const [showControls, setShowControls] = useState(true)
     const [paused, setPaused] = useState(false);
+
+    
 
     const toggleFullscreen = () => {
         toggleFlatList()
@@ -107,6 +108,7 @@ export default function Player({ url, toggleFlatList, videoId }: Props) {
                     onEnd={onEnd}
                     poster={`https://img.youtube.com/vi/${videoId}/hqdefault.jpg`} // optional poster
                     posterResizeMode="cover"
+
                 />
 
                 <Pressable
@@ -162,7 +164,8 @@ const styles = StyleSheet.create({
         height: 250,
         justifyContent: "center",
         alignItems: "center",
-        resizeMode: "stretch"
+        resizeMode: "stretch",
+        backgroundColor:"black"
     },
     video: {
         ...StyleSheet.absoluteFillObject,

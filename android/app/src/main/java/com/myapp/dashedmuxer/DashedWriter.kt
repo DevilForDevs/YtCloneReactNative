@@ -3,6 +3,7 @@ package com.myapp.dashedmuxer
 import java.io.File
 import java.io.RandomAccessFile
 import java.nio.ByteBuffer
+import java.text.NumberFormat
 
 class DashedWriter(file: File, val sources: List<DashedParser>, val progress: (Samples: String, percent: Int) -> Unit = { _, _ -> } ){
 
@@ -192,10 +193,13 @@ class DashedWriter(file: File, val sources: List<DashedParser>, val progress: (S
 
                     // ✅ Count and throttle progress
                     globalSampleCount++
+                    val numberFormatter = NumberFormat.getInstance()
 
                     if (globalSampleCount - lastProgressReport >= 2000 || globalSampleCount == totalSamples) {
                         val percent = (globalSampleCount * 100 / totalSamples)
-                        progress("$globalSampleCount/$totalSamples Samples",percent)
+                        val formattedCurrent = numberFormatter.format(globalSampleCount)
+                        val formattedTotal = numberFormatter.format(totalSamples)
+                        progress("$formattedCurrent/$formattedTotal Samples", percent)
                         lastProgressReport = globalSampleCount
                     }
                 }

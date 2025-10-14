@@ -28,6 +28,8 @@ import { DownloadsStore } from "../../utils/Store";
 import { DownloadItem } from "../../utils/types";
 import { txt2filename, getStreamingData } from "../../utils/Interact";
 import { mapAdaptiveFormatsToRequired } from "../../utils/praserHelpers";
+import { SQLiteDatabase } from 'react-native-sqlite-storage';
+import { addDownload, createDownloadsTable, initDB, loadDownloads } from "../../utils/dbfunctions";
 
 type NavigationProp = RouteProp<
     RootStackParamList,
@@ -60,7 +62,9 @@ export default function VideoPlayerScreen() {
     const [selectedVideo, setSelectedVideo] = useState<Video>();
     const [requiredFmts, setRequiredFmts] = useState<AskFormatModel[]>([]);
     const { addDownloadItem, updateItem } = DownloadsStore();
-    const [currentVideo,setCurrentVideo]=useState<Video>();
+    const [currentVideo, setCurrentVideo] = useState<Video>();
+    const [db, setDb] = useState<SQLiteDatabase | null>(null);
+
 
 
     const {
@@ -89,8 +93,8 @@ export default function VideoPlayerScreen() {
 
         try {
             const requiredVideoId = totalVideos[index].videoId
-            if(totalVideos[index].type=="video"){
-               setCurrentVideo(totalVideos[index])
+            if (totalVideos[index].type == "video") {
+                setCurrentVideo(totalVideos[index])
             }
             setCurrentVideoId(requiredVideoId)
             const result = await getIosPlayerResponse(requiredVideoId);
@@ -113,6 +117,7 @@ export default function VideoPlayerScreen() {
     };
 
     useEffect(() => {
+        loadDb()
         fetchStreamingData(mindex);
     }, [totalVideos, mindex]);
 
@@ -179,7 +184,15 @@ export default function VideoPlayerScreen() {
         }).start(() => setModalVisible(false));
     };
 
-    const mhandleFormatSelect = (itag: number) => {
+    async function loadDb() {
+        if (db == null) {
+            const dbInstance = await initDB();
+            await createDownloadsTable(dbInstance);
+            setDb(dbInstance);
+        }
+    }
+
+    const mhandleFormatSelect = async (itag: number) => {
         if (selectedVideo != undefined) {
             const { selectedVideoFmt, selectedAudioFmt } = getSelectedFormats(itag, requiredFmts);
             const videoInformation = JSON.stringify(selectedVideoFmt);
@@ -192,14 +205,23 @@ export default function VideoPlayerScreen() {
                 isStopped: false,
                 speed: "500KB/s",
                 message: "Video",
-                video: selectedVideo
+                video: {
+                    ...selectedVideo,
+                    title: videoInformation != audioInformation ? `${txt2filename(selectedVideo.title)}(${selectedVideoFmt.info}).mp4` : `${txt2filename(selectedVideo.title)}.mp3`
+                }
             }
 
-            addDownloadItem(DownloadItmm,0);
+            const prasedFileName = txt2filename(selectedVideo.title);
+            if (videoInformation == audioInformation) {
+                const insertedId = await addDownload(db, prasedFileName + ".mp3", "music", selectedVideo.videoId, 0, 0, selectedVideo.duration!!);
+                addDownloadItem(DownloadItmm, 0);
 
-            MyNativeModule.native_fileDownloader(videoInformation, audioInformation, selectedVideo.videoId, txt2filename(selectedVideo.title));
-
-
+            } else {
+                const insertedId = await addDownload(db, `${prasedFileName}(${selectedVideoFmt.info}).mp4`, "movies", selectedVideo.videoId, 0, 0, selectedVideo.duration!!);
+                addDownloadItem(DownloadItmm, 0);
+                console.log(insertedId);
+            }
+            MyNativeModule.native_fileDownloader(videoInformation, audioInformation, selectedVideo.videoId, prasedFileName);
 
         }
     }
@@ -235,11 +257,11 @@ export default function VideoPlayerScreen() {
                             <VideoDetails title={currentVideoTitle}
                                 channelName={currentVideoChannelName}
                                 viewsAndUploaded={currentVideoViewsAndUploadDate}
-                                channelPhoto={currentChannelPhoto} onDownloadPress={() =>handleThreeDotClick(currentVideo!!)} />
+                                channelPhoto={currentChannelPhoto} onDownloadPress={() => handleThreeDotClick(currentVideo!!)} />
                         }
                         renderItem={({ item, index }) => {
                             if (item.type === "video") {
-                                return <VideoItemView item={item} progress={0} onItemPress={() => fetchStreamingData(index)} onDownload={() =>handleThreeDotClick(currentVideo!!)} />;
+                                return <VideoItemView item={item} progress={0} onItemPress={() => fetchStreamingData(index)} onDownload={() => handleThreeDotClick(currentVideo!!)} />;
                             } else {
                                 return (
                                     <View style={styles.shortParentContainer}>

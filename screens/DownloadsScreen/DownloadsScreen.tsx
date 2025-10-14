@@ -20,11 +20,13 @@ export default function DownloadsScreen() {
     const { totalDownloads } = DownloadsStore();
     return (
         <SafeAreaView style={styles.root}>
-            <TopBar onLensPress={() => console.log("ranjan")} onBackPress={() => navigation.goBack()} />
+            <TopBar onLensPress={() => navigation.navigate("SearchScreen")} onBackPress={() => navigation.goBack()} />
             <FlatList
                 data={totalDownloads}
                 keyExtractor={(item) => item.video.videoId}
-                renderItem={({ item }) => <DownloadItemView item={item} />}
+                renderItem={({ item }) => <DownloadItemView item={item} onItemPress={() => navigation.navigate("OfflinePlayer", {
+                    downloadIndex: totalDownloads.indexOf(item)
+                })} />}
                 contentContainerStyle={{
                     marginTop: 10,
                     paddingHorizontal: 10,

@@ -29,7 +29,7 @@ export default function TopConrols() {
 const styles = StyleSheet.create({
     topControls: {
         position: "absolute",
-        top: 10,
+        top: 15,
         left: 0,
         paddingHorizontal: 10,
         paddingVertical: 10,

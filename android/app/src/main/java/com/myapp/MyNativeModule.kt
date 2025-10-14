@@ -136,7 +136,7 @@ class MyNativeModule(private val reactContext: ReactApplicationContext) :
                             if (samples == "Finished") {
 
                                 backThread.launch(Dispatchers.Main) {
-                                  sendProgressUpdate(videoId,"Finished", 100, "500KB/s", "Merging")
+                                  sendProgressUpdate(videoId,"${convertBytes2(outputFile.length())}", 100, "500KB/s", "Video")
                                 }
 
                                 audioTempFile.delete()

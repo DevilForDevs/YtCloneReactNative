@@ -25,6 +25,8 @@ import { DownloadItem } from '../../utils/types';
 import { txt2filename, getStreamingData } from '../../utils/Interact';
 type Navstack = NativeStackNavigationProp<RootStackParamList, "BottomNav">;
 import { DownloadsStore } from '../../utils/Store';
+import { SQLiteDatabase } from 'react-native-sqlite-storage';
+import { addDownload, createDownloadsTable, initDB, loadDownloads } from "../../utils/dbfunctions";
 
 export default function ShortsPlayer() {
     const route = useRoute<NavigationProp>();
@@ -43,6 +45,7 @@ export default function ShortsPlayer() {
     const [modalVisible, setModalVisible] = useState(false);
     const { MyNativeModule } = NativeModules;
     const [requiredFmts, setRequiredFmts] = useState<AskFormatModel[]>([]);
+    const [db, setDb] = useState<SQLiteDatabase | null>(null);
 
 
     const openModal = () => {
@@ -73,7 +76,17 @@ export default function ShortsPlayer() {
         }
     };
 
+    async function loadDb() {
+        if (db == null) {
+            const dbInstance = await initDB();
+            await createDownloadsTable(dbInstance);
+            setDb(dbInstance);
+        }
+    }
+
+
     useEffect(() => {
+        loadDb()
         const requiredGroup = totalVideos[mindex]
         if (requiredGroup.type == "shorts") {
             setCurrentVideo(requiredGroup.videos[shortIndex]);
@@ -88,7 +101,7 @@ export default function ShortsPlayer() {
         setTimeout(() => setShowIcon(false), 800); // icon disappears after 0.8s
     }
 
-    const mhandleFormatSelect = (itag: number) => {
+    const mhandleFormatSelect = async (itag: number) => {
         if (currentVideo != undefined) {
             const { selectedVideoFmt, selectedAudioFmt } = getSelectedFormats(itag, requiredFmts);
             const videoInformation = JSON.stringify(selectedVideoFmt);
@@ -101,14 +114,23 @@ export default function ShortsPlayer() {
                 isStopped: false,
                 speed: "500KB/s",
                 message: "Video",
-                video: currentVideo
+                video: {
+                    ...currentVideo,
+                    title: videoInformation != audioInformation ? `${txt2filename(currentVideo.title)}(${selectedVideoFmt.info}).mp4` : `${txt2filename(currentVideo.title)}.mp3`
+                }
             }
 
-            addDownloadItem(DownloadItmm);
+            const prasedFileName = txt2filename(currentVideo.title);
+            if (videoInformation == audioInformation) {
+                const insertedId = await addDownload(db, prasedFileName + ".mp3", "music", currentVideo.videoId, 0, 0, currentVideo.duration!!);
+                addDownloadItem(DownloadItmm, 0);
 
-            MyNativeModule.native_fileDownloader(videoInformation, audioInformation, currentVideo.videoId, txt2filename(currentVideo.title));
-
-
+            } else {
+                const insertedId = await addDownload(db, `${prasedFileName}(${selectedVideoFmt.info}).mp4`, "movies", currentVideo.videoId, 0, 0, currentVideo.duration!!);
+                addDownloadItem(DownloadItmm, 0);
+                console.log(insertedId);
+            }
+            MyNativeModule.native_fileDownloader(videoInformation, audioInformation, currentVideo.videoId, prasedFileName);
 
         }
     }

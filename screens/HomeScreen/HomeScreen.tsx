@@ -118,7 +118,7 @@ export default function HomeScreen() {
   };
 
 
- 
+
 
   async function loadInfoFromDb() {
     if (db == null) {
@@ -126,54 +126,73 @@ export default function HomeScreen() {
       await createDownloadsTable(dbInstance);
       const downloadItems = await loadDownloads(dbInstance);
       setDb(dbInstance);
-
-      for (const element of downloadItems) {
-        var mediaType="Video"
-        if(element.folder=="movies"){
-          mediaType="Video"
-        }else{
-          mediaType="Audio"
-        }
-        const vid: Video = {
-          videoId: element.videoId,
-          title: element.title,
-          views: mediaType,
-          type: "video",
-        };
-
-        let fileSize = 0;
-
-        try {
-          if (element.folder === "movies") {
-            const movieDir = RNFS.ExternalStorageDirectoryPath + '/Movies';
-            const filePath = `${movieDir}/${element.title}`;
-
-            // Check if file exists
-            const exists = await RNFS.exists(filePath);
-            if (exists) {
-              const stats = await RNFS.stat(filePath);
-              fileSize = Number(stats.size);
-            } else {
-              console.warn("File not found:", filePath);
-            }
+      if (totalVideos.length == 0) {
+        for (const element of downloadItems) {
+          var mediaType = "Video"
+          if (element.folder == "movies") {
+            mediaType = "Video"
+          } else {
+            mediaType = "Audio"
           }
-        } catch (error) {
-          console.error("Error reading file size:", error);
+          const vid: Video = {
+            videoId: element.videoId,
+            title: element.title,
+            views: mediaType,
+            type: "video",
+            duration: element.duration
+          };
+
+          let fileSize = 0;
+
+          
+
+          try {
+            if (element.folder === "movies") {
+              const movieDir = RNFS.ExternalStorageDirectoryPath + '/Movies';
+              const filePath = `${movieDir}/${element.title}`;
+
+              // Check if file exists
+              const exists = await RNFS.exists(filePath);
+              if (exists) {
+                const stats = await RNFS.stat(filePath);
+                fileSize = Number(stats.size);
+              }
+            } else {
+              const movieDir = RNFS.ExternalStorageDirectoryPath + '/Music';
+              const filePath = `${movieDir}/${element.title}`;
+
+              // Check if file exists
+              const exists = await RNFS.exists(filePath);
+              if (exists) {
+                const stats = await RNFS.stat(filePath);
+                fileSize = Number(stats.size);
+              } else {
+                console.warn("File not found:", filePath);
+              }
+            }
+
+          } catch (error) {
+            console.error("Error reading file size:", error);
+          }
+
+          const rDownloadItem: DownloadItem = {
+            video: vid,
+            speed: "Finished",
+            isFinished: true,
+            isStopped: false,
+            transferInfo: convertBytes(fileSize),
+            progressPercent: 100,
+            message: "Finished",
+          };
+
+
+
+          // Insert item into your store at index 0
+          addDownloadItem(rDownloadItem, 0);
         }
-
-        const rDownloadItem: DownloadItem = {
-          video: vid,
-          speed: "Finished",
-          isFinished: true,
-          isStopped: false,
-          transferInfo: convertBytes(fileSize),
-          progressPercent: 100,
-          message: "Finished",
-        };
-
-        // Insert item into your store at index 0
-        addDownloadItem(rDownloadItem, 0);
       }
+
+
     }
   }
 
@@ -233,17 +252,19 @@ export default function HomeScreen() {
         isStopped: false,
         speed: "500KB/s",
         message: "Video",
-        video: selectedVideo
+        video: {
+          ...selectedVideo,
+          title: videoInformation != audioInformation ? `${txt2filename(selectedVideo.title)}(${selectedVideoFmt.info}).mp4` : `${txt2filename(selectedVideo.title)}.mp3`
+        }
       }
-      console.log(videoInformation);
+
       const prasedFileName = txt2filename(selectedVideo.title);
       if (videoInformation == audioInformation) {
-        const insertedId = await addDownload(db, prasedFileName + ".mp3", "movies", selectedVideo.videoId, 0, 0);
+        const insertedId = await addDownload(db, prasedFileName + ".mp3", "music", selectedVideo.videoId, 0, 0, selectedVideo.duration!!);
         addDownloadItem(DownloadItmm, 0);
-        console.log(insertedId);
-        console.log(selectedVideo.title + ".mp4");
+
       } else {
-        const insertedId = await addDownload(db, `${prasedFileName}(${selectedVideoFmt.info}).mp4`, "movies", selectedVideo.videoId, 0, 0);
+        const insertedId = await addDownload(db, `${prasedFileName}(${selectedVideoFmt.info}).mp4`, "movies", selectedVideo.videoId, 0, 0, selectedVideo.duration!!);
         addDownloadItem(DownloadItmm, 0);
         console.log(insertedId);
       }
