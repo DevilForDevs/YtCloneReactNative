@@ -6,8 +6,10 @@ import androidx.core.net.toUri
 import com.facebook.react.bridge.*
 import com.facebook.react.modules.core.DeviceEventManagerModule
 import com.facebook.react.module.annotations.ReactModule
-import com.myapp.dashedmuxer.DashedParser
-import com.myapp.dashedmuxer.DashedWriter
+import org.ytmuxer.mpfour.DashedParser
+import org.ytmuxer.mpfour.DashedWriter
+import org.ytmuxer.webm.WebMParser
+import org.ytmuxer.webm.WebmMuxer
 import java.io.File
 import kotlin.math.roundToInt
 import kotlin.text.startsWith
@@ -21,6 +23,8 @@ import android.media.MediaScannerConnection
 import android.net.Uri
 import android.content.Context
 import java.io.FileOutputStream
+import java.io.FileInputStream
+import java.io.RandomAccessFile
 import java.nio.ByteBuffer
 import org.json.JSONObject
 import android.util.Log
@@ -104,18 +108,72 @@ class MyNativeModule(private val reactContext: ReactApplicationContext) :
                     }
                 }
 
+                
+
+                FileOutputStream(videoTempFile, true).use { output ->
+                      FileInputStream(audioTempFile).use { input ->
+                      input.copyTo(output)
+                    }
+                }
+
+                val videoLength = videoTempFile.length() - audioTempFile.length() // original video size
+
                 val movieDir =
                     Environment.getExternalStoragePublicDirectory(Environment.DIRECTORY_MOVIES)
                 val outputFile = File(movieDir, "$fileName(${video.getString("info")}).mp4")
 
-                if (videoInformation.contains("webm")) {
-                    println("muxing not supported")
-                } else {
-                    val audioParser = DashedParser(audioTempFile)
-                    val videoParser = DashedParser(videoTempFile)
+                val raf= RandomAccessFile(videoTempFile,"r")
 
-                    audioParser.parse()
-                    videoParser.parse()
+                if (videoInformation.contains("webm")) {
+
+                      val videoParser = WebMParser(raf, false, 0, videoLength)
+                      videoParser.parse()
+
+                       val audioParser = WebMParser(raf, false, videoLength, videoTempFile.length())
+                      audioParser.parse()
+
+                       val finalVideoFile =
+                        File(movieDir, "$fileName(${video.getString("info")}).mp4")
+
+                        backThread.launch(Dispatchers.Main) {
+                          sendProgressUpdate(videoId, "Copying Samples", 50, "500KB/s", "Merging")
+                       } 
+
+                       val writter = WebmMuxer(
+                        finalVideoFile,
+                        listOf(videoParser, audioParser),
+                        progress = {samples,percent->
+
+                            backThread.launch(Dispatchers.Main) {
+                                sendProgressUpdate(videoId,samples, percent, "500KB/s", "Merging")
+                            }
+
+                            if (samples == "Finished") {
+
+                                backThread.launch(Dispatchers.Main) {
+                                  sendProgressUpdate(videoId,"${convertBytes2(outputFile.length())}", 100, "500KB/s", "Video")
+                                }
+
+                                audioTempFile.delete()
+                                videoTempFile.delete()
+                                MediaScannerConnection.scanFile(
+                                    reactContext,
+                                    arrayOf(finalVideoFile.absolutePath),
+                                    null,
+                                    null
+                                )
+                            }
+                        }
+                    )
+                    writter.writeSegment()
+
+                } else {
+                    
+                      val videoParser = DashedParser(raf, false, 0, videoLength)
+                      videoParser.parse()
+
+                      val audioParser = DashedParser(raf, false, videoLength, videoTempFile.length())
+                      audioParser.parse()
 
                     val finalVideoFile =
                         File(movieDir, "$fileName(${video.getString("info")}).mp4")

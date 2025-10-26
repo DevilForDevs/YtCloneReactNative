@@ -268,6 +268,8 @@ export default function HomeScreen() {
         addDownloadItem(DownloadItmm, 0);
         console.log(insertedId);
       }
+      console.log(videoInformation);
+      console.log(audioInformation);
       MyNativeModule.native_fileDownloader(videoInformation, audioInformation, selectedVideo.videoId, prasedFileName);
 
     }
