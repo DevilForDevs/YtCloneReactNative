@@ -47,7 +47,7 @@ export default function HomeScreen() {
     addSeenVideoId, seenVideosIds
   } = useVideoStore();
 
-  const { addDownloadItem, updateItem } = DownloadsStore();
+  const { addDownloadItem, updateItem, totalDownloads } = DownloadsStore();
   const [isLoading, setLoading] = useState(false);
   const [modalVisible, setModalVisible] = useState(false);
   const [selectedVideo, setSelectedVideo] = useState<Video>();
@@ -76,6 +76,9 @@ export default function HomeScreen() {
 
   const fetchVideos = async () => {
     if (isLoading) return;
+
+
+
     setLoading(true);
     try {
       const result = await sendYoutubeSearchRequest(query, continuation, "8AEB");
@@ -112,6 +115,7 @@ export default function HomeScreen() {
       });
     } catch (err) {
       console.error("Error fetching videos:", err);
+      setLoading(true)
     } finally {
       setLoading(false);
     }
@@ -144,7 +148,7 @@ export default function HomeScreen() {
 
           let fileSize = 0;
 
-          
+
 
           try {
             if (element.folder === "movies") {
@@ -199,10 +203,12 @@ export default function HomeScreen() {
 
 
   useEffect(() => {
-    loadInfoFromDb()
-    fetchVideos();
+
+    loadInfoFromDb();
+    fetchVideos()
 
   }, []);
+
 
   const handleThreeDotClick = async (item: Video) => {
     setSelectedVideo(item);
@@ -260,13 +266,27 @@ export default function HomeScreen() {
 
       const prasedFileName = txt2filename(selectedVideo.title);
       if (videoInformation == audioInformation) {
-        const insertedId = await addDownload(db, prasedFileName + ".mp3", "music", selectedVideo.videoId, 0, 0, selectedVideo.duration!!);
-        addDownloadItem(DownloadItmm, 0);
+
+        const exists = totalDownloads.some(
+          item => item.video.videoId === selectedVideo.videoId
+        );
+
+        if (!exists) {
+          const insertedId = await addDownload(db, prasedFileName + ".mp3", "music", selectedVideo.videoId, 0, 0, selectedVideo.duration!!);
+          addDownloadItem(DownloadItmm, 0);
+        }
 
       } else {
-        const insertedId = await addDownload(db, `${prasedFileName}(${selectedVideoFmt.info}).mp4`, "movies", selectedVideo.videoId, 0, 0, selectedVideo.duration!!);
-        addDownloadItem(DownloadItmm, 0);
-        console.log(insertedId);
+
+        const exists = totalDownloads.some(
+          item => item.video.videoId === selectedVideo.videoId
+        );
+
+        if (!exists) {
+          const insertedId = await addDownload(db, `${prasedFileName}(${selectedVideoFmt.info}).mp4`, "movies", selectedVideo.videoId, 0, 0, selectedVideo.duration!!);
+          addDownloadItem(DownloadItmm, 0);
+        }
+
       }
       console.log(videoInformation);
       console.log(audioInformation);
@@ -305,7 +325,11 @@ export default function HomeScreen() {
           )
         }
         contentContainerStyle={{ gap: 10, marginTop: 10 }}
-        onEndReached={fetchVideos}
+        onEndReached={() => {
+          if (continuation != "") {
+            console.log("reachedend")
+          }
+        }}
         onEndReachedThreshold={0.5}
         ListFooterComponent={
           isLoading ? (
@@ -313,6 +337,15 @@ export default function HomeScreen() {
           ) : null
         }
       />
+
+      {isLoading ? <View /> : <View style={styles.reloadBtn}>
+        <TouchableOpacity style={styles.relB} onPress={() => {
+          fetchVideos()
+        }}>
+          <Text style={{ color: "white" }}>Reload</Text>
+        </TouchableOpacity>
+      </View>}
+
 
       <Modal
         transparent
@@ -372,6 +405,18 @@ const styles = StyleSheet.create({
     shadowOpacity: 0.3,
     shadowRadius: 4,
   },
+
+  reloadBtn: {
+    flex: 1,
+    alignItems: "center",
+  }
+  ,
+  relB: {
+    backgroundColor: "#3B3B3B",
+    paddingHorizontal: 10,
+    paddingVertical: 6,
+    borderRadius: 10
+  }
 });
 
 

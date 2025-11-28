@@ -6,10 +6,10 @@ import androidx.core.net.toUri
 import com.facebook.react.bridge.*
 import com.facebook.react.modules.core.DeviceEventManagerModule
 import com.facebook.react.module.annotations.ReactModule
-import org.ytmuxer.mpfour.DashedParser
-import org.ytmuxer.mpfour.DashedWriter
-import org.ytmuxer.webm.WebMParser
-import org.ytmuxer.webm.WebmMuxer
+import muxer.mpfour.DashedParser
+import muxer.mpfour.DashedWriter
+import muxer.webm.WebMParser
+import muxer.webm.WebmMuxer
 import java.io.File
 import kotlin.math.roundToInt
 import kotlin.text.startsWith
@@ -42,177 +42,239 @@ class MyNativeModule(private val reactContext: ReactApplicationContext) :
     override fun getName(): String = NAME
 
     @ReactMethod
-    fun native_fileDownloader(
-        videoInformation: String,
-        audioInformation: String,
-        videoId: String,
-        fileName: String
-    ) {
-        val backThread = CoroutineScope(Dispatchers.IO)
+   fun native_fileDownloader(
+    videoInformation: String,
+    audioInformation: String,
+    videoId: String,
+    fileName: String
+    
+   ) {
+    val backThread = CoroutineScope(Dispatchers.IO)
 
-        backThread.launch {
-            val video = JSONObject(videoInformation)
-            val audio = JSONObject(audioInformation)
+    backThread.launch {
+        val video = JSONObject(videoInformation)
+        val audio = JSONObject(audioInformation)
 
-            if (audioInformation == videoInformation) {
-                val musicDir =
-                    Environment.getExternalStoragePublicDirectory(Environment.DIRECTORY_MUSIC)
-                val destinationFile = File(musicDir, "$fileName.mp3")
-                val fos = FileOutputStream(destinationFile, destinationFile.exists())
+        // -------------------------
+        // MUSIC ONLY (MP3 DOWNLOAD)
+        // -------------------------
+        if (audioInformation == videoInformation) {
 
-                djDownloader(
-                    audio.getString("url"),
-                    fos,
-                    if (destinationFile.exists()) destinationFile.length() else 0L,
-                    audio.getInt("contentLength").toLong()
-                ) { progress, percent, speed ->
-                    backThread.launch(Dispatchers.Main) {
-                        sendProgressUpdate(videoId, progress, percent, speed, "$percent%")
-                    }
+            val musicDir =
+                Environment.getExternalStoragePublicDirectory(Environment.DIRECTORY_MUSIC)
+            val destinationFile = File(musicDir, "$fileName.mp3")
+
+            // Skip if file already exists AND size is correct
+            if (destinationFile.exists() &&
+                destinationFile.length() == audio.getInt("contentLength").toLong()
+            ) {
+                backThread.launch(Dispatchers.Main) {
+                    sendProgressUpdate(videoId, "Already Downloaded", 100, "0KB/s", "Audio")
                 }
+                return@launch
+            }
+
+            val fos = FileOutputStream(destinationFile, destinationFile.exists())
+
+            djDownloader(
+                audio.getString("url"),
+                fos,
+                if (destinationFile.exists()) destinationFile.length() else 0L,
+                audio.getInt("contentLength").toLong()
+            ) { progress, percent, speed ->
+                backThread.launch(Dispatchers.Main) {
+                    sendProgressUpdate(videoId, progress, percent, speed, "$percent%")
+                }
+            }
+
+            MediaScannerConnection.scanFile(
+                reactContext,
+                arrayOf(destinationFile.absolutePath),
+                null,
+                null
+            )
+
+        } else {
+
+            // -------------------------
+            // VIDEO + AUDIO MERGE MODE
+            // -------------------------
+
+            val movieDir =
+                Environment.getExternalStoragePublicDirectory(Environment.DIRECTORY_MOVIES)
+            val finalVideoFile =
+                File(movieDir, "$fileName(${video.getString("info")}).mp4")
+
+            // 🔥 SKIP ENTIRE DOWNLOAD IF FINAL OUTPUT ALREADY EXISTS
+            if (finalVideoFile.exists() && finalVideoFile.length() > 0) {
+                backThread.launch(Dispatchers.Main) {
+                    sendProgressUpdate(videoId, "Already Downloaded", 100, "0KB/s", "Video")
+                }
+                return@launch
+            }
+
+            // temp files (downloaded separated audio + video)
+            val audioTempFile = File(reactContext.filesDir, "$videoId.mp3")
+            val videoTempFile = File(reactContext.filesDir, "$videoId(${video.getString("info")}).mp4")
+
+            // -------------------------
+            // DOWNLOAD VIDEO
+            // -------------------------
+            val videoFos = FileOutputStream(videoTempFile, videoTempFile.exists())
+
+            djDownloader(
+                video.getString("url"),
+                videoFos,
+                if (videoTempFile.exists()) videoTempFile.length() else 0L,
+                video.getInt("contentLength").toLong()
+            ) { progress, percent, speed ->
+                backThread.launch(Dispatchers.Main) {
+                    sendProgressUpdate(videoId, progress, percent, speed, "$percent%")
+                }
+            }
+
+            // -------------------------
+            // DOWNLOAD AUDIO
+            // -------------------------
+            val audioFos = FileOutputStream(audioTempFile, audioTempFile.exists())
+
+            djDownloader(
+                audio.getString("url"),
+                audioFos,
+                if (audioTempFile.exists()) audioTempFile.length() else 0L,
+                audio.getInt("contentLength").toLong()
+            ) { progress, percent, speed ->
+                backThread.launch(Dispatchers.Main) {
+                    sendProgressUpdate(videoId, progress, percent, speed, "$percent% Audio")
+                }
+            }
+
+            // Append audio to videoTempFile for easier parsing
+            FileOutputStream(videoTempFile, true).use { output ->
+                FileInputStream(audioTempFile).use { input ->
+                    input.copyTo(output)
+                }
+            }
+
+            val videoLength = videoTempFile.length() - audioTempFile.length()
+
+            val raf = RandomAccessFile(videoTempFile, "r")
+
+            // -------------------------
+            // WEBM MERGE
+            // -------------------------
+            if (videoInformation.contains("webm")) {
+
+                val videoParser = WebMParser(raf, false, 0, videoLength)
+                videoParser.parse()
+
+                val audioParser = WebMParser(raf, false, videoLength, videoTempFile.length())
+                audioParser.parse()
+
+                backThread.launch(Dispatchers.Main) {
+                    sendProgressUpdate(videoId, "Copying Samples", 50, "500KB/s", "Merging")
+                }
+
+                val writer = WebmMuxer(
+                    finalVideoFile,
+                    listOf(videoParser, audioParser),
+                    progress = { samples, percent ->
+
+                        backThread.launch(Dispatchers.Main) {
+                            sendProgressUpdate(videoId, samples, percent, "500KB/s", "Merging")
+                        }
+
+                        if (samples == "Finished") {
+
+                            backThread.launch(Dispatchers.Main) {
+                                sendProgressUpdate(
+                                    videoId,
+                                    "${convertBytes2(finalVideoFile.length())}",
+                                    100,
+                                    "500KB/s",
+                                    "Video"
+                                )
+                            }
+
+                            audioTempFile.delete()
+                            videoTempFile.delete()
+
+                            MediaScannerConnection.scanFile(
+                                reactContext,
+                                arrayOf(finalVideoFile.absolutePath),
+                                null,
+                                null
+                            )
+                        }
+                    }
+                )
+                writer.writeSegment()
+
+            } else {
+
+                // -------------------------
+                // MP4 MERGE (DASH)
+                // -------------------------
+                val videoParser = DashedParser(raf, false, 0, videoLength)
+                val audioParser = DashedParser(raf, false, videoLength, videoTempFile.length())
+
+                backThread.launch(Dispatchers.Main) {
+                    sendProgressUpdate(videoId, "Copying Samples", 50, "500KB/s", "Merging")
+                }
+
+                val outRaf = RandomAccessFile(finalVideoFile, "rw")
+                val totalSamples = videoParser.trunEntries + audioParser.trunEntries
+                var samplesWritten = 0
+
+                val writer = DashedWriter(
+                    outRaf,
+                    0,
+                    mutableListOf(videoParser, audioParser),
+                    sampleWritten = {
+                        samplesWritten++
+
+                        if (samplesWritten % 2000 == 0) {
+                            val percent = (samplesWritten * 100) / totalSamples
+                            backThread.launch(Dispatchers.Main) {
+                                sendProgressUpdate(
+                                    videoId,
+                                    "Samples Written: $samplesWritten/$totalSamples",
+                                    percent,
+                                    "500KB/s",
+                                    "Merging"
+                                )
+                            }
+                        }
+                    }
+                )
+
+                writer.buildNonFmp4()
+
+                val percent = (samplesWritten * 100) / totalSamples
+                backThread.launch(Dispatchers.Main) {
+                    sendProgressUpdate(
+                        videoId,
+                        "${convertBytes2(finalVideoFile.length())}",
+                        percent,
+                        "500KB/s",
+                        "Video"
+                    )
+                }
+
+                audioTempFile.delete()
+                videoTempFile.delete()
 
                 MediaScannerConnection.scanFile(
                     reactContext,
-                    arrayOf(destinationFile.absolutePath),
+                    arrayOf(finalVideoFile.absolutePath),
                     null,
                     null
                 )
-
-            } else {
-                val audioTempFile = File(reactContext.filesDir, "$videoId.mp3")
-                val videoTempFile = File(reactContext.filesDir, "$videoId(${video.getString("info")}).mp4")
-
-                val videoFos = FileOutputStream(videoTempFile, videoTempFile.exists())
-
-                djDownloader(
-                    video.getString("url"),
-                    videoFos,
-                    if (videoTempFile.exists()) videoTempFile.length() else 0L,
-                    video.getInt("contentLength").toLong()
-                ) { progress, percent, speed ->
-                    backThread.launch(Dispatchers.Main) {
-                        sendProgressUpdate(videoId, progress, percent, speed, "$percent%")
-                    }
-                }
-
-                val audioFos = FileOutputStream(audioTempFile, audioTempFile.exists())
-
-                djDownloader(
-                    audio.getString("url"),
-                    audioFos,
-                    if (audioTempFile.exists()) audioTempFile.length() else 0L,
-                    audio.getInt("contentLength").toLong()
-                ) { progress, percent, speed ->
-                    backThread.launch(Dispatchers.Main) {
-                        sendProgressUpdate(videoId, progress, percent, speed, "$percent% Audio")
-                    }
-                }
-
-                
-
-                FileOutputStream(videoTempFile, true).use { output ->
-                      FileInputStream(audioTempFile).use { input ->
-                      input.copyTo(output)
-                    }
-                }
-
-                val videoLength = videoTempFile.length() - audioTempFile.length() // original video size
-
-                val movieDir =
-                    Environment.getExternalStoragePublicDirectory(Environment.DIRECTORY_MOVIES)
-                val outputFile = File(movieDir, "$fileName(${video.getString("info")}).mp4")
-
-                val raf= RandomAccessFile(videoTempFile,"r")
-
-                if (videoInformation.contains("webm")) {
-
-                      val videoParser = WebMParser(raf, false, 0, videoLength)
-                      videoParser.parse()
-
-                       val audioParser = WebMParser(raf, false, videoLength, videoTempFile.length())
-                      audioParser.parse()
-
-                       val finalVideoFile =
-                        File(movieDir, "$fileName(${video.getString("info")}).mp4")
-
-                        backThread.launch(Dispatchers.Main) {
-                          sendProgressUpdate(videoId, "Copying Samples", 50, "500KB/s", "Merging")
-                       } 
-
-                       val writter = WebmMuxer(
-                        finalVideoFile,
-                        listOf(videoParser, audioParser),
-                        progress = {samples,percent->
-
-                            backThread.launch(Dispatchers.Main) {
-                                sendProgressUpdate(videoId,samples, percent, "500KB/s", "Merging")
-                            }
-
-                            if (samples == "Finished") {
-
-                                backThread.launch(Dispatchers.Main) {
-                                  sendProgressUpdate(videoId,"${convertBytes2(outputFile.length())}", 100, "500KB/s", "Video")
-                                }
-
-                                audioTempFile.delete()
-                                videoTempFile.delete()
-                                MediaScannerConnection.scanFile(
-                                    reactContext,
-                                    arrayOf(finalVideoFile.absolutePath),
-                                    null,
-                                    null
-                                )
-                            }
-                        }
-                    )
-                    writter.writeSegment()
-
-                } else {
-                    
-                      val videoParser = DashedParser(raf, false, 0, videoLength)
-                      videoParser.parse()
-
-                      val audioParser = DashedParser(raf, false, videoLength, videoTempFile.length())
-                      audioParser.parse()
-
-                    val finalVideoFile =
-                        File(movieDir, "$fileName(${video.getString("info")}).mp4")
-
-                    backThread.launch(Dispatchers.Main) {
-                        sendProgressUpdate(videoId, "Copying Samples", 50, "500KB/s", "Merging")
-                    }    
-
-                    val writter = DashedWriter(
-                        finalVideoFile,
-                        listOf(videoParser, audioParser),
-                        progress = {samples,percent->
-
-                            backThread.launch(Dispatchers.Main) {
-                                sendProgressUpdate(videoId,samples, percent, "500KB/s", "Merging")
-                            }
-
-                            if (samples == "Finished") {
-
-                                backThread.launch(Dispatchers.Main) {
-                                  sendProgressUpdate(videoId,"${convertBytes2(outputFile.length())}", 100, "500KB/s", "Video")
-                                }
-
-                                audioTempFile.delete()
-                                videoTempFile.delete()
-                                MediaScannerConnection.scanFile(
-                                    reactContext,
-                                    arrayOf(finalVideoFile.absolutePath),
-                                    null,
-                                    null
-                                )
-                            }
-                        }
-                    )
-                    writter.buildNonFMp4()
-                }
             }
         }
     }
+    }
+
 
     private fun sendProgressUpdate(
         videoId: String,
