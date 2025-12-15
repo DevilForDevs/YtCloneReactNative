@@ -1,4 +1,5 @@
 import React, { use, useEffect, useRef, useState } from "react";
+import RNFS from 'react-native-fs';
 import {
     StyleSheet,
     View,
@@ -10,26 +11,30 @@ import {
 } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
 import Player from "./widgets/Player";
-import VideoDetails from "./widgets/VideoDetails";
 import VideoItemView from "../HomeScreen/widgets/VideoItemView/VideoItemView";
 import ShortsHeader from "../HomeScreen/widgets/ShortsHeader/ShortsHeader";
 import ShortsItemView from "../HomeScreen/widgets/ShortsItemView/ShortsItemView";
-import { useVideoStore } from "../../utils/Store";
-import { sendYoutubeSearchRequest } from "../../utils/sendYoutubeSearchRequest";
-import { Video } from "../../utils/types";
 import { RootStackParamList } from "../../App";
 import { RouteProp, useNavigation, useRoute } from "@react-navigation/native";
-import { getIosPlayerResponse } from "../../utils/EndPoints";
 import { NativeStackNavigationProp } from "@react-navigation/native-stack";
+
+import { parseWatchNext, ParseResult } from "../../utils/watchHtmlParser";
+import { getIosPlayerResponse } from "../../utils/EndPoints";
+import VideoDetails from "./widgets/VideoDetails";
+import { Video, VideoDescription } from "../../utils/types";
+import { createResolutionPlaylistsRN } from "../../utils/createResolutionPlaylists";
+import ResolutionBottomSheet from "./widgets/ResolutionBottomSheet";
 import AskFormat from "../HomeScreen/widgets/AskFormat/AskFormat";
-import { getSelectedFormats } from "../../utils/downloadFunctions";
 import { AskFormatModel } from "../../utils/types";
-import { DownloadsStore } from "../../utils/Store";
+import { getSelectedFormats } from "../../utils/downloadFunctions";
+import { getStreamingData, txt2filename, videoId } from "../../utils/Interact";
 import { DownloadItem } from "../../utils/types";
-import { txt2filename, getStreamingData } from "../../utils/Interact";
-import { mapAdaptiveFormatsToRequired } from "../../utils/praserHelpers";
+import { DownloadsStore } from "../../utils/Store";
 import { SQLiteDatabase } from 'react-native-sqlite-storage';
-import { addDownload, createDownloadsTable, initDB, loadDownloads } from "../../utils/dbfunctions";
+import { addDownload, initDB, createDownloadsTable, deleteOldM3U8Files } from "../../utils/dbfunctions";
+import { mapAdaptiveFormatsToRequired } from "../../utils/praserHelpers";
+
+
 
 type NavigationProp = RouteProp<
     RootStackParamList,
@@ -41,132 +46,110 @@ type navStack = NativeStackNavigationProp<
     "SearchScreen"
 >;
 
+
+
 export default function VideoPlayerScreen() {
     const route = useRoute<NavigationProp>();
+    const { arrivedVideo } = route.params;
     const navigation = useNavigation<navStack>();
+    const [wathHtmlVideos, setWathHtmlVideos] = useState<ParseResult>();
     const { MyNativeModule } = NativeModules;
-    const { mindex } = route.params;
-    const [showFlatList, setFlatList] = useState(true)
+    const [currentVideo, setCurrentVideo] = useState<VideoDescription>();
     const [mediaUrl, setMediaUrl] = useState("")
-    const [currentVideoId, setCurrentVideoId] = useState("")
-    const [currentVideoChannelName, setcurrentVideoChannelName] = useState("")
-    const [currentVideoTitle, setCurrentVideoTitle] = useState("")
-    const [currentVideoViewsAndUploadDate, setCurrentVideoViewsAndUploadDate] = useState("")
-    const [currentChannelPhoto, setCurrentChannelPhoto] = useState("")
-    const [currentChannelSubcriberNo, setCurrentChanelSubscriberNo] = useState(0)
-    const [currentVideoLikes, setCurrentVideoLikes] = useState(0)
-    const [currentVideoDisLikes, setCurrentVideoDisLikes] = useState(0)
+    const [resolutions, setResolutions] = useState<string[]>([]);
+    const [selectedResolution, setSelectedResolution] = useState<string | null>(null);
+    const [showBottomSheet, setShowBottomSheet] = useState(false);
     const [modalVisible, setModalVisible] = useState(false);
     const screenHeight = Dimensions.get('window').height;
     const slideAnim = React.useRef(new Animated.Value(screenHeight)).current;
-    const [selectedVideo, setSelectedVideo] = useState<Video>();
     const [requiredFmts, setRequiredFmts] = useState<AskFormatModel[]>([]);
-    const { addDownloadItem, updateItem } = DownloadsStore();
-    const [currentVideo, setCurrentVideo] = useState<Video>();
+    const { addDownloadItem, totalDownloads } = DownloadsStore();
     const [db, setDb] = useState<SQLiteDatabase | null>(null);
+    const [showFlatList, setFlatList] = useState(true)
 
+    async function loadData(mvideo: Video) {
+        console.log(mvideo);
 
+        let database = db;
 
-    const {
-        totalVideos,
-        addVideo,
-        continuation,
-        setContinuation,
-        query,
-        addSeenVideoId, seenVideosIds,
-    } = useVideoStore();
-    const [isLoading, setLoading] = useState(true);
-
-    const toggleFlatList = () => {
-
-        if (showFlatList) {
-            setFlatList(false)
-        } else {
-            setFlatList(true)
+        if (!database) {
+            database = await initDB();
+            await createDownloadsTable(database);
+            setDb(database);
         }
+        setCurrentVideo(undefined);
+        setWathHtmlVideos(undefined);
+        try {
+            await deleteOldM3U8Files()
 
+            const playerResponse = await getIosPlayerResponse(mvideo.videoId);
+            const streamingData = playerResponse.streamingData
+            const videoDetails = playerResponse.videoDetails
+
+            const resolutions = await createResolutionPlaylistsRN(
+                streamingData.hlsManifestUrl,
+                RNFS.DocumentDirectoryPath
+            );
+
+            if (resolutions.length > 0) {
+                const firstResolution = resolutions[0];
+                const localM3u8Path = `${RNFS.DocumentDirectoryPath}/${firstResolution}.m3u8`;
+
+                // IMPORTANT: use file:// prefix
+
+                setMediaUrl(`file://${localM3u8Path}`);
+                setResolutions(resolutions);
+                setSelectedResolution(resolutions[0])
+            } else {
+                console.log("fallbackHappened");
+                // fallback to original manifest
+                setMediaUrl(streamingData.hlsManifestUrl);
+            }
+
+
+            const jsonString = await MyNativeModule.getYtInitialData(
+                'https://www.youtube.com/watch?v=' + mvideo.videoId
+            );
+            const ytInitialData = JSON.parse(jsonString);
+            const result = parseWatchNext(ytInitialData.results);
+            const videoDes: VideoDescription = {
+                title: videoDetails.title,
+                views: Number(videoDetails.viewCount),
+                uploaded: mvideo.publishedOn ? mvideo.publishedOn : "",
+                hashTags: videoDetails.keywords.join(" "),
+                dislikes: ytInitialData.videoDetails.dislikes,
+                likes: ytInitialData.videoDetails.likes,
+                subscriber: ytInitialData.videoDetails.subscriberCount,
+                commentsCount: ytInitialData.videoDetails.commentsCount,
+                channelPhoto: mvideo.channel ? mvideo.channel : "",
+                channelName: ytInitialData.videoDetails.channelName,
+                video: mvideo
+            }
+            setCurrentVideo(videoDes)
+            setWathHtmlVideos(result);
+        } catch (e) {
+            console.error(e);
+        }
     }
 
-    const fetchStreamingData = async (index: number) => {
 
-        if (!totalVideos[index]) return; // safety check
 
-        try {
-            const requiredVideoId = totalVideos[index].videoId
-            if (totalVideos[index].type == "video") {
-                setCurrentVideo(totalVideos[index])
-            }
-            setCurrentVideoId(requiredVideoId)
-            const result = await getIosPlayerResponse(requiredVideoId);
-            const streamingData = result.streamingData
-            const videoDetails = result.videoDetails
-            setCurrentVideoTitle(videoDetails.title)
-            setcurrentVideoChannelName(videoDetails.author)
-            const formattedViews = Number(videoDetails.viewCount).toLocaleString();
-            if (totalVideos[index].type == "video") {
-                const viewInfo = `${formattedViews} Views • ${totalVideos[index].publishedOn}`
-                setCurrentVideoViewsAndUploadDate(viewInfo)
-                if (totalVideos[index].channel != null) {
-                    setCurrentChannelPhoto(totalVideos[index].channel)
-                }
-            }
-            setMediaUrl(streamingData.hlsManifestUrl);
-        } catch (err) {
-            console.error("Failed to fetch player response:", err);
-        }
-    };
 
     useEffect(() => {
-        loadDb()
-        fetchStreamingData(mindex);
-    }, [totalVideos, mindex]);
+        loadData(arrivedVideo);
+    }, []);
 
+    function changeResolution(res: string) {
+        setSelectedResolution(res);
+        const localM3u8Path = `${RNFS.DocumentDirectoryPath}/${res}.m3u8`;
+        setMediaUrl(`file://${localM3u8Path}`);
+        setShowBottomSheet(false);
+    }
 
-
-
-    const fetchVideos = async () => {
-        if (isLoading) return;
-        setLoading(true);
-        try {
-            const result = await sendYoutubeSearchRequest(query, continuation, "8AEB");
-            const shortsAndVideos = result.videos;
-            const token = result.continuation;
-
-            if (token != null) {
-                setContinuation(token);
-            }
-
-            shortsAndVideos.forEach((element) => {
-                if (element.type === "shorts") {
-                    const freshShorts: Video[] = [];
-                    let shortsHeaderVideoId = "videoId1";
-
-                    element.videos.forEach(short => {
-                        if (!seenVideosIds.includes(short.videoId)) {
-                            addSeenVideoId(short.videoId);
-                            freshShorts.push(short);
-                            shortsHeaderVideoId = short.videoId;
-                        }
-                    });
-
-                    if (freshShorts.length > 0) {
-                        addVideo({ type: "shorts", videos: freshShorts, videoId: shortsHeaderVideoId });
-                    }
-
-                } else {
-                    if (!seenVideosIds.includes(element.videoId)) {
-                        addSeenVideoId(element.videoId);
-                        addVideo(element);
-                    }
-                }
-            });
-        } catch (err) {
-            console.error("Error fetching videos:", err);
-        } finally {
-            setLoading(false);
-        }
-    };
-
+    function handleMoreVert() {
+        if (resolutions.length === 0) return;
+        setShowBottomSheet(true);
+    }
     const openModal = () => {
         setModalVisible(true);
         Animated.timing(slideAnim, {
@@ -176,59 +159,7 @@ export default function VideoPlayerScreen() {
         }).start();
     };
 
-    const closeModal = () => {
-        Animated.timing(slideAnim, {
-            toValue: screenHeight,
-            duration: 300,
-            useNativeDriver: true,
-        }).start(() => setModalVisible(false));
-    };
-
-    async function loadDb() {
-        if (db == null) {
-            const dbInstance = await initDB();
-            await createDownloadsTable(dbInstance);
-            setDb(dbInstance);
-        }
-    }
-
-    const mhandleFormatSelect = async (itag: number) => {
-        if (selectedVideo != undefined) {
-            const { selectedVideoFmt, selectedAudioFmt } = getSelectedFormats(itag, requiredFmts);
-            const videoInformation = JSON.stringify(selectedVideoFmt);
-            const audioInformation = JSON.stringify(selectedAudioFmt);
-
-            const DownloadItmm: DownloadItem = {
-                transferInfo: "Initiating",
-                progressPercent: 0,
-                isFinished: false,
-                isStopped: false,
-                speed: "500KB/s",
-                message: "Video",
-                video: {
-                    ...selectedVideo,
-                    title: videoInformation != audioInformation ? `${txt2filename(selectedVideo.title)}(${selectedVideoFmt.info}).mp4` : `${txt2filename(selectedVideo.title)}.mp3`
-                }
-            }
-
-            const prasedFileName = txt2filename(selectedVideo.title);
-            if (videoInformation == audioInformation) {
-                const insertedId = await addDownload(db, prasedFileName + ".mp3", "music", selectedVideo.videoId, 0, 0, selectedVideo.duration!!);
-                addDownloadItem(DownloadItmm, 0);
-
-            } else {
-                const insertedId = await addDownload(db, `${prasedFileName}(${selectedVideoFmt.info}).mp4`, "movies", selectedVideo.videoId, 0, 0, selectedVideo.duration!!);
-                addDownloadItem(DownloadItmm, 0);
-                console.log(insertedId);
-            }
-            MyNativeModule.native_fileDownloader(videoInformation, audioInformation, selectedVideo.videoId, prasedFileName);
-
-        }
-    }
-
     const handleThreeDotClick = async (item: Video) => {
-
-        setSelectedVideo(item);
 
         const response = await getStreamingData(item.videoId);
         const streamingData = response.playerResponse.streamingData;
@@ -241,27 +172,100 @@ export default function VideoPlayerScreen() {
         openModal();
     };
 
+    const closeModal = () => {
+        Animated.timing(slideAnim, {
+            toValue: screenHeight,
+            duration: 300,
+            useNativeDriver: true,
+        }).start(() => setModalVisible(false));
+    };
 
+
+    const mhandleFormatSelect = async (itag: number) => {
+
+        if (currentVideo != undefined) {
+            const { selectedVideoFmt, selectedAudioFmt } = getSelectedFormats(itag, requiredFmts);
+            const videoInformation = JSON.stringify(selectedVideoFmt);
+            const audioInformation = JSON.stringify(selectedAudioFmt);
+            const DownloadItmm: DownloadItem = {
+                transferInfo: "Initiating",
+                progressPercent: 0,
+                isFinished: false,
+                isStopped: false,
+                speed: "500KB/s",
+                message: "Video",
+                video: {
+                    ...currentVideo.video,
+                    title: videoInformation != audioInformation ? `${txt2filename(currentVideo.title)}(${selectedVideoFmt.info}).mp4` : `${txt2filename(currentVideo.title)}.mp3`
+                }
+            }
+            console.log(DownloadItmm);
+
+            const prasedFileName = txt2filename(currentVideo.title);
+            if (videoInformation == audioInformation) {
+                console.log("audiofmt");
+
+                const exists = totalDownloads.some(
+                    item => item.video.videoId === currentVideo.video.videoId
+                );
+
+                if (!exists) {
+                    const insertedId = await addDownload(db, prasedFileName + ".mp3", "music", currentVideo.video.videoId, 0, 0, "unknown");
+                    addDownloadItem(DownloadItmm, 0);
+                }
+
+
+            } else {
+
+
+                const exists = totalDownloads.some(
+                    item => item.video.videoId === currentVideo.video.videoId
+                );
+                console.log(exists);
+
+                if (!exists) {
+                    const insertedId = await addDownload(db, `${prasedFileName}(${selectedVideoFmt.info}).mp4`, "movies", currentVideo.video.videoId, 0, 0, "unknown");
+                    addDownloadItem(DownloadItmm, 0);
+                }
+
+
+            }
+
+            MyNativeModule.native_fileDownloader(videoInformation, audioInformation, currentVideo.video.videoId, prasedFileName);
+
+        }
+    }
+
+    const toggleFlatList = () => {
+
+        if (showFlatList) {
+            setFlatList(false)
+        } else {
+            setFlatList(true)
+        }
+
+    }
 
 
     return (
-        <SafeAreaView style={styles.container}>
-            <Player url={mediaUrl} toggleFlatList={toggleFlatList} videoId={currentVideoId} />
+        <SafeAreaView>
+            <Player url={mediaUrl!!} toggleFlatList={toggleFlatList} videoId="MImVtCiRt0Q" showMenu={handleMoreVert} key={currentVideo?.title ?? mediaUrl} />
 
             {
                 showFlatList ? <View>
                     <FlatList
-                        data={totalVideos}
+                        data={wathHtmlVideos?.items}
                         keyExtractor={(_, index) => index.toString()}
-                        ListHeaderComponent={
-                            <VideoDetails title={currentVideoTitle}
-                                channelName={currentVideoChannelName}
-                                viewsAndUploaded={currentVideoViewsAndUploadDate}
-                                channelPhoto={currentChannelPhoto} onDownloadPress={() => handleThreeDotClick(currentVideo!!)} />
-                        }
                         renderItem={({ item, index }) => {
                             if (item.type === "video") {
-                                return <VideoItemView item={item} progress={0} onItemPress={() => fetchStreamingData(index)} onDownload={() => handleThreeDotClick(currentVideo!!)} />;
+                                return (
+                                    <VideoItemView
+                                        item={item}
+                                        progress={0}
+                                        onItemPress={() => loadData(item)}
+                                        onDownload={() => console.log("downloadClicked")}
+                                    />
+                                );
                             } else {
                                 return (
                                     <View style={styles.shortParentContainer}>
@@ -270,9 +274,17 @@ export default function VideoPlayerScreen() {
                                             data={item.videos}
                                             horizontal
                                             keyExtractor={(short) => short.videoId}
-                                            renderItem={({ item: short }) => <ShortsItemView item={short} onItemPress={() => navigation.navigate("ShortsPlayerScreen", {
-                                                mindex: index, shortIndex: item.videos.indexOf(short)
-                                            })} />}
+                                            renderItem={({ item: short }) => (
+                                                <ShortsItemView
+                                                    item={short}
+                                                    onItemPress={() =>
+                                                        navigation.navigate("ShortsPlayerScreen", {
+                                                            mindex: index,
+                                                            shortIndex: item.videos.indexOf(short),
+                                                        })
+                                                    }
+                                                />
+                                            )}
                                             showsHorizontalScrollIndicator={false}
                                             contentContainerStyle={styles.shortsContainer}
                                         />
@@ -281,11 +293,25 @@ export default function VideoPlayerScreen() {
                             }
                         }}
                         contentContainerStyle={{ gap: 10, marginTop: 10 }}
-                        onEndReached={fetchVideos}
-                        onEndReachedThreshold={0.5}
-                        ListFooterComponent={
-                            isLoading ? <ActivityIndicator size="large" color="red" style={{ margin: 20 }} /> : null
+                        ListHeaderComponent={
+                            currentVideo ? (
+                                <VideoDetails
+                                    videoDes={currentVideo}
+                                    onDownloadPress={() =>
+                                        handleThreeDotClick(currentVideo.video)
+                                    }
+                                />
+                            ) : (
+                                <ActivityIndicator size="large" color="red" style={{ margin: 20 }} />
+                            )
                         }
+                    />
+                    <ResolutionBottomSheet
+                        visible={showBottomSheet}
+                        resolutions={resolutions}
+                        selectedResolution={selectedResolution}
+                        onSelect={changeResolution}
+                        onClose={() => setShowBottomSheet(false)}
                     />
                     <Modal
                         transparent
@@ -305,7 +331,7 @@ export default function VideoPlayerScreen() {
                                 }
                             ]}
                         >
-                            <AskFormat onFormatSelection={(itag) => mhandleFormatSelect(itag)} closeRequest={closeModal} videoTitle={selectedVideo?.title ?? ""}
+                            <AskFormat onFormatSelection={(itag) => mhandleFormatSelect(itag)} closeRequest={closeModal} videoTitle={currentVideo?.title ?? ""}
                                 requiredFormats={requiredFmts} />
                         </Animated.View>
 
@@ -316,16 +342,15 @@ export default function VideoPlayerScreen() {
 
 
 
+
         </SafeAreaView>
-    );
+
+
+    )
 }
 
 
-
 const styles = StyleSheet.create({
-    container: {
-        flex: 1,
-    },
     shortsContainer: {
         gap: 10,
     },
@@ -351,8 +376,6 @@ const styles = StyleSheet.create({
         shadowOpacity: 0.3,
         shadowRadius: 4,
     },
-
-
 });
 
 

@@ -1,5 +1,5 @@
 import SQLite, { SQLiteDatabase, ResultSet } from 'react-native-sqlite-storage';
-
+import RNFS from 'react-native-fs';
 SQLite.enablePromise(true);
 
 // ✅ Initialize database
@@ -51,11 +51,11 @@ export async function addDownload(
     videoId: string,
     isMuxed: number,
     isFinished: number,
-    duration:string
+    duration: string
 ): Promise<number> {
     const result = await db.executeSql(
         'INSERT INTO downloads (title, folder, videoId, isFinished, isMuxed, duration) VALUES (?, ?, ?, ?, ?, ?)',
-        [title, folder, videoId, isFinished, isMuxed,duration]
+        [title, folder, videoId, isFinished, isMuxed, duration]
     );
 
     // ResultSet.insertId gives the auto-generated ID
@@ -72,4 +72,24 @@ export async function removeDownload(
     const rowsAffected = result[0].rowsAffected ?? 0;
     return rowsAffected;
 }
+
+export async function deleteOldM3U8Files() {
+    try {
+        const files = await RNFS.readDir(RNFS.DocumentDirectoryPath);
+
+        const m3u8Files = files.filter(
+            f => f.isFile() && f.name.endsWith(".m3u8")
+        );
+
+        for (const file of m3u8Files) {
+            await RNFS.unlink(file.path);
+        }
+
+        console.log("Old m3u8 files deleted:", m3u8Files.length);
+    } catch (err) {
+        console.warn("Failed to delete old m3u8 files", err);
+    }
+}
+
+
 

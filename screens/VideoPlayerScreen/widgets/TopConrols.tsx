@@ -1,7 +1,12 @@
 import { StyleSheet, Text, View, TouchableOpacity, Image } from 'react-native'
 import React from 'react'
 import Icon from "react-native-vector-icons/Ionicons";
-export default function TopConrols() {
+
+type props = {
+    showMenu: () => void;
+}
+
+export default function TopConrols({ showMenu }: props) {
     return (
         <View style={styles.topControls}>
             <TouchableOpacity>
@@ -18,7 +23,7 @@ export default function TopConrols() {
                 <TouchableOpacity>
                     <Image source={require("../../../assets/caption.png")} style={styles.topIcon} />
                 </TouchableOpacity>
-                <TouchableOpacity>
+                <TouchableOpacity onPress={showMenu}>
                     <Image source={require("../../../assets/threedot.png")} style={styles.topIcon} />
                 </TouchableOpacity>
             </View>

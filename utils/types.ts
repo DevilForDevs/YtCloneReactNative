@@ -8,6 +8,20 @@ export interface Video {
   publishedOn?: string;
 }
 
+export interface VideoDescription {
+  title: string,
+  views: number,
+  uploaded: string,
+  hashTags: string,
+  likes: string,
+  dislikes: string,
+  subscriber: string,
+  commentsCount: string,
+  channelPhoto: string,
+  channelName: string,
+  video: Video
+}
+
 export interface ShortVideo {
   type: "shorts";   // plural, consistent
   videos: Video[];  // actual parsed videos,
@@ -43,15 +57,15 @@ export interface DownloadItem {
   transferInfo: string;     // fixed typo
   message: string;
   progressPercent: number;
-  
+
 }
 
 export interface DownloadStoreModel {
   totalDownloads: DownloadItem[];
-  addDownloadItem: (item: DownloadItem,index:number) => void;
+  addDownloadItem: (item: DownloadItem, index: number) => void;
   updateItem: (
     videoId: string,
-    updates: Partial<Pick<DownloadItem, 'speed' | 'transferInfo' |'progressPercent'|"message">>
+    updates: Partial<Pick<DownloadItem, 'speed' | 'transferInfo' | 'progressPercent' | "message">>
   ) => void;
   updateFinished: (videoId: string, isFinished: boolean) => void;
   updateStopped: (videoId: string, isStopped: boolean) => void;

@@ -21,10 +21,6 @@ import { addDownload, createDownloadsTable, initDB, loadDownloads } from "../../
 import RNFS from 'react-native-fs';
 
 
-
-
-
-
 type NavigationProp = NativeStackNavigationProp<
   RootStackParamList,
   "SearchScreen"
@@ -76,9 +72,6 @@ export default function HomeScreen() {
 
   const fetchVideos = async () => {
     if (isLoading) return;
-
-
-
     setLoading(true);
     try {
       const result = await sendYoutubeSearchRequest(query, continuation, "8AEB");
@@ -305,7 +298,7 @@ export default function HomeScreen() {
         ListHeaderComponent={<Menu />}
         renderItem={({ item, index }) =>
           item.type === "video" ? (
-            <VideoItemView item={item} progress={0} onItemPress={() => navigation.navigate("VideoPlayerScreen", { mindex: index })} onDownload={() => handleThreeDotClick(item)} />
+            <VideoItemView item={item} progress={0} onItemPress={() => navigation.navigate("VideoPlayerScreen", { arrivedVideo: item })} onDownload={() => handleThreeDotClick(item)} />
           ) : (
             <View style={styles.shortParentContainer}>
               <ShortsHeader />
@@ -327,7 +320,7 @@ export default function HomeScreen() {
         contentContainerStyle={{ gap: 10, marginTop: 10 }}
         onEndReached={() => {
           if (continuation != "") {
-            console.log("reachedend")
+            fetchVideos()
           }
         }}
         onEndReachedThreshold={0.5}

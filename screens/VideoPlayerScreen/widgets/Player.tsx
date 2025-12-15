@@ -8,15 +8,20 @@ import { BackHandler } from "react-native";
 import { ActivityIndicator } from 'react-native';
 import TopConrols from './TopConrols';
 import { formatSeconds } from '../../../utils/misfunction';
+import throttle from "lodash.throttle";
 type Props = {
     url: string,
     toggleFlatList: () => void;
-    videoId: string
+    videoId: string,
+    showMenu: () => void;
+    onProgressSave: (videoId: string, position: number) => void;
+    onLoadComplete: (videoId: string, duration: number) => void;
+    seekTo?: number; // restore position
 
 
 }
 
-export default function Player({ url, toggleFlatList, videoId }: Props) {
+export default function Player({ url, toggleFlatList, videoId, showMenu }: Props) {
     const videoRef = useRef<React.ElementRef<typeof Video>>(null); // ✅ works
     const [isBuffering, setIsBuffering] = useState(false);
     const [duration, setDuration] = useState(0);
@@ -25,7 +30,7 @@ export default function Player({ url, toggleFlatList, videoId }: Props) {
     const [showControls, setShowControls] = useState(true)
     const [paused, setPaused] = useState(false);
 
-    
+
 
     const toggleFullscreen = () => {
         toggleFlatList()
@@ -125,7 +130,7 @@ export default function Player({ url, toggleFlatList, videoId }: Props) {
                 </TouchableOpacity> : <View />}
                 {
                     showControls ?
-                        <TopConrols /> : <View />
+                        <TopConrols showMenu={showMenu} /> : <View />
                 }
                 {
                     showControls ? <View style={isFullscreen ? styles.fullScrren : styles.bottomControls}>
@@ -165,7 +170,7 @@ const styles = StyleSheet.create({
         justifyContent: "center",
         alignItems: "center",
         resizeMode: "stretch",
-        backgroundColor:"black"
+        backgroundColor: "black"
     },
     video: {
         ...StyleSheet.absoluteFillObject,

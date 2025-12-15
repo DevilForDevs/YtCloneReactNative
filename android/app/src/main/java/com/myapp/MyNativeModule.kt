@@ -38,18 +38,164 @@ class MyNativeModule(private val reactContext: ReactApplicationContext) :
     companion object {
         const val NAME = "MyNativeModule"
     }
+    val backThread = CoroutineScope(Dispatchers.IO)
 
     override fun getName(): String = NAME
 
+    
     @ReactMethod
-   fun native_fileDownloader(
+fun getYtInitialData(watchUrl: String, promise: Promise) {
+
+    val regex1 = Regex("""ytInitialData"\]\s*=\s*(\{.*?\});""", RegexOption.DOT_MATCHES_ALL)
+    val regex2 = Regex("""ytInitialData\s*=\s*(\{.*?\});""", RegexOption.DOT_MATCHES_ALL)
+
+    backThread.launch(Dispatchers.IO) {
+        try {
+            val client = OkHttpClient()
+            val request = Request.Builder()
+                .url(watchUrl)
+                .get()
+                .header("Accept", "text/html")
+                .build()
+
+            val response = client.newCall(request).execute()
+
+            if (!response.isSuccessful) {
+                promise.reject("HTTP_ERROR", "Code: ${response.code}")
+                return@launch
+            }
+
+            val html = response.body?.string() ?: ""
+            val match = regex1.find(html) ?: regex2.find(html)
+
+            if (match == null) {
+                promise.reject("PARSE_ERROR", "ytInitialData not found")
+                return@launch
+            }
+
+            val root = JSONObject(match.groupValues[1])
+
+            // ===============================
+            // ✅ SECONDARY RESULTS
+            // ===============================
+            val secondaryResults =
+                root.getJSONObject("contents")
+                    .getJSONObject("twoColumnWatchNextResults")
+                    .getJSONObject("secondaryResults")
+                    .getJSONObject("secondaryResults")
+                    .getJSONArray("results")
+
+            // ===============================
+            // ✅ VIDEO DETAILS
+            // ===============================
+            val contents =
+                root.getJSONObject("contents")
+                    .getJSONObject("twoColumnWatchNextResults")
+                    .getJSONObject("results")
+                    .getJSONObject("results")
+                    .getJSONArray("contents")
+
+            val videoPrimaryInfo =
+                contents.getJSONObject(0).getJSONObject("videoPrimaryInfoRenderer")
+
+            val videoSecondaryInfo =
+                contents.getJSONObject(1).getJSONObject("videoSecondaryInfoRenderer")
+
+            val owner =
+                videoSecondaryInfo
+                    .getJSONObject("owner")
+                    .getJSONObject("videoOwnerRenderer")
+
+            val subscriberCount =
+                owner.getJSONObject("subscriberCountText")
+                    .optString("simpleText", "")
+
+            val titleRun =
+                owner.getJSONObject("title")
+                    .getJSONArray("runs")
+                    .getJSONObject(0)
+
+            val channelName = titleRun.optString("text", "")
+            val channelUrl =
+                titleRun.getJSONObject("navigationEndpoint")
+                    .getJSONObject("browseEndpoint")
+                    .optString("canonicalBaseUrl", "")
+
+            val topButtons =
+                videoPrimaryInfo
+                    .getJSONObject("videoActions")
+                    .getJSONObject("menuRenderer")
+                    .getJSONArray("topLevelButtons")
+
+            val likeTitle =
+                topButtons.getJSONObject(0)
+                    .getJSONObject("segmentedLikeDislikeButtonViewModel")
+                    .getJSONObject("likeButtonViewModel")
+                    .getJSONObject("likeButtonViewModel")
+                    .getJSONObject("toggleButtonViewModel")
+                    .getJSONObject("toggleButtonViewModel")
+                    .getJSONObject("defaultButtonViewModel")
+                    .getJSONObject("buttonViewModel")
+                    .optString("title", "")
+
+            val dislikeTitle =
+                topButtons.getJSONObject(0)
+                    .getJSONObject("segmentedLikeDislikeButtonViewModel")
+                    .getJSONObject("dislikeButtonViewModel")
+                    .getJSONObject("dislikeButtonViewModel")
+                    .getJSONObject("toggleButtonViewModel")
+                    .getJSONObject("toggleButtonViewModel")
+                    .getJSONObject("defaultButtonViewModel")
+                    .getJSONObject("buttonViewModel")
+                    .optString("title", "")
+
+            val commentsCount =
+                root.getJSONArray("engagementPanels")
+                    .getJSONObject(0)
+                    .getJSONObject("engagementPanelSectionListRenderer")
+                    .getJSONObject("header")
+                    .getJSONObject("engagementPanelTitleHeaderRenderer")
+                    .getJSONObject("contextualInfo")
+                    .getJSONArray("runs")
+                    .getJSONObject(0)
+                    .optString("text", "")
+
+            val videoDetails = JSONObject().apply {
+                put("subscriberCount", subscriberCount)
+                put("channelName", channelName)
+                put("channelUrl", channelUrl)
+                put("likes", likeTitle)
+                put("dislikes", dislikeTitle)
+                put("commentsCount", commentsCount)
+            }
+
+            // ===============================
+            // ✅ FINAL PAYLOAD
+            // ===============================
+            val finalResult = JSONObject().apply {
+                put("videoDetails", videoDetails)
+                put("results", secondaryResults)
+            }
+
+            promise.resolve(finalResult.toString())
+
+        } catch (e: Exception) {
+            promise.reject("ERROR", e.message)
+        }
+    }
+}
+
+
+
+    @ReactMethod
+    fun native_fileDownloader(
     videoInformation: String,
     audioInformation: String,
     videoId: String,
     fileName: String
     
    ) {
-    val backThread = CoroutineScope(Dispatchers.IO)
+    
 
     backThread.launch {
         val video = JSONObject(videoInformation)

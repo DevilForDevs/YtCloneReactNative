@@ -3,23 +3,29 @@ import React from 'react'
 import Icon from "react-native-vector-icons/Ionicons";
 import ActionButtons from './ActionButtons';
 import ChannelDetails from './ChannelDetails';
+import { VideoDescription } from '../../../utils/types';
 
-type Props={
-    title:string,
-    viewsAndUploaded:string,
-    channelName:string,
-    channelPhoto:string,
-    onDownloadPress:()=>void
+type Props = {
+    videoDes: VideoDescription
+    onDownloadPress: () => void
 
 }
-export default function VideoDetails({title,viewsAndUploaded,channelName,channelPhoto,onDownloadPress}:Props) {
+export default function VideoDetails({ videoDes, onDownloadPress }: Props) {
+    const formattedViews = Number(videoDes.views).toLocaleString();
+    const viewInfo = `${formattedViews} views • ${videoDes.uploaded}`
+    const cleanTags = videoDes.hashTags
+        .replace(/\\/g, "")   // remove all backslashes
+        .trim();
+
+    const first2Tags = cleanTags.split(/\s+/).slice(0, 2).join(" ");
+    const remainingTags = cleanTags.split(/\s+/).slice(2).join(" ");
     return (
         <View style={styles.root}>
             <View style={styles.title}>
                 <Text style={{ fontFamily: "Roboto-Medium", fontSize: 18 }}
                     numberOfLines={3}
                     ellipsizeMode="tail">
-                    {title}
+                    {videoDes.title}
                 </Text>
                 <TouchableOpacity>
                     <Icon name="chevron-down" size={28} color="black" />
@@ -28,20 +34,19 @@ export default function VideoDetails({title,viewsAndUploaded,channelName,channel
             <View style={styles.uploadDetails}>
                 <View style={styles.firstHasTag}>
                     <Text style={{ fontFamily: "Roboto-Medium", fontSize: 14, color: "#6C6C6C" }}>
-                        {viewsAndUploaded}
+                        {viewInfo}
                     </Text>
                     <Text style={{ fontFamily: "Roboto-Medium", fontSize: 14, color: "#068BFF" }}>
-                        #shirat
+                        {first2Tags}
                     </Text>
                 </View>
-                <Text style={{ fontFamily: "Roboto-Medium", fontSize: 14, color: "#068BFF" }}>
-                    #shirat @Hzmohummad(s) #islamic
+                <Text style={{ fontFamily: "Roboto-Medium", fontSize: 14, color: "#068BFF" }} numberOfLines={1}>
+                    {remainingTags}
                 </Text>
 
             </View>
-            <ActionButtons onDownloadPress={()=>onDownloadPress()} />
-            <ChannelDetails channelName={channelName} channelPhoto={channelPhoto}/>
-
+            <ActionButtons onDownloadPress={() => onDownloadPress()} likesCount={videoDes.likes} dislikesCount={videoDes.dislikes} />
+            <ChannelDetails channelName={videoDes.channelName} channelPhoto={videoDes.channelPhoto} subscriberCount={videoDes.subscriber} />
             <View style={styles.commentBlock}>
 
                 <View style={styles.cmt}>
@@ -51,7 +56,7 @@ export default function VideoDetails({title,viewsAndUploaded,channelName,channel
 
                     </Text>
                     <Text style={{ fontFamily: "Roboto-Regular", fontSize: 14, color: "#6C6C6C" }}>
-                        149
+                        {videoDes.commentsCount}
                     </Text>
 
                 </View>
@@ -69,12 +74,12 @@ const styles = StyleSheet.create({
         flexDirection: "row",
         justifyContent: "space-between",
         alignItems: "center", // keeps chevron vertically centered
-        paddingRight: 30
-
+        paddingRight: 30,
+        marginTop: 5
     }
     ,
     uploadDetails: {
-
+        paddingRight: 5
     }
     ,
     commentBlock: {
@@ -98,9 +103,9 @@ const styles = StyleSheet.create({
         width: 15,
 
     }
-,
+    ,
     firstHasTag: {
-        flexDirection:"row",
-        gap:5
+        flexDirection: "row",
+        gap: 5
     }
-  })
+})

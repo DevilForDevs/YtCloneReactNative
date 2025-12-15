@@ -11,14 +11,15 @@ import DownloadsScreen from './screens/DownloadsScreen/DownloadsScreen'
 import OfflinePlayer from './screens/OfflinePlayer/OfflinePlayer'
 import PlaylistScreen from './screens/PlaylistScreen/PlaylistScreen'
 import ShortsScreen from './screens/ShortsScreen/ShortsScreen'
+import { Video } from './utils/types'
 export type RootStackParamList = {
   BottomNav: undefined;
   SearchScreen: undefined;
-  VideoPlayerScreen: { mindex: number };
+  VideoPlayerScreen: { arrivedVideo: Video };
   ShortsPlayerScreen: { mindex: number, shortIndex: number },
   DownloadsScreen: undefined,
   OfflinePlayer: { downloadIndex: number },
-  PlaylistScreen:{playlistlink:string}
+  PlaylistScreen: { playlistlink: string }
 
 
 };
@@ -75,8 +76,8 @@ export default function App() {
         <Stack.Screen name="VideoPlayerScreen" component={VideoPlayerScreen} />
         <Stack.Screen name="ShortsPlayerScreen" component={ShortsPlayer} />
         <Stack.Screen name="DownloadsScreen" component={DownloadsScreen} />
-         <Stack.Screen name="OfflinePlayer" component={OfflinePlayer} />
-         <Stack.Screen name="PlaylistScreen" component={PlaylistScreen} />
+        <Stack.Screen name="OfflinePlayer" component={OfflinePlayer} />
+        <Stack.Screen name="PlaylistScreen" component={PlaylistScreen} />
       </Stack.Navigator>
     </NavigationContainer>
 

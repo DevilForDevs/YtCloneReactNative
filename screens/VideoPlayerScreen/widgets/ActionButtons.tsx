@@ -2,22 +2,24 @@ import { StyleSheet, Text, View, TouchableOpacity, Image } from 'react-native'
 import React from 'react'
 
 
-type Props={
-    onDownloadPress:()=>void
+type Props = {
+    likesCount: string,
+    dislikesCount: string
+    onDownloadPress: () => void
 }
-export default function ActionButtons({onDownloadPress}:Props) {
+export default function ActionButtons({ likesCount, dislikesCount, onDownloadPress }: Props) {
     return (
         <View style={styles.actionbtns}>
             <TouchableOpacity>
                 <View>
                     <Image source={require("../../../assets/actionIcons/like.png")} style={styles.actionIcon} />
-                    <Text style={{ fontFamily: "Roboto-Regular", fontSize: 14 }}>25.6K</Text>
+                    <Text style={{ fontFamily: "Roboto-Regular", fontSize: 14 }}>{likesCount}</Text>
                 </View>
             </TouchableOpacity>
             <TouchableOpacity>
                 <View>
                     <Image source={require("../../../assets/actionIcons/dislike.png")} style={styles.actionIcon} />
-                    <Text style={{ fontFamily: "Roboto-Regular", fontSize: 14 }}>65</Text>
+                    <Text style={{ fontFamily: "Roboto-Regular", fontSize: 14 }}>{dislikesCount}</Text>
                 </View>
             </TouchableOpacity>
             <TouchableOpacity>
@@ -26,7 +28,7 @@ export default function ActionButtons({onDownloadPress}:Props) {
                     <Text style={{ fontFamily: "Roboto-Regular", fontSize: 14 }} >Share</Text>
                 </View>
             </TouchableOpacity>
-            <TouchableOpacity onPress={()=>onDownloadPress()}>
+            <TouchableOpacity onPress={() => onDownloadPress()}>
                 <View>
                     <Image source={require("../../../assets/actionIcons/downloadbtn.png")} style={styles.actionIcon} />
                     <Text style={{ fontFamily: "Roboto-Regular", fontSize: 14 }}>Download</Text>
@@ -47,9 +49,9 @@ const styles = StyleSheet.create({
     actionbtns: {
         flexDirection: "row",
         gap: 35,
-        paddingHorizontal:5,
-        marginBottom:10,
-        marginTop:5,
+        paddingHorizontal: 5,
+        marginBottom: 10,
+        marginTop: 5,
 
     }
     ,
