@@ -15,13 +15,10 @@ type Props = {
     videoId: string,
     showMenu: () => void;
     onProgressSave: (videoId: string, position: number) => void;
-    onLoadComplete: (videoId: string, duration: number) => void;
     seekTo?: number; // restore position
-
-
 }
 
-export default function Player({ url, toggleFlatList, videoId, showMenu }: Props) {
+export default function Player({ url, toggleFlatList, videoId, showMenu, onProgressSave, seekTo }: Props) {
     const videoRef = useRef<React.ElementRef<typeof Video>>(null); // ✅ works
     const [isBuffering, setIsBuffering] = useState(false);
     const [duration, setDuration] = useState(0);
@@ -29,6 +26,11 @@ export default function Player({ url, toggleFlatList, videoId, showMenu }: Props
     const [isFullscreen, setFullScreen] = useState(false)
     const [showControls, setShowControls] = useState(true)
     const [paused, setPaused] = useState(false);
+    const reportProgress = useRef(
+        throttle((time: number) => {
+            onProgressSave(videoId, time);
+        }, 2000)
+    ).current;
 
 
 
@@ -66,11 +68,20 @@ export default function Player({ url, toggleFlatList, videoId, showMenu }: Props
     function onLoad(data: OnLoadData) {
         setDuration(data.duration);
         setIsBuffering(false);
+
+
+        // 👇 restore seek
+        if (seekTo && seekTo > 3) {
+            videoRef.current?.seek(seekTo);
+        }
     }
+
 
     function onProgress(data: OnProgressData) {
         setCurrentTime(data.currentTime);
+        reportProgress(data.currentTime);
     }
+
 
     function onBuffer({ isBuffering }: { isBuffering: boolean }) {
         setIsBuffering(isBuffering);
@@ -148,7 +159,7 @@ export default function Player({ url, toggleFlatList, videoId, showMenu }: Props
             </View>
             {(!isFullscreen || showControls) && (
                 <Slider
-                    style={styles.slider}
+                    style={isFullscreen ? styles.fullSlider : styles.slider}
                     value={currentTime}
                     minimumValue={0}
                     maximumValue={Math.max(duration, 0.0001)}
@@ -176,11 +187,14 @@ const styles = StyleSheet.create({
         ...StyleSheet.absoluteFillObject,
     },
     slider: {
-
-        marginTop: -22,
+        marginTop: -10,
         marginLeft: -15,
         marginRight: -15
-
+    },
+    fullSlider: {
+        marginTop: -20,
+        marginLeft: -15,
+        marginRight: -15
     },
     controlBtn: {
         padding: 8,
@@ -200,7 +214,7 @@ const styles = StyleSheet.create({
     ,
     bottomControls: {
         position: "absolute",
-        bottom: 20,
+        bottom: 5,
         right: 10,
         flexDirection: "row",
         gap: 10,

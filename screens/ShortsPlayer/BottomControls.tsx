@@ -1,19 +1,24 @@
 import { Image, StyleSheet, Text, View } from 'react-native'
 import React from 'react'
 
-export default function BottomControls() {
+type props = {
+  title: string,
+  channelName: string,
+  channelThumbnail: string
+}
+export default function BottomControls({ title, channelName, channelThumbnail }: props) {
   return (
     <View style={styles.container}>
-      <Text style={styles.title}>DIY Toys | Satisfying And Relaxing | SADEK Tuts Tiktok Compition | Fidget Trading #SADEK #Shorts tiktok</Text>
+      <Text style={styles.title}>{title}</Text>
       <View style={styles.bottomBar}>
 
 
         <View style={styles.firstGroup}>
           <View style={styles.channelPhotoContainer}>
-            <Image source={require("../../assets/person2.png")} style={styles.channelPhoto} />
+            <Image source={{ uri: channelThumbnail }} style={styles.channelPhoto} />
           </View>
           <Text style={styles.channelName}>
-            SADEK Tuts
+            {channelName}
           </Text>
           <View style={styles.subscribeBtn}>
             <Text style={{ color: "white" }}>SUBSCRIBE</Text>
@@ -31,7 +36,8 @@ const styles = StyleSheet.create({
   container: {
     position: "absolute",
     bottom: 25,
-    left: 20
+    left: 20,
+    width: "100%"
   }
   ,
   title: {
@@ -55,12 +61,12 @@ const styles = StyleSheet.create({
     alignItems: "center",
     marginTop: 10,
     justifyContent: "space-between",
-    gap: 105,
+    paddingRight: 35
   }
   ,
   channelName: {
     color: "white",
-    marginLeft:10
+    marginLeft: 10
   }
   ,
   subscribeBtn: {
@@ -77,7 +83,7 @@ const styles = StyleSheet.create({
   ,
   firstGroup: {
     flexDirection: "row",
-    gap:10,
-    alignItems:"center",
+    gap: 10,
+    alignItems: "center",
   }
 })

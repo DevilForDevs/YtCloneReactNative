@@ -308,7 +308,7 @@ export default function HomeScreen() {
                 keyExtractor={(short) => short.videoId}
                 renderItem={({ item: short }) => (
                   <ShortsItemView item={short} onItemPress={() => navigation.navigate("ShortsPlayerScreen", {
-                    mindex: index, shortIndex: item.videos.indexOf(short)
+                    arrivedVideo: short
                   })} />
                 )}
                 showsHorizontalScrollIndicator={false}

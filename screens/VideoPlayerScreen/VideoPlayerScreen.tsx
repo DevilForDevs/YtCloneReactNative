@@ -65,7 +65,11 @@ export default function VideoPlayerScreen() {
     const [requiredFmts, setRequiredFmts] = useState<AskFormatModel[]>([]);
     const { addDownloadItem, totalDownloads } = DownloadsStore();
     const [db, setDb] = useState<SQLiteDatabase | null>(null);
-    const [showFlatList, setFlatList] = useState(true)
+    const [showFlatList, setFlatList] = useState(true);
+    const [savedPositions, setSavedPositions] = useState<Record<string, number>>({});
+    const seekTo = savedPositions[currentVideo?.video.videoId ?? ""] ?? 0;
+
+
 
     async function loadData(mvideo: Video) {
         console.log(mvideo);
@@ -245,67 +249,83 @@ export default function VideoPlayerScreen() {
         }
 
     }
+    function handleProgressSave(videoId: string, position: number) {
+        setSavedPositions(prev => ({
+            ...prev,
+            [videoId]: position,
+        }));
+
+    }
 
 
     return (
-        <SafeAreaView>
-            <Player url={mediaUrl!!} toggleFlatList={toggleFlatList} videoId="MImVtCiRt0Q" showMenu={handleMoreVert} key={currentVideo?.title ?? mediaUrl} />
+        <SafeAreaView style={{ flex: 1 }}>
+            <Player
+                url={mediaUrl}
+                videoId={currentVideo?.video.videoId ?? ""}
+                toggleFlatList={toggleFlatList}
+                showMenu={handleMoreVert}
+                onProgressSave={handleProgressSave}
+                seekTo={seekTo}
+                key={currentVideo?.video.videoId}   // ✅ stable
+            />
 
             {
                 showFlatList ? <View>
-                    <FlatList
-                        data={wathHtmlVideos?.items}
-                        keyExtractor={(_, index) => index.toString()}
-                        renderItem={({ item, index }) => {
-                            if (item.type === "video") {
-                                return (
-                                    <VideoItemView
-                                        item={item}
-                                        progress={0}
-                                        onItemPress={() => loadData(item)}
-                                        onDownload={() => console.log("downloadClicked")}
-                                    />
-                                );
-                            } else {
-                                return (
-                                    <View style={styles.shortParentContainer}>
-                                        <ShortsHeader />
-                                        <FlatList
-                                            data={item.videos}
-                                            horizontal
-                                            keyExtractor={(short) => short.videoId}
-                                            renderItem={({ item: short }) => (
-                                                <ShortsItemView
-                                                    item={short}
-                                                    onItemPress={() =>
-                                                        navigation.navigate("ShortsPlayerScreen", {
-                                                            mindex: index,
-                                                            shortIndex: item.videos.indexOf(short),
-                                                        })
-                                                    }
-                                                />
-                                            )}
-                                            showsHorizontalScrollIndicator={false}
-                                            contentContainerStyle={styles.shortsContainer}
+                    <View>
+                        <FlatList
+                            data={wathHtmlVideos?.items}
+                            keyExtractor={(_, index) => index.toString()}
+                            renderItem={({ item, index }) => {
+                                if (item.type === "video") {
+                                    return (
+                                        <VideoItemView
+                                            item={item}
+                                            progress={0}
+                                            onItemPress={() => loadData(item)}
+                                            onDownload={() => console.log("downloadClicked")}
                                         />
-                                    </View>
-                                );
+                                    );
+                                } else {
+                                    return (
+                                        <View style={styles.shortParentContainer}>
+                                            <ShortsHeader />
+                                            <FlatList
+                                                data={item.videos}
+                                                horizontal
+                                                keyExtractor={(short) => short.videoId}
+                                                renderItem={({ item: short }) => (
+                                                    <ShortsItemView
+                                                        item={short}
+                                                        onItemPress={() =>
+                                                            navigation.navigate("ShortsPlayerScreen", {
+                                                                arrivedVideo: short
+                                                            })
+                                                        }
+                                                    />
+                                                )}
+                                                showsHorizontalScrollIndicator={false}
+                                                contentContainerStyle={styles.shortsContainer}
+                                            />
+                                        </View>
+                                    );
+                                }
+                            }}
+                            contentContainerStyle={{ gap: 10, paddingBottom: 250, }}
+                            ListHeaderComponent={
+                                currentVideo ? (
+                                    <VideoDetails
+                                        videoDes={currentVideo}
+                                        onDownloadPress={() =>
+                                            handleThreeDotClick(currentVideo.video)
+                                        }
+                                    />
+                                ) : (
+                                    <ActivityIndicator size="large" color="red" style={{ margin: 20 }} />
+                                )
                             }
-                        }}
-                        contentContainerStyle={{ gap: 10, marginTop: 10 }}
-                        ListHeaderComponent={
-                            currentVideo ? (
-                                <VideoDetails
-                                    videoDes={currentVideo}
-                                    onDownloadPress={() =>
-                                        handleThreeDotClick(currentVideo.video)
-                                    }
-                                />
-                            ) : (
-                                <ActivityIndicator size="large" color="red" style={{ margin: 20 }} />
-                            )
-                        }
-                    />
+                        />
+                    </View>
                     <ResolutionBottomSheet
                         visible={showBottomSheet}
                         resolutions={resolutions}
@@ -339,14 +359,11 @@ export default function VideoPlayerScreen() {
                 </View> : <View />
             }
 
-
-
-
-
         </SafeAreaView>
 
 
-    )
+    );
+
 }
 
 

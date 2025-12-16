@@ -11,16 +11,17 @@ import DownloadsScreen from './screens/DownloadsScreen/DownloadsScreen'
 import OfflinePlayer from './screens/OfflinePlayer/OfflinePlayer'
 import PlaylistScreen from './screens/PlaylistScreen/PlaylistScreen'
 import ShortsScreen from './screens/ShortsScreen/ShortsScreen'
+import { GestureHandlerRootView } from 'react-native-gesture-handler';
+
 import { Video } from './utils/types'
 export type RootStackParamList = {
   BottomNav: undefined;
   SearchScreen: undefined;
   VideoPlayerScreen: { arrivedVideo: Video };
-  ShortsPlayerScreen: { mindex: number, shortIndex: number },
+  ShortsPlayerScreen: { arrivedVideo: Video },
   DownloadsScreen: undefined,
   OfflinePlayer: { downloadIndex: number },
   PlaylistScreen: { playlistlink: string }
-
 
 };
 
@@ -64,31 +65,33 @@ export default function App() {
 
   }, [])
 
-  return splashEnded ? (
-
-    <NavigationContainer>
-      <Stack.Navigator
-        initialRouteName={'BottomNav'}
-        screenOptions={{ headerShown: false }}
-      >
-        <Stack.Screen name="BottomNav" component={BottomNav} />
-        <Stack.Screen name="SearchScreen" component={SearchScreen} />
-        <Stack.Screen name="VideoPlayerScreen" component={VideoPlayerScreen} />
-        <Stack.Screen name="ShortsPlayerScreen" component={ShortsPlayer} />
-        <Stack.Screen name="DownloadsScreen" component={DownloadsScreen} />
-        <Stack.Screen name="OfflinePlayer" component={OfflinePlayer} />
-        <Stack.Screen name="PlaylistScreen" component={PlaylistScreen} />
-      </Stack.Navigator>
-    </NavigationContainer>
-
-  ) : (
-    <SafeAreaView style={styles.container}>
-      <Animated.Image
-        source={require('./assets/Logo.png')}
-        resizeMode="contain"
-        style={[styles.logo, { transform: [{ scaleY }] }]}
-      />
-    </SafeAreaView>
+  return (
+    <GestureHandlerRootView style={{ flex: 1 }}>
+      {splashEnded ? (
+        <NavigationContainer>
+          <Stack.Navigator
+            initialRouteName="BottomNav"
+            screenOptions={{ headerShown: false }}
+          >
+            <Stack.Screen name="BottomNav" component={BottomNav} />
+            <Stack.Screen name="SearchScreen" component={SearchScreen} />
+            <Stack.Screen name="VideoPlayerScreen" component={VideoPlayerScreen} />
+            <Stack.Screen name="ShortsPlayerScreen" component={ShortsPlayer} />
+            <Stack.Screen name="DownloadsScreen" component={DownloadsScreen} />
+            <Stack.Screen name="OfflinePlayer" component={OfflinePlayer} />
+            <Stack.Screen name="PlaylistScreen" component={PlaylistScreen} />
+          </Stack.Navigator>
+        </NavigationContainer>
+      ) : (
+        <SafeAreaView style={styles.container}>
+          <Animated.Image
+            source={require('./assets/Logo.png')}
+            resizeMode="contain"
+            style={[styles.logo, { transform: [{ scaleY }] }]}
+          />
+        </SafeAreaView>
+      )}
+    </GestureHandlerRootView>
   );
 
 }

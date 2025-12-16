@@ -27,6 +27,7 @@ import java.io.FileInputStream
 import java.io.RandomAccessFile
 import java.nio.ByteBuffer
 import org.json.JSONObject
+import org.json.JSONArray
 import android.util.Log
 
 
@@ -43,6 +44,167 @@ class MyNativeModule(private val reactContext: ReactApplicationContext) :
     override fun getName(): String = NAME
 
     
+
+
+    @ReactMethod
+fun getShortMeta(videoId: String, promise: Promise) {
+    backThread.launch(Dispatchers.IO) {
+        try {
+            val url = "https://www.youtube.com/shorts/$videoId"
+
+            val client = OkHttpClient()
+            val request = Request.Builder()
+                .url(url)
+                .get()
+                .header("User-Agent", "Mozilla/5.0")
+                .header("Accept", "text/html")
+                .build()
+
+            val response = client.newCall(request).execute()
+            if (!response.isSuccessful) {
+                promise.reject("HTTP_ERROR", "Code ${response.code}")
+                return@launch
+            }
+
+            val html = response.body?.string() ?: ""
+
+            // 1️⃣ Extract ytInitialData
+            val regex = Regex(
+                """ytInitialData\s*=\s*(\{.*?\});""",
+                setOf(RegexOption.DOT_MATCHES_ALL)
+            )
+
+            val match = regex.find(html)
+                ?: throw Exception("ytInitialData not found")
+
+            val json = JSONObject(match.groupValues[1])
+
+            // 2️⃣ Navigate deep path (same as Python)
+            val panels = json.getJSONArray("engagementPanels")
+
+            val commentsCount =
+                panels.getJSONObject(0)
+                    .getJSONObject("engagementPanelSectionListRenderer")
+                    .getJSONObject("header")
+                    .getJSONObject("engagementPanelTitleHeaderRenderer")
+                    .getJSONObject("contextualInfo")
+                    .getJSONArray("runs")
+                    .getJSONObject(0)
+                    .getString("text")
+
+            val header =
+                panels.getJSONObject(1)
+                    .getJSONObject("engagementPanelSectionListRenderer")
+                    .getJSONObject("content")
+                    .getJSONObject("structuredDescriptionContentRenderer")
+                    .getJSONArray("items")
+                    .getJSONObject(0)
+                    .getJSONObject("videoDescriptionHeaderRenderer")
+
+            val title =
+                header.getJSONObject("title")
+                    .getJSONArray("runs")
+                    .getJSONObject(0)
+                    .getString("text")
+
+            val likes =
+                header.getJSONArray("factoid")
+                    .getJSONObject(0)
+                    .getJSONObject("factoidRenderer")
+                    .getJSONObject("value")
+                    .getString("simpleText")
+
+            val channelName =
+                header.getJSONObject("channel")
+                    .getString("simpleText")
+
+            val channelThumbnail =
+                header.getJSONObject("channelThumbnail")
+                    .getJSONArray("thumbnails")
+                    .getJSONObject(0)
+                    .getString("url")
+
+            val canonicalUrl =
+                header.getJSONObject("channelNavigationEndpoint")
+                    .getJSONObject("commandMetadata")
+                    .getJSONObject("webCommandMetadata")
+                    .getString("url")
+
+            // 3️⃣ Build response
+            val result = JSONObject().apply {
+                put("videoId", videoId)
+                put("title", title)
+                put("likes", likes)
+                put("comments", commentsCount)
+                put("channelName", channelName)
+                put("channelThumbnail", channelThumbnail)
+                put("canonicalUrl", canonicalUrl)
+            }
+
+            promise.resolve(result.toString())
+
+        } catch (e: Exception) {
+            promise.reject("ERROR", e.message, e)
+        }
+    }
+}
+
+    @ReactMethod
+fun getRelatedShortVideoIds(videoId: String, promise: Promise) {
+
+    backThread.launch(Dispatchers.IO) {
+        try {
+            val url = "https://www.youtube.com/shorts/$videoId"
+
+            val client = OkHttpClient()
+            val request = Request.Builder()
+                .url(url)
+                .get()
+                .header("User-Agent", "Mozilla/5.0")
+                .header("Accept", "text/html")
+                .build()
+
+            val response = client.newCall(request).execute()
+
+            if (!response.isSuccessful) {
+                promise.reject("HTTP_ERROR", "Code: ${response.code}")
+                return@launch
+            }
+
+            val html = response.body?.string() ?: ""
+
+            val resultSet = mutableSetOf<String>()
+
+            // 1️⃣ Standard JSON: "videoId":"XXXX"
+            Regex(""""videoId":"([a-zA-Z0-9_-]{11})"""")
+                .findAll(html)
+                .forEach { resultSet.add(it.groupValues[1]) }
+
+            // 2️⃣ Escaped quotes: \"videoId\":\"XXXX\"
+            Regex("""\\"videoId\\":\\"([a-zA-Z0-9_-]{11})\\"""")
+                .findAll(html)
+                .forEach { resultSet.add(it.groupValues[1]) }
+
+            // 3️⃣ Hex escaped: \x22videoId\x22:\x22XXXX\x22
+            Regex("""\\x22videoId\\x22:\\x22([a-zA-Z0-9_-]{11})\\x22""")
+                .findAll(html)
+                .forEach { resultSet.add(it.groupValues[1]) }
+
+            // Remove the original videoId
+            resultSet.remove(videoId)
+
+            // Convert to JSONArray
+            val array = JSONArray()
+            resultSet.forEach { array.put(it) }
+
+            promise.resolve(array.toString())
+
+        } catch (e: Exception) {
+            promise.reject("ERROR", e.message)
+        }
+    }
+}
+
     @ReactMethod
 fun getYtInitialData(watchUrl: String, promise: Promise) {
 

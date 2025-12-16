@@ -2,11 +2,13 @@ import { StyleSheet, Text, View, TouchableOpacity, Image } from 'react-native'
 import React from 'react'
 import Icon from 'react-native-vector-icons/Ionicons';
 
-type Props={
-    onDownload:()=>void
+type Props = {
+    onDownload: () => void,
+    likes: string,
+    commentCount: string
 }
 
-export default function RightControls({onDownload}:Props) {
+export default function RightControls({ onDownload, likes, commentCount }: Props) {
     return (
         <View style={styles.rightControls}>
             <TouchableOpacity style={styles.button}>
@@ -15,20 +17,20 @@ export default function RightControls({onDownload}:Props) {
 
             <TouchableOpacity style={styles.button}>
                 <Image source={require("../../assets/shortsIcons/likeWhite.png")} style={styles.rightIcons} />
-                <Text style={styles.text}>123</Text>
+                <Text style={styles.text}>{likes}</Text>
             </TouchableOpacity>
 
             <TouchableOpacity style={styles.button}>
                 <Image source={require("../../assets/shortsIcons/dislikewhite.png")} style={styles.rightIcons} />
-                <Text  style={styles.text}>46</Text>
+                <Text style={styles.text}>{ }</Text>
             </TouchableOpacity>
 
             <TouchableOpacity style={styles.button}>
                 <Image source={require("../../assets/shortsIcons/commentWhite.png")} style={styles.rightIconsBig} />
-                <Text style={styles.text}>45</Text>
+                <Text style={styles.text}>{commentCount}</Text>
             </TouchableOpacity>
 
-            <TouchableOpacity style={styles.button} onPress={()=>onDownload()}>
+            <TouchableOpacity style={styles.button} onPress={() => onDownload()}>
                 <Image source={require("../../assets/shortsIcons/shareWhite.png")} style={styles.rightIconsBig} />
                 <Text style={styles.text}>Share</Text>
             </TouchableOpacity>
@@ -41,15 +43,15 @@ const styles = StyleSheet.create({
         position: "absolute",
         right: 10,
         bottom: "10%",
-        alignItems:"center",
-        gap:7
+        alignItems: "center",
+        gap: 7
     },
     button: {
-         alignItems:"center"
+        alignItems: "center"
     }
     ,
     text: {
-       color:"white"
+        color: "white"
     },
     rightIcons: {
         height: 40,

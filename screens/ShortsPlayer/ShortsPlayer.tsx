@@ -15,10 +15,10 @@ import { getIosPlayerResponse } from '../../utils/EndPoints';
 import RightControls from './RightControls';
 import BottomControls from './BottomControls';
 import { NativeStackNavigationProp } from "@react-navigation/native-stack";
-import type { Video as VideoType } from "../../utils/types";
+import type { VideoDescription, Video as VideoType } from "../../utils/types";
 type NavigationProp = RouteProp<RootStackParamList, "ShortsPlayerScreen">;
 import AskFormat from '../HomeScreen/widgets/AskFormat/AskFormat';
-import { AskFormatModel } from "../../utils/types";
+import { AskFormatModel, Video as Mvideo } from "../../utils/types";
 import { mapAdaptiveFormatsToRequired } from "../../utils/praserHelpers";
 import { getSelectedFormats } from "../../utils/downloadFunctions";
 import { DownloadItem } from '../../utils/types';
@@ -26,16 +26,18 @@ import { txt2filename, getStreamingData } from '../../utils/Interact';
 type Navstack = NativeStackNavigationProp<RootStackParamList, "BottomNav">;
 import { DownloadsStore } from '../../utils/Store';
 import { SQLiteDatabase } from 'react-native-sqlite-storage';
+import { Gesture, GestureDetector } from 'react-native-gesture-handler';
 import { addDownload, createDownloadsTable, initDB, loadDownloads } from "../../utils/dbfunctions";
+
 
 export default function ShortsPlayer() {
     const route = useRoute<NavigationProp>();
     const navigation = useNavigation<Navstack>();
-    const { mindex, shortIndex } = route.params;
+    const { arrivedVideo } = route.params;
     const [currentVideoId, setCurrentVideoId] = useState("")
-    const { addDownloadItem, updateItem } = DownloadsStore();
-    const { totalVideos } = useVideoStore();
+    const { addDownloadItem } = DownloadsStore();
     const [mediaUrl, setMediaUrl] = useState("");
+    const [title, setTitle] = useState("");
     const [paused, setPaused] = useState(false);
     const [showIcon, setShowIcon] = useState(false);
     const [buffering, setBuffering] = useState(false);
@@ -46,7 +48,107 @@ export default function ShortsPlayer() {
     const { MyNativeModule } = NativeModules;
     const [requiredFmts, setRequiredFmts] = useState<AskFormatModel[]>([]);
     const [db, setDb] = useState<SQLiteDatabase | null>(null);
+    const [shortQueue, setShortQueue] = useState<string[]>([]);
+    const [currentVideoInfo, setCurrentVideoInfo] = useState<VideoDescription>();
 
+
+
+    const playNextShorts = async (): Promise<void> => {
+        setMediaUrl("");
+        setCurrentVideoId("");
+        try {
+            let nextVideoId: string | undefined;
+
+            // 1️⃣ Use queue if available
+            if (shortQueue.length > 0) {
+                setCurrentVideoId(shortQueue[0]);
+                nextVideoId = shortQueue[0];
+                setShortQueue(prev => prev.slice(1));
+            } else {
+                // 2️⃣ Fetch from native
+                const raw = await MyNativeModule.getRelatedShortVideoIds(currentVideoId);
+                console.log(raw);
+
+                let ids: string[] = [];
+
+                // Native returned JSON string
+                if (typeof raw === "string") {
+                    try {
+                        const parsed = JSON.parse(raw);
+                        if (Array.isArray(parsed)) {
+                            ids = parsed;
+                        } else if (raw.length === 11) {
+                            ids = [raw];
+                        }
+                    } catch {
+                        // Not JSON → maybe single ID
+                        if (raw.length === 11) ids = [raw];
+                    }
+                }
+
+                // Native returned array
+                if (Array.isArray(raw)) {
+                    ids = raw;
+                }
+
+                // Filter valid YouTube IDs only
+                ids = ids.filter(id => typeof id === "string" && id.length === 11);
+
+                if (ids.length === 0) return;
+
+                nextVideoId = ids[0];
+                setShortQueue(ids.slice(1));
+            }
+
+            if (!nextVideoId || nextVideoId.length !== 11) {
+                console.warn("Invalid videoId:", nextVideoId);
+                return;
+            }
+
+            const rawMeta = await MyNativeModule.getShortMeta(nextVideoId);
+
+            const shortInfo =
+                typeof rawMeta === "string"
+                    ? JSON.parse(rawMeta)
+                    : rawMeta;
+
+            const mvideo: Mvideo = {
+                type: "video",
+                videoId: nextVideoId,
+                title: shortInfo.title,
+                views: ""
+            }
+            const currentVideoInfo: VideoDescription = {
+                title: shortInfo.title,
+                views: 0,
+                uploaded: "unknown",
+                hashTags: "unknown",
+                likes: shortInfo.likes,
+                dislikes: "",
+                subscriber: "",
+                commentsCount: shortInfo.comments,
+                channelName: shortInfo.channelName,
+                channelPhoto: shortInfo.channelThumbnail,
+                video: mvideo
+            }
+            setCurrentVideoInfo(currentVideoInfo)
+            setCurrentVideo(mvideo)
+            setCurrentVideoId(nextVideoId);
+            fetchStreamingData(nextVideoId);
+        } catch (e) {
+            console.error("playNextShorts failed:", e);
+        }
+    };
+
+
+    const swipeGesture = Gesture.Pan()
+        .activeOffsetY([-20, 20])
+        .failOffsetX([-20, 20])
+        .onEnd((e) => {
+            if (e.translationY < -50) {
+                playNextShorts();
+            }
+        });
 
     const openModal = () => {
         setModalVisible(true);
@@ -68,13 +170,24 @@ export default function ShortsPlayer() {
 
     const fetchStreamingData = async (videoId: string) => {
         try {
+            if (!videoId) return;
+
             const result = await getIosPlayerResponse(videoId);
-            const streamingData = result.streamingData;
+            const streamingData = result?.streamingData;
+            setTitle(result?.videoDetails.title)
+
+            if (!streamingData?.hlsManifestUrl) {
+                console.warn("No HLS for video:", videoId);
+                return;
+            }
+
             setMediaUrl(streamingData.hlsManifestUrl);
+
         } catch (err) {
             console.error("Failed to fetch player response:", err);
         }
     };
+
 
     async function loadDb() {
         if (db == null) {
@@ -86,13 +199,11 @@ export default function ShortsPlayer() {
 
 
     useEffect(() => {
+        setCurrentVideoId(arrivedVideo.videoId);
         loadDb()
-        const requiredGroup = totalVideos[mindex]
-        if (requiredGroup.type == "shorts") {
-            setCurrentVideo(requiredGroup.videos[shortIndex]);
-            fetchStreamingData(requiredGroup.videos[shortIndex].videoId);
-        }
-    }, [totalVideos, mindex]);
+        setCurrentVideo(arrivedVideo);
+        fetchStreamingData(arrivedVideo.videoId);
+    }, []);
 
 
     const togglePlayPause = () => {
@@ -149,9 +260,6 @@ export default function ShortsPlayer() {
         openModal();
     };
 
-
-
-
     return (
         <SafeAreaView style={styles.root}>
             <View style={styles.topBar}>
@@ -161,43 +269,56 @@ export default function ShortsPlayer() {
                 <IconMat name='camera-outline' size={28} color="white" />
             </View>
 
-            <View style={styles.videoContainer}>
-                <Video
-                    source={{ uri: mediaUrl }}
-                    poster={`https://img.youtube.com/vi/${currentVideoId}/hqdefault.jpg`}
-                    posterResizeMode="cover"
-                    style={StyleSheet.absoluteFill}
-                    resizeMode="cover"
-                    paused={paused}
-                    onBuffer={({ isBuffering }) => setBuffering(isBuffering)}
-                    onLoadStart={() => setBuffering(true)}
-                    onLoad={() => setBuffering(false)}
-                />
+            <GestureDetector gesture={swipeGesture}>
+                <View style={styles.videoContainer}>
+                    <Video
+                        source={{ uri: mediaUrl }}
+                        poster={`https://img.youtube.com/vi/${currentVideoId}/hqdefault.jpg`}
+                        posterResizeMode="cover"
+                        style={StyleSheet.absoluteFill}
+                        resizeMode="cover"
+                        paused={paused}
+                        onBuffer={({ isBuffering }) => setBuffering(isBuffering)}
+                        onLoadStart={() => setBuffering(true)}
+                        onLoad={() => setBuffering(false)}
+                    />
 
-                <Pressable
-                    onPress={togglePlayPause}
-                    style={StyleSheet.absoluteFill} // covers full video
-                >
-                    {showIcon && (
+                    <Pressable
+                        onPress={togglePlayPause}
+                        style={StyleSheet.absoluteFill} // covers full video
+                    >
+                        {showIcon && (
+                            <View style={styles.centerIcon}>
+                                <Icon
+                                    name={paused ? "play-circle-outline" : "pause-circle-outline"}
+                                    size={80}
+                                    color="white"
+                                />
+                            </View>
+                        )}
+                    </Pressable>
+
+                    {buffering && (
                         <View style={styles.centerIcon}>
-                            <Icon
-                                name={paused ? "play-circle-outline" : "pause-circle-outline"}
-                                size={80}
-                                color="white"
-                            />
+                            <ActivityIndicator size="large" color="red" />
                         </View>
                     )}
-                </Pressable>
 
-                {buffering && (
-                    <View style={styles.centerIcon}>
-                        <ActivityIndicator size="large" color="red" />
-                    </View>
-                )}
+                    <RightControls
+                        likes={currentVideoInfo?.likes ?? "No likes"}
+                        commentCount={currentVideoInfo?.commentsCount ?? ""}
+                        onDownload={() => handleThreeDotClick(currentVideo!)}
+                    />
 
-                <RightControls onDownload={() => handleThreeDotClick(currentVideo!!)} />
-                <BottomControls />
-            </View>
+                    <BottomControls
+                        channelName={currentVideoInfo?.channelName ?? ""}
+                        channelThumbnail={currentVideoInfo?.channelPhoto ?? ""}
+                        title={title}
+                    />
+
+                </View>
+            </GestureDetector>
+
             <Modal
                 transparent
                 visible={modalVisible}

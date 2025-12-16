@@ -75,7 +75,6 @@ const styles = StyleSheet.create({
         justifyContent: "space-between",
         alignItems: "center", // keeps chevron vertically centered
         paddingRight: 30,
-        marginTop: 5
     }
     ,
     uploadDetails: {
