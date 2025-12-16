@@ -14,6 +14,8 @@ import ShortsScreen from './screens/ShortsScreen/ShortsScreen'
 import { GestureHandlerRootView } from 'react-native-gesture-handler';
 
 import { Video } from './utils/types'
+import LoginScreen from './screens/LoginScreen/LoginScreen'
+import BrowserScreen from './screens/BrowserScreen/BrowserScreen'
 export type RootStackParamList = {
   BottomNav: undefined;
   SearchScreen: undefined;
@@ -21,7 +23,9 @@ export type RootStackParamList = {
   ShortsPlayerScreen: { arrivedVideo: Video },
   DownloadsScreen: undefined,
   OfflinePlayer: { downloadIndex: number },
-  PlaylistScreen: { playlistlink: string }
+  PlaylistScreen: { playlistlink: string },
+  BrowserScreen: undefined;
+
 
 };
 
@@ -31,14 +35,30 @@ const Stack = createNativeStackNavigator<RootStackParamList>();
 
 export default function App() {
 
+  const AppStack = () => (
+    <NavigationContainer>
+      <Stack.Navigator
+        initialRouteName="BrowserScreen"
+        screenOptions={{ headerShown: false }}
+      >
+        <Stack.Screen name="BrowserScreen" component={BrowserScreen} />
+        <Stack.Screen name="BottomNav" component={BottomNav} />
+        <Stack.Screen name="SearchScreen" component={SearchScreen} />
+        <Stack.Screen name="VideoPlayerScreen" component={VideoPlayerScreen} />
+        <Stack.Screen name="ShortsPlayerScreen" component={ShortsPlayer} />
+        <Stack.Screen name="DownloadsScreen" component={DownloadsScreen} />
+        <Stack.Screen name="OfflinePlayer" component={OfflinePlayer} />
+        <Stack.Screen name="PlaylistScreen" component={PlaylistScreen} />
+      </Stack.Navigator>
+    </NavigationContainer>
+  )
+
+
   const [splashEnded, setSplashEnded] = useState(false)
   const scaleY = useRef(new Animated.Value(1)).current
+  const [isLoggedIn, setIsLoggedIn] = useState(false) // ✅ ADD
 
-  const { MyNativeModule } = NativeModules;
 
-  const callNative = (arg: any) => {
-    MyNativeModule?.someFunction(arg);
-  };
 
 
 
@@ -67,22 +87,8 @@ export default function App() {
 
   return (
     <GestureHandlerRootView style={{ flex: 1 }}>
-      {splashEnded ? (
-        <NavigationContainer>
-          <Stack.Navigator
-            initialRouteName="BottomNav"
-            screenOptions={{ headerShown: false }}
-          >
-            <Stack.Screen name="BottomNav" component={BottomNav} />
-            <Stack.Screen name="SearchScreen" component={SearchScreen} />
-            <Stack.Screen name="VideoPlayerScreen" component={VideoPlayerScreen} />
-            <Stack.Screen name="ShortsPlayerScreen" component={ShortsPlayer} />
-            <Stack.Screen name="DownloadsScreen" component={DownloadsScreen} />
-            <Stack.Screen name="OfflinePlayer" component={OfflinePlayer} />
-            <Stack.Screen name="PlaylistScreen" component={PlaylistScreen} />
-          </Stack.Navigator>
-        </NavigationContainer>
-      ) : (
+      {!splashEnded ? (
+        // 🔵 SPLASH
         <SafeAreaView style={styles.container}>
           <Animated.Image
             source={require('./assets/Logo.png')}
@@ -90,9 +96,16 @@ export default function App() {
             style={[styles.logo, { transform: [{ scaleY }] }]}
           />
         </SafeAreaView>
+      ) : !isLoggedIn ? (
+        // 🔐 LOGIN
+        <LoginScreen onLogin={() => setIsLoggedIn(true)} />
+      ) : (
+        // 🚀 MAIN APP
+        <AppStack />
       )}
     </GestureHandlerRootView>
-  );
+  )
+
 
 }
 
