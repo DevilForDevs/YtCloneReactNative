@@ -46,109 +46,142 @@ export default function ShortsPlayer() {
     const { MyNativeModule } = NativeModules;
     const [requiredFmts, setRequiredFmts] = useState<AskFormatModel[]>([]);
     const [db, setDb] = useState<SQLiteDatabase | null>(null);
-    const [shortQueue, setShortQueue] = useState<string[]>([]);
     const [currentVideoInfo, setCurrentVideoInfo] = useState<VideoDescription>();
-    const retryCountRef = React.useRef(0);
-    const MAX_RETRIES = 2;
+    const [history, setHistory] = useState<string[]>([]);
+    const [unusedIds, setUnusedIds] = useState<string[]>([]);
+    const usedIdsRef = React.useRef<Set<string>>(new Set());
 
 
+    function pickRandomAndRemove(list: string[]) {
+        const index = Math.floor(Math.random() * list.length);
+        const id = list[index];
+        const remaining = list.filter((_, i) => i !== index);
+        return { id, remaining };
+    }
 
+    const refillUnusedIds = async (seedVideoId?: string) => {
+        const raw = await MyNativeModule.getRelatedShortVideoIds(seedVideoId ?? currentVideoId);
 
-    const playNextShorts = async (): Promise<void> => {
-        setBuffering(true);
-        setMediaUrl("");
-        setCurrentVideoId("");
+        let ids: string[] = [];
+
         try {
-            let nextVideoId: string | undefined;
+            ids = typeof raw === "string" ? JSON.parse(raw) : raw;
+        } catch {
+            if (typeof raw === "string" && raw.length === 11) ids = [raw];
+        }
 
-            // 1️⃣ Use queue if available
-            if (shortQueue.length > 0) {
-                setCurrentVideoId(shortQueue[0]);
-                nextVideoId = shortQueue[0];
-                setShortQueue(prev => prev.slice(1));
-            } else {
-                // 2️⃣ Fetch from native
-                const raw = await MyNativeModule.getRelatedShortVideoIds(currentVideoId);
-                console.log(raw);
+        ids = ids
+            .filter(id => typeof id === "string" && id.length === 11)
+            .filter(id => !usedIdsRef.current.has(id));
 
-                let ids: string[] = [];
-
-                // Native returned JSON string
-                if (typeof raw === "string") {
-                    try {
-                        const parsed = JSON.parse(raw);
-                        if (Array.isArray(parsed)) {
-                            ids = parsed;
-                        } else if (raw.length === 11) {
-                            ids = [raw];
-                        }
-                    } catch {
-                        // Not JSON → maybe single ID
-                        if (raw.length === 11) ids = [raw];
-                    }
-                }
-
-                // Native returned array
-                if (Array.isArray(raw)) {
-                    ids = raw;
-                }
-
-                // Filter valid YouTube IDs only
-                ids = ids.filter(id => typeof id === "string" && id.length === 11);
-
-                if (ids.length === 0) return;
-
-                nextVideoId = ids[0];
-                setShortQueue(ids.slice(1));
-            }
-
-            if (!nextVideoId || nextVideoId.length !== 11) {
-                console.warn("Invalid videoId:", nextVideoId);
-                return;
-            }
-
-            const rawMeta = await MyNativeModule.getShortMeta(nextVideoId);
-
-            const shortInfo =
-                typeof rawMeta === "string"
-                    ? JSON.parse(rawMeta)
-                    : rawMeta;
-
-            const mvideo: Mvideo = {
-                type: "video",
-                videoId: nextVideoId,
-                title: shortInfo.title,
-                views: ""
-            }
-            const currentVideoInfo: VideoDescription = {
-                title: shortInfo.title,
-                views: 0,
-                uploaded: "unknown",
-                hashTags: "unknown",
-                likes: shortInfo.likes,
-                dislikes: "",
-                subscriber: "",
-                commentsCount: shortInfo.comments,
-                channelName: shortInfo.channelName,
-                channelPhoto: shortInfo.channelThumbnail,
-                video: mvideo
-            }
-            setCurrentVideoInfo(currentVideoInfo)
-            setCurrentVideo(mvideo)
-            setCurrentVideoId(nextVideoId);
-            fetchStreamingData(nextVideoId);
-        } catch (e) {
-            console.error("playNextShorts failed:", e);
+        if (ids.length > 0) {
+            setUnusedIds(ids);
         }
     };
 
+    const safeGetShortMeta = async (videoId: string, retry = 0): Promise<any | null> => {
+        try {
+            const raw = await MyNativeModule.getShortMeta(videoId);
+            return typeof raw === "string" ? JSON.parse(raw) : raw;
+        } catch {
+            if (retry < 2) return safeGetShortMeta(videoId, retry + 1);
+            return null;
+        }
+    };
+    const playNextShorts = async () => {
+        setBuffering(true);
+
+        if (unusedIds.length === 0) {
+            await refillUnusedIds();
+        }
+
+        if (unusedIds.length === 0) {
+            setBuffering(false);
+            return;
+        }
+
+        const { id: nextId, remaining } = pickRandomAndRemove(unusedIds);
+
+        setUnusedIds(remaining);
+        usedIdsRef.current.add(nextId);
+
+        if (currentVideoId) {
+            setHistory(h => [...h.slice(-1), currentVideoId]); // keep 1
+        }
+
+        const meta = await safeGetShortMeta(nextId);
+        if (!meta) {
+            setBuffering(false);
+            return playNextShorts(); // skip broken
+        }
+
+        setCurrentVideoId(nextId);
+
+        setCurrentVideo({
+            type: "video",
+            videoId: nextId,
+            title: meta.title ?? "",
+            views: "",
+        });
+
+        setCurrentVideoInfo({
+            title: meta.title ?? "",
+            views: 0,
+            uploaded: "unknown",
+            hashTags: "",
+            likes: meta.likes ?? "",
+            dislikes: "",
+            subscriber: "",
+            commentsCount: meta.comments ?? "",
+            channelName: meta.channelName ?? "",
+            channelPhoto: meta.channelThumbnail ?? "",
+            video: {
+                type: "video",
+                videoId: nextId,
+                title: meta.title ?? "",
+                views: "",
+            },
+        });
+
+        await fetchStreamingData(nextId);
+        setBuffering(false);
+    };
+
+    const playPreviousShorts = async () => {
+        if (history.length === 0 || buffering) return;
+
+        const prevId = history[history.length - 1];
+        setHistory(h => h.slice(0, -1));
+
+        setBuffering(true);
+
+        const meta = await safeGetShortMeta(prevId);
+        if (!meta) {
+            setBuffering(false);
+            return;
+        }
+
+        setCurrentVideoId(prevId);
+
+        setCurrentVideo({
+            type: "video",
+            videoId: prevId,
+            title: meta.title ?? "",
+            views: "",
+        });
+
+        await fetchStreamingData(prevId);
+        setBuffering(false);
+    };
 
     const swipeGesture = Gesture.Pan()
         .activeOffsetY([-20, 20])
         .failOffsetX([-20, 20])
         .onEnd((e) => {
-            if (e.translationY < -50) {
-                playNextShorts();
+            if (e.translationY < -60) {
+                playNextShorts();      // ⬆ swipe
+            } else if (e.translationY > 60) {
+                playPreviousShorts();  // ⬇ swipe
             }
         });
 
@@ -283,6 +316,7 @@ export default function ShortsPlayer() {
                         onBuffer={({ isBuffering }) => setBuffering(isBuffering)}
                         onLoadStart={() => setBuffering(true)}
                         onLoad={() => setBuffering(false)}
+                        onError={() => console.log(mediaUrl)}
                     />
 
                     <Pressable
