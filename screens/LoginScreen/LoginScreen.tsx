@@ -7,10 +7,12 @@ import {
     TouchableOpacity,
     StatusBar
 } from 'react-native'
+import { useNavigation } from "@react-navigation/native";
 
-export default function LoginScreen({ onLogin }: { onLogin: () => void }) {
-    const [email, setEmail] = useState('')
-    const [password, setPassword] = useState('')
+export default function LoginScreen() {
+    const [email, setEmail] = useState('');
+    const [password, setPassword] = useState('');
+    const navigation = useNavigation<navStack>();
 
 
     return (
@@ -56,7 +58,7 @@ export default function LoginScreen({ onLogin }: { onLogin: () => void }) {
             </TouchableOpacity>
 
             {/* Login Button */}
-            <TouchableOpacity style={styles.button} onPress={onLogin}>
+            <TouchableOpacity style={styles.button} onPress={() => navigation.navigate("BrowserScreen")}>
                 <Text style={styles.buttonText}>Login</Text>
             </TouchableOpacity>
 

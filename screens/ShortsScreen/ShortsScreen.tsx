@@ -2,17 +2,13 @@ import { StyleSheet, Text, View, TouchableOpacity } from 'react-native'
 import React, { useState } from 'react'
 import { DownloadsStore, useVideoStore } from "../../utils/Store";
 import { NativeStackNavigationProp } from "@react-navigation/native-stack";
-import { RootStackParamList } from "../../App";
+
 import { useNavigation } from "@react-navigation/native";
 import { useRef } from 'react';
 
-type NavigationProp = NativeStackNavigationProp<
-  RootStackParamList,
-  "SearchScreen"
->;
 
 export default function ShortsScreen() {
-  const navigation = useNavigation<NavigationProp>();
+  const navigation = useNavigation<navStack>();
   const {
     totalVideos,
   } = useVideoStore();

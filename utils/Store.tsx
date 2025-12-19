@@ -17,18 +17,69 @@ function addSeenVideoIdF(state: VideoStore, videoId: string) {
 }
 
 
-export const useVideoStore = create<VideoStore>((set) => ({
+export const useVideoStore = create<VideoStore>((set, get) => ({
   totalVideos: [],
   seenVideosIds: [],
   continuation: "",
   query: "tum hi ho",
-  addVideo: (item) => set((state) => addVideoF(state, item)),
-  addSeenVideoId: (videoId) => set((state) => addSeenVideoIdF(state, videoId)),
-  setContinuation: (continuation) => set(() => ({ continuation })),
-  setQuery: (query) => set(() => ({ query })),
-  clearVideos: () => set(() => ({ totalVideos: [] })),
-  clearSeenVideosIds: () => set(() => ({ seenVideosIds: [] }))
-}))
+
+  addVideo: (item) =>
+    set((state) => {
+      // ─────────────────────────────
+      // 🎥 Single video
+      // ─────────────────────────────
+      if (item.type === "video") {
+        if (state.seenVideosIds.includes(item.videoId)) {
+          return state; // ❌ duplicate
+        }
+
+        return {
+          totalVideos: [...state.totalVideos, item],
+          seenVideosIds: [...state.seenVideosIds, item.videoId],
+        };
+      }
+
+      // ─────────────────────────────
+      // 📱 Shorts group
+      // ─────────────────────────────
+      if (item.type === "shorts") {
+        const newVideos = item.videos.filter(
+          (v) => !state.seenVideosIds.includes(v.videoId)
+        );
+
+        if (newVideos.length === 0) {
+          return state; // ❌ all duplicates
+        }
+
+        return {
+          totalVideos: [
+            ...state.totalVideos,
+            { ...item, videos: newVideos },
+          ],
+          seenVideosIds: [
+            ...state.seenVideosIds,
+            ...newVideos.map((v) => v.videoId),
+          ],
+        };
+      }
+
+      return state;
+    }),
+
+  addSeenVideoId: (videoId) =>
+    set((state) => {
+      if (state.seenVideosIds.includes(videoId)) return state;
+      return {
+        seenVideosIds: [...state.seenVideosIds, videoId],
+      };
+    }),
+
+  setContinuation: (continuation) => set({ continuation }),
+  setQuery: (query) => set({ query }),
+
+  clearVideos: () => set({ totalVideos: [] }),
+  clearSeenVideosIds: () => set({ seenVideosIds: [] }),
+}));
 
 
 function addDownloadItemF(
@@ -48,7 +99,7 @@ function addDownloadItemF(
 export const DownloadsStore = create<DownloadStoreModel>((set) => ({
   totalDownloads: [],
 
-  addDownloadItem: (item,index) => set((state) => addDownloadItemF(state, item,index)),
+  addDownloadItem: (item, index) => set((state) => addDownloadItemF(state, item, index)),
 
   updateItem: (videoId, updates) =>
     set((state) => ({

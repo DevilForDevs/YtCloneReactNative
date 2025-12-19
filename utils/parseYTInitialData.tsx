@@ -2,21 +2,8 @@
 
 type AnyObj = Record<string, any>;
 
-type VideoData = {
-    title: string | null;
-    video_id: string | null;
-    views: string | null;
-    channel_name: string | null;
-    channel_photo: string | null;
-    channel_url: string | null;
-    duration: string | null;
-};
 
-type ShortsData = {
-    title: string | null;
-    video_id: string | null;
-    views: string | null;
-};
+
 
 
 function safeGet(obj: any, path: (string | number)[], defaultVal: any = null) {
@@ -136,11 +123,7 @@ function extractVideoData(item: AnyObj): VideoData {
 }
 
 export function parseYTInitialData(data: AnyObj) {
-    const results: {
-        videos: VideoData[];
-        shorts: ShortsData[];
-        continuationTokens: string[];
-    } = {
+    const results: initialData = {
         videos: [],
         shorts: [],
         continuationTokens: [],

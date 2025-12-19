@@ -1,7 +1,7 @@
 import { Image, StyleSheet, Text, TouchableOpacity, View, Modal } from 'react-native';
 import React, { useState } from 'react';
 import Icon from 'react-native-vector-icons/MaterialIcons';
-
+import { ytThumbs } from '../../../../utils/downloadFunctions';
 import { Video } from '../../../../utils/types';
 
 type Props = {
@@ -9,7 +9,7 @@ type Props = {
   onItemPress: () => void;
   progress: number;
   onDownload: () => void;
-  
+
 };
 
 export default function VideoItemView({
@@ -18,33 +18,20 @@ export default function VideoItemView({
   progress,
   onDownload,
 }: Props) {
-  const [menuVisible, setMenuVisible] = useState(false);
 
-  const toggleMenu = () => setMenuVisible((prev) => !prev);
+  const [thumb, setThumb] = useState(ytThumbs(item.videoId).hq);
 
-  const handleOptionClick = (callback: () => void) => {
-    callback();
-    setMenuVisible(false);
-  };
 
   return (
     <View style={styles.root}>
       <TouchableOpacity onPress={onItemPress}>
         <Image
-          source={{ uri: `https://img.youtube.com/vi/${item.videoId}/hqdefault.jpg` }}
+          source={{ uri: thumb }}
           style={styles.img}
+          resizeMode="cover"
+          onError={() => setThumb(ytThumbs(item.videoId).mq)}
         />
       </TouchableOpacity>
-
-      {progress > 0 && (
-        <>
-          <View style={styles.progressBackground}>
-            <View style={[styles.progressFill, { width: `${progress * 100}%` }]} />
-          </View>
-          <Text style={styles.floatingDuration}>{item.duration}</Text>
-        </>
-      )}
-
       <View style={styles.info}>
         <Image source={{ uri: item.channel }} style={styles.profile} />
 
@@ -58,7 +45,7 @@ export default function VideoItemView({
               {item.title}
             </Text>
 
-            <TouchableOpacity style={styles.vertMore} onPress={toggleMenu}>
+            <TouchableOpacity style={styles.vertMore} onPress={() => console.log("ranjan")}>
               <Icon name="more-vert" size={22} color="#000" />
             </TouchableOpacity>
           </View>
@@ -72,29 +59,6 @@ export default function VideoItemView({
           </Text>
         </View>
       </View>
-
-      {menuVisible && (
-        <View style={styles.menuCard}>
-          <TouchableOpacity
-            style={styles.menuItem}
-            onPress={() => handleOptionClick(onDownload)}
-          >
-            <Text>Download</Text>
-          </TouchableOpacity>
-          <TouchableOpacity
-            style={styles.menuItem}
-            
-          >
-            <Text>Add to Playlist</Text>
-          </TouchableOpacity>
-          <TouchableOpacity
-            style={styles.menuItem}
-           
-          >
-            <Text>Subscribe</Text>
-          </TouchableOpacity>
-        </View>
-      )}
     </View>
   );
 }
@@ -168,6 +132,3 @@ const styles = StyleSheet.create({
     paddingVertical: 6,
   },
 });
-
-
-// 19,210,251 viewsJul • 1, 2016

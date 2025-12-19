@@ -14,7 +14,6 @@ import Player from "./widgets/Player";
 import VideoItemView from "../HomeScreen/widgets/VideoItemView/VideoItemView";
 import ShortsHeader from "../HomeScreen/widgets/ShortsHeader/ShortsHeader";
 import ShortsItemView from "../HomeScreen/widgets/ShortsItemView/ShortsItemView";
-import { RootStackParamList } from "../../App";
 import { RouteProp, useNavigation, useRoute } from "@react-navigation/native";
 import { NativeStackNavigationProp } from "@react-navigation/native-stack";
 
@@ -41,10 +40,6 @@ type NavigationProp = RouteProp<
     "VideoPlayerScreen"
 >;
 
-type navStack = NativeStackNavigationProp<
-    RootStackParamList,
-    "SearchScreen"
->;
 
 
 
@@ -70,10 +65,7 @@ export default function VideoPlayerScreen() {
     const seekTo = savedPositions[currentVideo?.video.videoId ?? ""] ?? 0;
 
 
-
     async function loadData(mvideo: Video) {
-        console.log(mvideo);
-
         let database = db;
 
         if (!database) {
@@ -120,7 +112,9 @@ export default function VideoPlayerScreen() {
                 title: videoDetails.title,
                 views: Number(videoDetails.viewCount),
                 uploaded: mvideo.publishedOn ? mvideo.publishedOn : "",
-                hashTags: videoDetails.keywords.join(" "),
+                hashTags: Array.isArray(videoDetails.keywords)
+                    ? videoDetails.keywords.join(" ")
+                    : "",
                 dislikes: ytInitialData.videoDetails.dislikes,
                 likes: ytInitialData.videoDetails.likes,
                 subscriber: ytInitialData.videoDetails.subscriberCount,

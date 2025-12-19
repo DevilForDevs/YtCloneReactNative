@@ -4,8 +4,6 @@ import {
     Dimensions, Modal, NativeModules
 } from 'react-native'
 import React, { useEffect, useState } from 'react'
-import { useVideoStore } from '../../utils/Store';
-import { RootStackParamList } from '../../App';
 import { RouteProp, useNavigation, useRoute } from '@react-navigation/native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import Icon from 'react-native-vector-icons/Ionicons';
@@ -50,10 +48,14 @@ export default function ShortsPlayer() {
     const [db, setDb] = useState<SQLiteDatabase | null>(null);
     const [shortQueue, setShortQueue] = useState<string[]>([]);
     const [currentVideoInfo, setCurrentVideoInfo] = useState<VideoDescription>();
+    const retryCountRef = React.useRef(0);
+    const MAX_RETRIES = 2;
+
 
 
 
     const playNextShorts = async (): Promise<void> => {
+        setBuffering(true);
         setMediaUrl("");
         setCurrentVideoId("");
         try {
@@ -273,7 +275,7 @@ export default function ShortsPlayer() {
                 <View style={styles.videoContainer}>
                     <Video
                         source={{ uri: mediaUrl }}
-                        poster={`https://img.youtube.com/vi/${currentVideoId}/hqdefault.jpg`}
+                        poster={`https://i.ytimg.com/vi/${currentVideoId}/hqdefault.jpg`}
                         posterResizeMode="cover"
                         style={StyleSheet.absoluteFill}
                         resizeMode="cover"

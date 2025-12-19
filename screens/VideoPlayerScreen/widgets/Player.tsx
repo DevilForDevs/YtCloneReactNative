@@ -122,8 +122,9 @@ export default function Player({ url, toggleFlatList, videoId, showMenu, onProgr
                     onProgress={onProgress}
                     onBuffer={onBuffer}
                     onEnd={onEnd}
-                    poster={`https://img.youtube.com/vi/${videoId}/hqdefault.jpg`} // optional poster
+                    poster={`https://i.ytimg.com/vi/${videoId}/hqdefault.jpg`} // optional poster
                     posterResizeMode="cover"
+                    onError={() => console.log("error occured from video player")}
 
                 />
 

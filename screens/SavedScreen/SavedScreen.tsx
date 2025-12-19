@@ -5,17 +5,10 @@ import { SafeAreaView } from 'react-native-safe-area-context'
 import HistoryItem from './widgets/HistoryItem'
 import MenuItem from './widgets/MenuItem'
 import Icon from 'react-native-vector-icons/Ionicons';
-import { NativeStackNavigationProp } from "@react-navigation/native-stack";
-import { RootStackParamList } from '../../App'
 import { useNavigation } from '@react-navigation/native'
 
-type navStack = NativeStackNavigationProp<
-  RootStackParamList,
-  "SearchScreen"
->;
-
 export default function SavedScreen() {
-  
+
   const navigation = useNavigation<navStack>();
 
   return (
@@ -26,7 +19,7 @@ export default function SavedScreen() {
 
       <MenuItem showCheck={false} icon='history' title='History' subtitle='' onItemClick={() => console.log("ranjan")} />
       <MenuItem showCheck={false} icon='yourVideo' title='Your Videos' subtitle='' onItemClick={() => console.log("ranjan")} />
-      <MenuItem showCheck={true} icon='downloads' title='Downloads' subtitle='67 videos' onItemClick={() =>navigation.navigate("DownloadsScreen")} />
+      <MenuItem showCheck={true} icon='downloads' title='Downloads' subtitle='67 videos' onItemClick={() => navigation.navigate("DownloadsScreen")} />
       <MenuItem showCheck={false} icon='yourMovies' title='Your Movies' subtitle='' onItemClick={() => console.log("ranjan")} />
       <MenuItem showCheck={false} icon='watchLater' title='Watch Later' subtitle='4 unwatched  videos' onItemClick={() => console.log("ranjan")} />
       <View style={styles.horizontalLine} />

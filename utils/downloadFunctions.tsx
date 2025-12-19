@@ -17,7 +17,7 @@ const findAudioFmt = (container: "mp4" | "webm", requiredFmts: AskFormatModel[])
 export function getSelectedFormats(selectedItag: number, requiredFmts: AskFormatModel[]) {
   let selectedVideoFmt: any = null;
   let selectedAudioFmt: any = null;
-  
+
   requiredFmts.forEach((element) => {
     const fmts = element.formatGroup;
     fmts.forEach((fmt) => {
@@ -37,6 +37,13 @@ export function getSelectedFormats(selectedItag: number, requiredFmts: AskFormat
 
   return { selectedVideoFmt, selectedAudioFmt };
 }
+export const ytThumbs = (id: string) => ({
+  hq: `https://i.ytimg.com/vi/${id}/hqdefault.jpg`,
+  mq: `https://i.ytimg.com/vi/${id}/mqdefault.jpg`,
+  sd: `https://i.ytimg.com/vi/${id}/sddefault.jpg`,
+  def: `https://i.ytimg.com/vi/${id}/default.jpg`,
+});
+
 
 
 

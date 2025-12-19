@@ -7,16 +7,16 @@ import { DownloadItem } from '../../../utils/types';
 
 type Props = {
     item: DownloadItem,
-    onItemPress:()=>void
+    onItemPress: () => void
 }
-export default function DownloadItemView({ item,onItemPress}: Props) {
+export default function DownloadItemView({ item, onItemPress }: Props) {
     const videoId = item.video.videoId
     return (
         <View style={styles.root}>
 
             <View style={styles.imageWrapper}>
                 <Image
-                    source={{ uri: `https://img.youtube.com/vi/${videoId}/hqdefault.jpg` }}
+                    source={{ uri: `https://i.ytimg.com/vi/${videoId}/hqdefault.jpg` }}
                     style={styles.image}
                 />
 
@@ -24,7 +24,7 @@ export default function DownloadItemView({ item,onItemPress}: Props) {
                 <Bar progress={0.5} color='red' height={3} style={styles.pg} borderColor='transparent' />
             </View>
 
-            <TouchableOpacity onPress={()=>onItemPress()}>
+            <TouchableOpacity onPress={() => onItemPress()}>
 
                 <View style={styles.info}>
 
