@@ -21,7 +21,6 @@ export default function DownloadItemView({ item, onItemPress }: Props) {
                 />
 
                 <Text style={styles.floatingDuration}>{item.video.duration}</Text>
-                <Bar progress={0.5} color='red' height={3} style={styles.pg} borderColor='transparent' />
             </View>
 
             <TouchableOpacity onPress={() => onItemPress()}>
@@ -103,11 +102,5 @@ const styles = StyleSheet.create({
         color: "white",
         paddingHorizontal: 5
     }
-    ,
-    pg: {
-        position: "absolute",
-        bottom: 0,
-        right: 0,
-        width: "102%",
-    }
+
 })

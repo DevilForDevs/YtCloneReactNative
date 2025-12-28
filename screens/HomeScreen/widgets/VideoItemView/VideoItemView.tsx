@@ -32,6 +32,9 @@ export default function VideoItemView({
           onError={() => setThumb(ytThumbs(item.videoId).mq)}
         />
       </TouchableOpacity>
+      {item.duration != null && (<Text style={styles.floatingDuration}>
+        {item.duration}
+      </Text>)}
       <View style={styles.info}>
         <Image source={{ uri: item.channel }} style={styles.profile} />
 
@@ -45,7 +48,7 @@ export default function VideoItemView({
               {item.title}
             </Text>
 
-            <TouchableOpacity style={styles.vertMore} onPress={() => console.log("ranjan")}>
+            <TouchableOpacity style={styles.vertMore} onPress={() => onDownload()}>
               <Icon name="more-vert" size={22} color="#000" />
             </TouchableOpacity>
           </View>
@@ -103,32 +106,5 @@ const styles = StyleSheet.create({
     borderRadius: 3,
     bottom: 85,
     right: 10,
-  },
-  progressBackground: {
-    backgroundColor: '#ddd',
-    height: 2,
-    width: '100%',
-  },
-  progressFill: {
-    backgroundColor: 'red',
-    height: 2,
-  },
-  menuCard: {
-    position: 'absolute',
-    top: 60,
-    right: 20,
-    backgroundColor: '#fff',
-    borderRadius: 6,
-    paddingVertical: 8,
-    paddingHorizontal: 10,
-    elevation: 5, // shadow for Android
-    shadowColor: '#000', // shadow for iOS
-    shadowOpacity: 0.2,
-    shadowRadius: 4,
-    shadowOffset: { width: 0, height: 2 },
-    zIndex: 999,
-  },
-  menuItem: {
-    paddingVertical: 6,
-  },
+  }
 });

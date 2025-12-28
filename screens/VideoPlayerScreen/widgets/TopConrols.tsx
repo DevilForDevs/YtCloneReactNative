@@ -4,12 +4,13 @@ import Icon from "react-native-vector-icons/Ionicons";
 
 type props = {
     showMenu: () => void;
+    distroyScreen: () => void;
 }
 
-export default function TopConrols({ showMenu }: props) {
+export default function TopConrols({ showMenu, distroyScreen }: props) {
     return (
         <View style={styles.topControls}>
-            <TouchableOpacity>
+            <TouchableOpacity onPress={distroyScreen}>
                 <Icon name="chevron-down" size={28} color="white" />
             </TouchableOpacity>
             <View style={styles.rightIcons}>

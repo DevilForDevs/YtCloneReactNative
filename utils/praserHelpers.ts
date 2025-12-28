@@ -48,11 +48,11 @@ export function mapAdaptiveFormatsToRequired(adaptiveFormats: any[]): AskFormatM
     if (!groups[groupTitle]) groups[groupTitle] = [];
 
     const info = fmt.qualityLabel || (fmt.bitrate ? `${Math.floor(fmt.bitrate / 1000)} kbps` : 'Unknown');
-    groups[groupTitle].push({ itag: fmt.itag, info, contentLength,url:fmt.url });
+    groups[groupTitle].push({ itag: fmt.itag, info, contentLength, url: fmt.url });
   });
 
   // Desired order
-  const order = ['MP4 AV01', 'MP4 AVC', 'MP4 Audio', 'WebM', 'WebM Audio', 'Unknown'];
+  const order = ['MP4 AVC', 'MP4 AV01', 'MP4 Audio', 'WebM', 'WebM Audio', 'Unknown'];
 
   return order
     .filter((title) => groups[title])

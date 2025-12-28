@@ -1,7 +1,7 @@
 import {
     StyleSheet, Text, View, Pressable,
-    ActivityIndicator, Animated, TouchableOpacity,
-    Dimensions, Modal, NativeModules
+    ActivityIndicator, TouchableOpacity,
+    NativeModules
 } from 'react-native'
 import React, { useEffect, useState } from 'react'
 import { RouteProp, useNavigation, useRoute } from '@react-navigation/native';
@@ -9,58 +9,118 @@ import { SafeAreaView } from 'react-native-safe-area-context';
 import Icon from 'react-native-vector-icons/Ionicons';
 import IconMat from 'react-native-vector-icons/MaterialCommunityIcons';
 import Video from "react-native-video";
-import { getIosPlayerResponse } from '../../utils/EndPoints';
 import RightControls from './RightControls';
 import BottomControls from './BottomControls';
 import { NativeStackNavigationProp } from "@react-navigation/native-stack";
-import type { VideoDescription, Video as VideoType } from "../../utils/types";
+import type { VideoDescription } from "../../utils/types";
 type NavigationProp = RouteProp<RootStackParamList, "ShortsPlayerScreen">;
-import AskFormat from '../HomeScreen/widgets/AskFormat/AskFormat';
-import { AskFormatModel, Video as Mvideo } from "../../utils/types";
-import { mapAdaptiveFormatsToRequired } from "../../utils/praserHelpers";
-import { getSelectedFormats } from "../../utils/downloadFunctions";
-import { DownloadItem } from '../../utils/types';
-import { txt2filename, getStreamingData } from '../../utils/Interact';
 type Navstack = NativeStackNavigationProp<RootStackParamList, "BottomNav">;
-import { DownloadsStore } from '../../utils/Store';
-import { SQLiteDatabase } from 'react-native-sqlite-storage';
 import { Gesture, GestureDetector } from 'react-native-gesture-handler';
-import { addDownload, createDownloadsTable, initDB, loadDownloads } from "../../utils/dbfunctions";
-
+import { createResolutionPlaylistsRN } from '../../utils/createResolutionPlaylists';
+import RNFS from 'react-native-fs';
+import { fetchHlsUrl } from '../../utils/downloadFunctions';
+import { useAskFormat } from '../AskFormatContext';
 
 export default function ShortsPlayer() {
     const route = useRoute<NavigationProp>();
     const navigation = useNavigation<Navstack>();
     const { arrivedVideo } = route.params;
     const [currentVideoId, setCurrentVideoId] = useState("")
-    const { addDownloadItem } = DownloadsStore();
     const [mediaUrl, setMediaUrl] = useState("");
-    const [title, setTitle] = useState("");
     const [paused, setPaused] = useState(false);
-    const [showIcon, setShowIcon] = useState(false);
+    const [showPlayIcon, setShowPlayIcon] = useState(false);
     const [buffering, setBuffering] = useState(false);
-    const [currentVideo, setCurrentVideo] = useState<VideoType>();
-    const screenHeight = Dimensions.get('window').height;
-    const slideAnim = React.useRef(new Animated.Value(screenHeight)).current;
-    const [modalVisible, setModalVisible] = useState(false);
-    const { MyNativeModule } = NativeModules;
-    const [requiredFmts, setRequiredFmts] = useState<AskFormatModel[]>([]);
-    const [db, setDb] = useState<SQLiteDatabase | null>(null);
+    const { MyNativeModule } = NativeModules
     const [currentVideoInfo, setCurrentVideoInfo] = useState<VideoDescription>();
-    const [history, setHistory] = useState<string[]>([]);
+    const [resolutions, setResolutions] = useState<string[]>([]);
+    const [currentResolutionIndex, setCurrentResolutionIndex] = useState(0);
     const [unusedIds, setUnusedIds] = useState<string[]>([]);
-    const usedIdsRef = React.useRef<Set<string>>(new Set());
+    const [nextVideoInfo, setNextVideoInfo] = useState<VideoDescription>();
+    const [prevStack, setPrevStack] = useState<VideoDescription[]>([]);
+    const { openAskFormat } = useAskFormat();
 
 
-    function pickRandomAndRemove(list: string[]) {
-        const index = Math.floor(Math.random() * list.length);
-        const id = list[index];
-        const remaining = list.filter((_, i) => i !== index);
-        return { id, remaining };
+
+    async function playVideo(hlsUrl: string, videoId: string) {
+        const resolutions = await createResolutionPlaylistsRN(
+            hlsUrl,
+            RNFS.DocumentDirectoryPath,
+            videoId
+        );
+        if (resolutions.length > 0) {
+
+            let appropriateResolution: string | undefined;
+            let selectedIndex = -1;
+
+            for (let i = 0; i < resolutions.length; i++) {
+                const res = resolutions[i];
+                console.log(res);
+
+                const height = Number(res.split("x")[0]);
+                if (height === 480) {
+                    appropriateResolution = res;
+                    selectedIndex = i;
+                    break;
+                }
+            }
+
+            console.log("SELECTED:", appropriateResolution);
+
+            if (!appropriateResolution) {
+                // fallback (max 360/480, avoid 720+)
+                selectedIndex = Math.max(resolutions.length - 1, 0);
+                appropriateResolution = resolutions[selectedIndex];
+            }
+
+            const localM3u8Path =
+                `${RNFS.DocumentDirectoryPath}/${videoId}(${appropriateResolution}).m3u8`;
+
+            setCurrentResolutionIndex(selectedIndex);
+            setMediaUrl(`file://${localM3u8Path}`);
+            setResolutions(resolutions);
+            setCurrentVideoId(videoId);
+
+        } else {
+            console.log("fallbackHappened");
+            // fallback to original manifest
+            setMediaUrl(hlsUrl);
+        }
     }
 
-    const refillUnusedIds = async (seedVideoId?: string) => {
-        const raw = await MyNativeModule.getRelatedShortVideoIds(seedVideoId ?? currentVideoId);
+
+
+
+
+
+
+    const decreaseResolution = () => {
+        if (resolutions.length === 0) return;
+
+        if (currentResolutionIndex != 0) {
+            const nextIndex = currentResolutionIndex - 1;
+            if (nextIndex < resolutions.length) {
+                const nextRes = resolutions[nextIndex];
+                const localM3u8Path = `${RNFS.DocumentDirectoryPath}/${currentVideoId}(${nextRes}).m3u8`;
+                setMediaUrl(`file://${localM3u8Path}`);
+                setPaused(false);
+                setCurrentResolutionIndex(nextIndex);
+            }
+        }
+    };
+
+    async function safeGetShortMeta(videoId: string): Promise<any | null> {
+        try {
+            const raw = await MyNativeModule.getShortMeta(videoId);
+            return typeof raw === "string" ? JSON.parse(raw) : raw;
+        } catch (err) {
+            return null;
+        }
+    }
+
+    const refillUnusedIds = async (seedVideoId?: string): Promise<string[]> => {
+        const raw = await MyNativeModule.getRelatedShortVideoIds(
+            seedVideoId ?? currentVideoId
+        );
 
         let ids: string[] = [];
 
@@ -70,59 +130,121 @@ export default function ShortsPlayer() {
             if (typeof raw === "string" && raw.length === 11) ids = [raw];
         }
 
-        ids = ids
-            .filter(id => typeof id === "string" && id.length === 11)
-            .filter(id => !usedIdsRef.current.has(id));
-
-        if (ids.length > 0) {
-            setUnusedIds(ids);
-        }
+        return ids.filter(id => typeof id === "string" && id.length === 11);
     };
 
-    const safeGetShortMeta = async (videoId: string, retry = 0): Promise<any | null> => {
-        try {
-            const raw = await MyNativeModule.getShortMeta(videoId);
-            return typeof raw === "string" ? JSON.parse(raw) : raw;
-        } catch {
-            if (retry < 2) return safeGetShortMeta(videoId, retry + 1);
-            return null;
-        }
-    };
-    const playNextShorts = async () => {
-        setBuffering(true);
-
-        if (unusedIds.length === 0) {
-            await refillUnusedIds();
-        }
-
-        if (unusedIds.length === 0) {
-            setBuffering(false);
+    async function playPrev() {
+        if (prevStack.length === 0) {
+            console.warn("No previous video");
             return;
         }
 
-        const { id: nextId, remaining } = pickRandomAndRemove(unusedIds);
+        const last = prevStack[prevStack.length - 1];
+        const remaining = prevStack.slice(0, -1);
 
-        setUnusedIds(remaining);
-        usedIdsRef.current.add(nextId);
+        // push current back into "next" slot
+        setNextVideoInfo(currentVideoInfo);
 
-        if (currentVideoId) {
-            setHistory(h => [...h.slice(-1), currentVideoId]); // keep 1
+        setPrevStack(remaining);
+        setCurrentVideoInfo(last);
+
+        await playVideo(
+            last.hlsUrl ?? "",
+            last.video.videoId
+        );
+    }
+
+
+    async function playNextVideo() {
+        if (!nextVideoInfo || !nextVideoInfo.hlsUrl) {
+            console.warn("Next video not ready yet");
+            return;
         }
 
-        const meta = await safeGetShortMeta(nextId);
-        if (!meta) {
-            setBuffering(false);
-            return playNextShorts(); // skip broken
+        setPrevStack(prev => [...prev, currentVideoInfo!]);
+        setCurrentVideoInfo(nextVideoInfo);
+
+        await playVideo(
+            nextVideoInfo.hlsUrl,
+            nextVideoInfo.video.videoId
+        );
+
+        preloadNextFromQueue(nextVideoInfo.video.videoId);
+    }
+
+
+    async function preloadNextFromQueue(baseVideoId: string) {
+        let queue = [...unusedIds];
+
+        if (queue.length === 0) {
+            queue = await refillUnusedIds(baseVideoId);
         }
 
-        setCurrentVideoId(nextId);
+        while (queue.length > 0) {
+            const id = queue.shift()!; // remove immediately
 
-        setCurrentVideo({
-            type: "video",
-            videoId: nextId,
-            title: meta.title ?? "",
-            views: "",
+            console.log("preloading", id);
+
+            const meta = await safeGetShortMeta(id);
+            if (!meta) continue;
+
+            const hlsUrl = await fetchHlsUrl(id);
+            if (!hlsUrl) continue;
+
+            setNextVideoInfo({
+                title: meta.title ?? "",
+                views: 0,
+                uploaded: "unknown",
+                hashTags: "",
+                likes: meta.likes ?? "",
+                dislikes: "",
+                subscriber: "",
+                commentsCount: meta.comments ?? "",
+                channelName: meta.channelName ?? "",
+                channelPhoto: meta.channelThumbnail ?? "",
+                video: {
+                    type: "video",
+                    videoId: id,
+                    title: meta.title ?? "",
+                    views: "",
+                },
+                hlsUrl
+            });
+
+            setUnusedIds(queue); // ✅ clean queue
+            console.log("next video ready");
+            return;
+        }
+
+        setUnusedIds([]);
+    }
+
+
+
+    const swipeGesture = Gesture.Pan()
+        .activeOffsetY([-20, 20])
+        .failOffsetX([-20, 20])
+        .onEnd((e) => {
+            if (e.translationY < -60) {
+                if (!buffering) {
+                    playNextVideo()
+                }
+            } else if (e.translationY > 60) {
+                playPrev()
+            }
         });
+
+    async function loadInitial() {
+
+
+
+        const videoId = arrivedVideo.videoId;
+
+        const meta = await safeGetShortMeta(videoId);
+        if (!meta) return;
+
+        const hlsUrl = await fetchHlsUrl(videoId);
+        if (!hlsUrl) console.log("streamingData not found");
 
         setCurrentVideoInfo({
             title: meta.title ?? "",
@@ -137,163 +259,77 @@ export default function ShortsPlayer() {
             channelPhoto: meta.channelThumbnail ?? "",
             video: {
                 type: "video",
-                videoId: nextId,
+                videoId,
                 title: meta.title ?? "",
                 views: "",
             },
+            hlsUrl: hlsUrl ?? ""
         });
 
-        await fetchStreamingData(nextId);
-        setBuffering(false);
-    };
+        playVideo(hlsUrl ?? "", videoId);
 
-    const playPreviousShorts = async () => {
-        if (history.length === 0 || buffering) return;
+        const ids = await refillUnusedIds(videoId);
+        const remaining: string[] = [];
 
-        const prevId = history[history.length - 1];
-        setHistory(h => h.slice(0, -1));
+        for (const id of ids) {
+            console.log("loading next", id);
 
-        setBuffering(true);
-
-        const meta = await safeGetShortMeta(prevId);
-        if (!meta) {
-            setBuffering(false);
-            return;
-        }
-
-        setCurrentVideoId(prevId);
-
-        setCurrentVideo({
-            type: "video",
-            videoId: prevId,
-            title: meta.title ?? "",
-            views: "",
-        });
-
-        await fetchStreamingData(prevId);
-        setBuffering(false);
-    };
-
-    const swipeGesture = Gesture.Pan()
-        .activeOffsetY([-20, 20])
-        .failOffsetX([-20, 20])
-        .onEnd((e) => {
-            if (e.translationY < -60) {
-                playNextShorts();      // ⬆ swipe
-            } else if (e.translationY > 60) {
-                playPreviousShorts();  // ⬇ swipe
-            }
-        });
-
-    const openModal = () => {
-        setModalVisible(true);
-        Animated.timing(slideAnim, {
-            toValue: 0,
-            duration: 300,
-            useNativeDriver: true,
-        }).start();
-    };
-
-    const closeModal = () => {
-        Animated.timing(slideAnim, {
-            toValue: screenHeight,
-            duration: 300,
-            useNativeDriver: true,
-        }).start(() => setModalVisible(false));
-    };
-
-
-    const fetchStreamingData = async (videoId: string) => {
-        try {
-            if (!videoId) return;
-
-            const result = await getIosPlayerResponse(videoId);
-            const streamingData = result?.streamingData;
-            setTitle(result?.videoDetails.title)
-
-            if (!streamingData?.hlsManifestUrl) {
-                console.warn("No HLS for video:", videoId);
-                return;
+            const nextMeta = await safeGetShortMeta(id);
+            if (!nextMeta) {
+                console.log(`Dropping videoId ${id}`);
+                continue; // ❌ removed
             }
 
-            setMediaUrl(streamingData.hlsManifestUrl);
+            const nextHlsUrl = await fetchHlsUrl(id);
+            if (!nextHlsUrl) {
+                console.log(`Dropping videoId ${id}`);
+                continue; // ❌ removed
+            }
 
-        } catch (err) {
-            console.error("Failed to fetch player response:", err);
+            setNextVideoInfo({
+                title: nextMeta.title ?? "",
+                views: 0,
+                uploaded: "unknown",
+                hashTags: "",
+                likes: nextMeta.likes ?? "",
+                dislikes: "",
+                subscriber: "",
+                commentsCount: nextMeta.comments ?? "",
+                channelName: nextMeta.channelName ?? "",
+                channelPhoto: nextMeta.channelThumbnail ?? "",
+                video: {
+                    type: "video",
+                    videoId: id,
+                    title: nextMeta.title ?? "",
+                    views: "",
+                },
+                hlsUrl: nextHlsUrl
+            });
+
+            console.log("loaded next video");
+
+            // everything AFTER this stays
+            const index = ids.indexOf(id);
+            remaining.push(...ids.slice(index + 1));
+            break;
         }
-    };
 
-
-    async function loadDb() {
-        if (db == null) {
-            const dbInstance = await initDB();
-            await createDownloadsTable(dbInstance);
-            setDb(dbInstance);
-        }
+        setUnusedIds(remaining);
     }
+
 
 
     useEffect(() => {
         setCurrentVideoId(arrivedVideo.videoId);
-        loadDb()
-        setCurrentVideo(arrivedVideo);
-        fetchStreamingData(arrivedVideo.videoId);
+        setBuffering(true);
+        loadInitial()
     }, []);
-
 
     const togglePlayPause = () => {
         setPaused(prev => !prev);
-        setShowIcon(true);
-        setTimeout(() => setShowIcon(false), 800); // icon disappears after 0.8s
+        setShowPlayIcon(true);
+        setTimeout(() => setShowPlayIcon(false), 800);
     }
-
-    const mhandleFormatSelect = async (itag: number) => {
-        if (currentVideo != undefined) {
-            const { selectedVideoFmt, selectedAudioFmt } = getSelectedFormats(itag, requiredFmts);
-            const videoInformation = JSON.stringify(selectedVideoFmt);
-            const audioInformation = JSON.stringify(selectedAudioFmt);
-
-            const DownloadItmm: DownloadItem = {
-                transferInfo: "Initiating",
-                progressPercent: 0,
-                isFinished: false,
-                isStopped: false,
-                speed: "500KB/s",
-                message: "Video",
-                video: {
-                    ...currentVideo,
-                    title: videoInformation != audioInformation ? `${txt2filename(currentVideo.title)}(${selectedVideoFmt.info}).mp4` : `${txt2filename(currentVideo.title)}.mp3`
-                }
-            }
-
-            const prasedFileName = txt2filename(currentVideo.title);
-            if (videoInformation == audioInformation) {
-                const insertedId = await addDownload(db, prasedFileName + ".mp3", "music", currentVideo.videoId, 0, 0, currentVideo.duration!!);
-                addDownloadItem(DownloadItmm, 0);
-
-            } else {
-                const insertedId = await addDownload(db, `${prasedFileName}(${selectedVideoFmt.info}).mp4`, "movies", currentVideo.videoId, 0, 0, currentVideo.duration!!);
-                addDownloadItem(DownloadItmm, 0);
-                console.log(insertedId);
-            }
-            MyNativeModule.native_fileDownloader(videoInformation, audioInformation, currentVideo.videoId, prasedFileName);
-
-        }
-    }
-
-    const handleThreeDotClick = async (item: VideoType) => {
-        setCurrentVideo(item);
-
-        const response = await getStreamingData(item.videoId);
-        const streamingData = response.playerResponse.streamingData;
-        const adaptiveFormats = streamingData.adaptiveFormats || streamingData.adaptiveFromats;
-
-
-        const mappedFmts = mapAdaptiveFormatsToRequired(adaptiveFormats); // your helper
-
-        setRequiredFmts(mappedFmts); // update state with formats
-        openModal();
-    };
 
     return (
         <SafeAreaView style={styles.root}>
@@ -316,14 +352,26 @@ export default function ShortsPlayer() {
                         onBuffer={({ isBuffering }) => setBuffering(isBuffering)}
                         onLoadStart={() => setBuffering(true)}
                         onLoad={() => setBuffering(false)}
-                        onError={() => console.log(mediaUrl)}
+                        onError={(e) => {
+                            const error = e?.error;
+                            console.log(error);
+
+                            //24003
+                            const isBadHttp =
+                                error?.errorCode === "22004" ||
+                                error?.errorString?.includes("BAD_HTTP_STATUS");
+
+                            if (isBadHttp) {
+                                playNextVideo()
+                            }
+                        }}
                     />
 
                     <Pressable
                         onPress={togglePlayPause}
                         style={StyleSheet.absoluteFill} // covers full video
                     >
-                        {showIcon && (
+                        {showPlayIcon && (
                             <View style={styles.centerIcon}>
                                 <Icon
                                     name={paused ? "play-circle-outline" : "pause-circle-outline"}
@@ -337,52 +385,33 @@ export default function ShortsPlayer() {
                     {buffering && (
                         <View style={styles.centerIcon}>
                             <ActivityIndicator size="large" color="red" />
+                            <TouchableOpacity onPress={decreaseResolution} style={styles.swithResolution}>
+                                <Text>
+                                    {resolutions[currentResolutionIndex - 1]
+                                        ? `${resolutions[currentResolutionIndex - 1].split("x")[0]}p`
+                                        : resolutions.length}
+                                </Text>
+                            </TouchableOpacity>
                         </View>
                     )}
 
                     <RightControls
                         likes={currentVideoInfo?.likes ?? "No likes"}
                         commentCount={currentVideoInfo?.commentsCount ?? ""}
-                        onDownload={() => handleThreeDotClick(currentVideo!)}
+                        onDownload={() => openAskFormat(currentVideoInfo?.video!!)}
                     />
 
                     <BottomControls
                         channelName={currentVideoInfo?.channelName ?? ""}
                         channelThumbnail={currentVideoInfo?.channelPhoto ?? ""}
-                        title={title}
+                        title={currentVideoInfo?.title ?? "NO titel"}
                     />
 
                 </View>
             </GestureDetector>
-
-            <Modal
-                transparent
-                visible={modalVisible}
-                animationType="none"
-                onRequestClose={closeModal}
-            >
-
-                <TouchableOpacity style={styles.modalOverlay} activeOpacity={1} onPress={closeModal} />
-
-                <Animated.View
-                    style={[
-                        styles.bottomSheet,
-                        {
-                            height: screenHeight / 2, // Half screen height
-                            transform: [{ translateY: slideAnim }],
-                        }
-                    ]}
-                >
-                    <AskFormat onFormatSelection={(itag) => mhandleFormatSelect(itag)} closeRequest={closeModal} videoTitle={currentVideo?.title ?? ""}
-                        requiredFormats={requiredFmts} />
-                </Animated.View>
-
-            </Modal>
-
         </SafeAreaView>
     )
 }
-
 const styles = StyleSheet.create({
     root: {
         flex: 1,
@@ -426,4 +455,10 @@ const styles = StyleSheet.create({
         shadowOpacity: 0.3,
         shadowRadius: 4,
     },
+
+    swithResolution: {
+        backgroundColor: "white",
+        padding: 7,
+        borderRadius: 7
+    }
 });

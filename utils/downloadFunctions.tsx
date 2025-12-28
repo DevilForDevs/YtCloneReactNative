@@ -1,4 +1,6 @@
 
+
+import { getIosPlayerResponse } from "./EndPoints";
 import { Video, FormatGroup, AskFormatModel, DownloadItem } from "./types";
 
 
@@ -43,6 +45,27 @@ export const ytThumbs = (id: string) => ({
   sd: `https://i.ytimg.com/vi/${id}/sddefault.jpg`,
   def: `https://i.ytimg.com/vi/${id}/default.jpg`,
 });
+
+export async function fetchHlsUrl(videoId: string): Promise<string | null> {
+  try {
+    if (!videoId) return null;
+
+    const result = await getIosPlayerResponse(videoId);
+    const streamingData = result?.streamingData;
+
+    if (!streamingData?.hlsManifestUrl) {
+      console.warn("No HLS for video:", videoId);
+      return null;
+    }
+
+    return streamingData.hlsManifestUrl;
+
+  } catch (err) {
+    console.error("Failed to fetch player response:", err);
+    return null;
+  }
+}
+
 
 
 

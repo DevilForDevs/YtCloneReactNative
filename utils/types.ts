@@ -19,7 +19,8 @@ export interface VideoDescription {
   commentsCount: string,
   channelPhoto: string,
   channelName: string,
-  video: Video
+  video: Video,
+  hlsUrl?: string
 }
 
 export interface ShortVideo {

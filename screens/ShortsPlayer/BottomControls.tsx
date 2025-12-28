@@ -17,7 +17,8 @@ export default function BottomControls({ title, channelName, channelThumbnail }:
           <View style={styles.channelPhotoContainer}>
             <Image source={{ uri: channelThumbnail }} style={styles.channelPhoto} />
           </View>
-          <Text style={styles.channelName}>
+          <Text numberOfLines={1}
+            ellipsizeMode="tail" style={styles.channelName}>
             {channelName}
           </Text>
           <View style={styles.subscribeBtn}>
@@ -36,7 +37,7 @@ const styles = StyleSheet.create({
   container: {
     position: "absolute",
     bottom: 25,
-    left: 20,
+    left: 10,
     width: "100%"
   }
   ,
@@ -66,7 +67,7 @@ const styles = StyleSheet.create({
   ,
   channelName: {
     color: "white",
-    marginLeft: 10
+    marginLeft: 10,
   }
   ,
   subscribeBtn: {

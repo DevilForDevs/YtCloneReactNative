@@ -16,9 +16,10 @@ type Props = {
     showMenu: () => void;
     onProgressSave: (videoId: string, position: number) => void;
     seekTo?: number; // restore position
+    distroyScreen: () => void;
 }
 
-export default function Player({ url, toggleFlatList, videoId, showMenu, onProgressSave, seekTo }: Props) {
+export default function Player({ url, toggleFlatList, videoId, showMenu, onProgressSave, seekTo, distroyScreen }: Props) {
     const videoRef = useRef<React.ElementRef<typeof Video>>(null); // ✅ works
     const [isBuffering, setIsBuffering] = useState(false);
     const [duration, setDuration] = useState(0);
@@ -35,7 +36,7 @@ export default function Player({ url, toggleFlatList, videoId, showMenu, onProgr
 
 
     const toggleFullscreen = () => {
-        toggleFlatList()
+        toggleFlatList();
         if (isFullscreen) {
             Orientation.lockToPortrait(); // exit fullscreen
             setFullScreen(false);
@@ -48,12 +49,13 @@ export default function Player({ url, toggleFlatList, videoId, showMenu, onProgr
     useEffect(() => {
         const onBackPress = () => {
             if (isFullscreen) {
-                // Exit fullscreen instead of going back
                 Orientation.lockToPortrait();
                 setFullScreen(false);
-                return true; // prevent default back action
+
+                toggleFlatList(); // ✅ SHOW FlatList again
+
+                return true; // consume back press
             }
-            // Allow default back action
             return false;
         };
 
@@ -62,8 +64,9 @@ export default function Player({ url, toggleFlatList, videoId, showMenu, onProgr
             onBackPress
         );
 
-        return () => subscription.remove(); // clean up
+        return () => subscription.remove();
     }, [isFullscreen]);
+
 
     function onLoad(data: OnLoadData) {
         setDuration(data.duration);
@@ -124,7 +127,7 @@ export default function Player({ url, toggleFlatList, videoId, showMenu, onProgr
                     onEnd={onEnd}
                     poster={`https://i.ytimg.com/vi/${videoId}/hqdefault.jpg`} // optional poster
                     posterResizeMode="cover"
-                    onError={() => console.log("error occured from video player")}
+                    onError={(e) => console.log(e)}
 
                 />
 
@@ -142,7 +145,7 @@ export default function Player({ url, toggleFlatList, videoId, showMenu, onProgr
                 </TouchableOpacity> : <View />}
                 {
                     showControls ?
-                        <TopConrols showMenu={showMenu} /> : <View />
+                        <TopConrols distroyScreen={distroyScreen} showMenu={showMenu} /> : <View />
                 }
                 {
                     showControls ? <View style={isFullscreen ? styles.fullScrren : styles.bottomControls}>

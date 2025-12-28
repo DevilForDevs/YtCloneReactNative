@@ -1,7 +1,6 @@
 import { StyleSheet, Text, View, FlatList } from 'react-native'
 import React, { useState, useEffect } from 'react'
-
-import { RootStackParamList } from "../../App";
+import { useNavigation } from "@react-navigation/native";
 import { RouteProp, useRoute } from "@react-navigation/native";
 import { SafeAreaView } from 'react-native-safe-area-context';
 import Player from '../VideoPlayerScreen/widgets/Player';
@@ -12,14 +11,14 @@ import { DownloadItem } from '../../utils/types';
 
 type NavigationProp = RouteProp<
     RootStackParamList,
-    "OfflinePlayer"
+    "DownloadsScreen"
 >;
 
 export default function OfflinePlayer() {
     const route = useRoute<NavigationProp>();
     const { downloadIndex } = route.params;
     const { totalDownloads } = DownloadsStore();
-
+    const navigation = useNavigation<navStack>();
     // Reactive URL
     const [localFile, setLocalFile] = useState(
         "https://commondatastorage.googleapis.com/gtv-videos-bucket/sample/ForBiggerBlazes.mp4"
@@ -41,6 +40,16 @@ export default function OfflinePlayer() {
         setShowFlatList(prev => !prev);
     };
 
+    function handleProgressSave(videoId: string, position: number) {
+
+
+    }
+    function handleMoreVert() {
+
+    }
+
+
+
     const handleItemClick = (item: DownloadItem) => {
         const movieDir = RNFS.ExternalStorageDirectoryPath + '/Movies';
         const file = `${movieDir}/${item.video.title}`;
@@ -54,7 +63,10 @@ export default function OfflinePlayer() {
             <Player
                 url={localFile}           // reactive
                 toggleFlatList={toggleFlatList}
-                videoId={localFile}       // also reactive
+                videoId={localFile}
+                showMenu={handleMoreVert}
+                onProgressSave={handleProgressSave}
+                distroyScreen={() => navigation.pop()}
             />
 
             {showFlatList ? (

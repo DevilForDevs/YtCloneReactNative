@@ -9,30 +9,26 @@ import Menu from "./widgets/TopBar/widgets/Menu";
 import ShortsHeader from "./widgets/ShortsHeader/ShortsHeader";
 import VideoItemView from "./widgets/VideoItemView/VideoItemView";
 import ShortsItemView from "./widgets/ShortsItemView/ShortsItemView";
+import { useAskFormat } from "../AskFormatContext";
 
 export default function HomeScreen() {
-
   const navigation = useNavigation<navStack>();
   const {
     totalVideos,
     addVideo,
     clearVideos,
   } = useVideoStore();
-  console.log(totalVideos);
-
-
-
-
+  const { openAskFormat } = useAskFormat();
   return (
     <View style={styles.root}>
-      <TopBar onLensPress={() => console.log("ranjan")} />
+      <TopBar onLensPress={() => navigation.navigate("SearchScreen")} />
       <FlatList
         data={totalVideos}
         keyExtractor={(_, index) => index.toString()}
         ListHeaderComponent={<Menu />}
         renderItem={({ item, index }) =>
           item.type === "video" ? (
-            <VideoItemView item={item} progress={0} onItemPress={() => navigation.navigate("VideoPlayerScreen", { arrivedVideo: item })} onDownload={() => console.log("ranjan")} />
+            <VideoItemView item={item} progress={0} onItemPress={() => navigation.navigate("VideoPlayerScreen", { arrivedVideo: item })} onDownload={() => openAskFormat(item)} />
           ) : (
             <View style={styles.shortParentContainer}>
               <ShortsHeader />

@@ -1,21 +1,18 @@
-import React, { use, useEffect, useRef, useState } from "react";
+import React, { useEffect, useRef, useState } from "react";
 import RNFS from 'react-native-fs';
 import {
     StyleSheet,
     View,
-    TouchableOpacity,
-    Text,
     ActivityIndicator,
-    StatusBar,
-    Image, FlatList, Modal, Animated, Dimensions, NativeModules
+    StatusBar, FlatList, NativeModules
 } from "react-native";
-import { SafeAreaView } from "react-native-safe-area-context";
+import { BackHandler, Platform } from "react-native";
 import Player from "./widgets/Player";
 import VideoItemView from "../HomeScreen/widgets/VideoItemView/VideoItemView";
 import ShortsHeader from "../HomeScreen/widgets/ShortsHeader/ShortsHeader";
 import ShortsItemView from "../HomeScreen/widgets/ShortsItemView/ShortsItemView";
 import { RouteProp, useNavigation, useRoute } from "@react-navigation/native";
-import { NativeStackNavigationProp } from "@react-navigation/native-stack";
+
 
 import { parseWatchNext, ParseResult } from "../../utils/watchHtmlParser";
 import { getIosPlayerResponse } from "../../utils/EndPoints";
@@ -23,15 +20,7 @@ import VideoDetails from "./widgets/VideoDetails";
 import { Video, VideoDescription } from "../../utils/types";
 import { createResolutionPlaylistsRN } from "../../utils/createResolutionPlaylists";
 import ResolutionBottomSheet from "./widgets/ResolutionBottomSheet";
-import AskFormat from "../HomeScreen/widgets/AskFormat/AskFormat";
-import { AskFormatModel } from "../../utils/types";
-import { getSelectedFormats } from "../../utils/downloadFunctions";
-import { getStreamingData, txt2filename, videoId } from "../../utils/Interact";
-import { DownloadItem } from "../../utils/types";
-import { DownloadsStore } from "../../utils/Store";
-import { SQLiteDatabase } from 'react-native-sqlite-storage';
-import { addDownload, initDB, createDownloadsTable, deleteOldM3U8Files } from "../../utils/dbfunctions";
-import { mapAdaptiveFormatsToRequired } from "../../utils/praserHelpers";
+import { useAskFormat } from "../AskFormatContext";
 
 
 
@@ -39,8 +28,6 @@ type NavigationProp = RouteProp<
     RootStackParamList,
     "VideoPlayerScreen"
 >;
-
-
 
 
 export default function VideoPlayerScreen() {
@@ -54,29 +41,65 @@ export default function VideoPlayerScreen() {
     const [resolutions, setResolutions] = useState<string[]>([]);
     const [selectedResolution, setSelectedResolution] = useState<string | null>(null);
     const [showBottomSheet, setShowBottomSheet] = useState(false);
-    const [modalVisible, setModalVisible] = useState(false);
-    const screenHeight = Dimensions.get('window').height;
-    const slideAnim = React.useRef(new Animated.Value(screenHeight)).current;
-    const [requiredFmts, setRequiredFmts] = useState<AskFormatModel[]>([]);
-    const { addDownloadItem, totalDownloads } = DownloadsStore();
-    const [db, setDb] = useState<SQLiteDatabase | null>(null);
     const [showFlatList, setFlatList] = useState(true);
     const [savedPositions, setSavedPositions] = useState<Record<string, number>>({});
     const seekTo = savedPositions[currentVideo?.video.videoId ?? ""] ?? 0;
+    const { openAskFormat } = useAskFormat();
+    const historyRef = useRef<Video[]>([]);
+    const isGoingBackRef = useRef(false);
+    const backLockRef = useRef(false);
+    const currentVideoRef = useRef<Video | null>(null);
 
+
+
+    useEffect(() => {
+        const onBackPress = () => {
+            if (backLockRef.current) {
+                return true; // swallow extra presses
+            }
+
+            const history = historyRef.current;
+            console.log("BACK PRESS BEFORE POP:", history.length);
+
+            if (history.length === 0) {
+                return false;
+            }
+
+            backLockRef.current = true; // 🔒 LOCK
+
+            const lastVideo = history[history.length - 1];
+            historyRef.current = history.slice(0, -1);
+
+            console.log("AFTER POP:", historyRef.current.length);
+
+            isGoingBackRef.current = true;
+
+            loadData(lastVideo).finally(() => {
+                // 🔓 UNLOCK after async completes
+                backLockRef.current = false;
+            });
+
+            return true;
+        };
+
+        const sub = BackHandler.addEventListener(
+            "hardwareBackPress",
+            onBackPress
+        );
+
+        return () => sub.remove();
+    }, []);
 
     async function loadData(mvideo: Video) {
-        let database = db;
-
-        if (!database) {
-            database = await initDB();
-            await createDownloadsTable(database);
-            setDb(database);
+        if (!isGoingBackRef.current && currentVideoRef.current) {
+            historyRef.current.push(currentVideoRef.current);
         }
+
+        isGoingBackRef.current = false;
         setCurrentVideo(undefined);
         setWathHtmlVideos(undefined);
         try {
-            await deleteOldM3U8Files()
+
 
             const playerResponse = await getIosPlayerResponse(mvideo.videoId);
             const streamingData = playerResponse.streamingData
@@ -84,18 +107,49 @@ export default function VideoPlayerScreen() {
 
             const resolutions = await createResolutionPlaylistsRN(
                 streamingData.hlsManifestUrl,
-                RNFS.DocumentDirectoryPath
+                RNFS.DocumentDirectoryPath,
+                mvideo.videoId
             );
 
             if (resolutions.length > 0) {
-                const firstResolution = resolutions[0];
-                const localM3u8Path = `${RNFS.DocumentDirectoryPath}/${firstResolution}.m3u8`;
+                let selectedResolution: string | undefined;
+                let selectedIndex = -1;
 
-                // IMPORTANT: use file:// prefix
+                // find 480p
+                for (let i = 0; i < resolutions.length; i++) {
+                    const res = resolutions[i];
+
+
+                    const [a, b] = res.split("x").map(Number);
+                    const quality = Math.min(a, b); // orientation-safe
+
+                    if (quality === 480) {
+                        selectedResolution = res;
+                        selectedIndex = i;
+                        break;
+                    }
+                }
+
+                // fallback to 3rd resolution (index 2)
+                if (!selectedResolution && resolutions.length >= 3) {
+                    selectedIndex = 2;
+                    selectedResolution = resolutions[2];
+                }
+
+                // final safety fallback
+                if (!selectedResolution) {
+                    selectedIndex = 0;
+                    selectedResolution = resolutions[0];
+                }
+
+                const localM3u8Path =
+                    `${RNFS.DocumentDirectoryPath}/${mvideo.videoId}(${selectedResolution}).m3u8`;
 
                 setMediaUrl(`file://${localM3u8Path}`);
                 setResolutions(resolutions);
-                setSelectedResolution(resolutions[0])
+                setSelectedResolution(selectedResolution);
+
+
             } else {
                 console.log("fallbackHappened");
                 // fallback to original manifest
@@ -103,44 +157,49 @@ export default function VideoPlayerScreen() {
             }
 
 
-            const jsonString = await MyNativeModule.getYtInitialData(
-                'https://www.youtube.com/watch?v=' + mvideo.videoId
-            );
-            const ytInitialData = JSON.parse(jsonString);
-            const result = parseWatchNext(ytInitialData.results);
-            const videoDes: VideoDescription = {
-                title: videoDetails.title,
-                views: Number(videoDetails.viewCount),
-                uploaded: mvideo.publishedOn ? mvideo.publishedOn : "",
-                hashTags: Array.isArray(videoDetails.keywords)
-                    ? videoDetails.keywords.join(" ")
-                    : "",
-                dislikes: ytInitialData.videoDetails.dislikes,
-                likes: ytInitialData.videoDetails.likes,
-                subscriber: ytInitialData.videoDetails.subscriberCount,
-                commentsCount: ytInitialData.videoDetails.commentsCount,
-                channelPhoto: mvideo.channel ? mvideo.channel : "",
-                channelName: ytInitialData.videoDetails.channelName,
-                video: mvideo
+            try {
+                const jsonString = await MyNativeModule.getYtInitialData(
+                    'https://www.youtube.com/watch?v=' + mvideo.videoId
+                );
+                const ytInitialData = JSON.parse(jsonString);
+                const result = parseWatchNext(ytInitialData.results);
+                const videoDes: VideoDescription = {
+                    title: videoDetails.title,
+                    views: Number(videoDetails.viewCount),
+                    uploaded: mvideo.publishedOn ? mvideo.publishedOn : "",
+                    hashTags: Array.isArray(videoDetails.keywords)
+                        ? videoDetails.keywords.join(" ")
+                        : "",
+                    dislikes: ytInitialData.videoDetails.dislikes,
+                    likes: ytInitialData.videoDetails.likes,
+                    subscriber: ytInitialData.videoDetails.subscriberCount,
+                    commentsCount: ytInitialData.videoDetails.commentsCount,
+                    channelPhoto: mvideo.channel ? mvideo.channel : "",
+                    channelName: ytInitialData.videoDetails.channelName,
+                    video: mvideo
+                }
+                setCurrentVideo(videoDes)
+                setWathHtmlVideos(result);
+                // console.log(result);
+                currentVideoRef.current = mvideo;
+
+            } catch (e) {
+                console.log(e);
             }
-            setCurrentVideo(videoDes)
-            setWathHtmlVideos(result);
+
         } catch (e) {
             console.error(e);
         }
     }
-
-
-
-
     useEffect(() => {
         loadData(arrivedVideo);
     }, []);
 
     function changeResolution(res: string) {
         setSelectedResolution(res);
-        const localM3u8Path = `${RNFS.DocumentDirectoryPath}/${res}.m3u8`;
+        const localM3u8Path = `${RNFS.DocumentDirectoryPath}/${currentVideo?.video.videoId}(${res}).m3u8`;
         setMediaUrl(`file://${localM3u8Path}`);
+        console.log(localM3u8Path);
         setShowBottomSheet(false);
     }
 
@@ -148,91 +207,11 @@ export default function VideoPlayerScreen() {
         if (resolutions.length === 0) return;
         setShowBottomSheet(true);
     }
-    const openModal = () => {
-        setModalVisible(true);
-        Animated.timing(slideAnim, {
-            toValue: 0,
-            duration: 300,
-            useNativeDriver: true,
-        }).start();
-    };
+
 
     const handleThreeDotClick = async (item: Video) => {
-
-        const response = await getStreamingData(item.videoId);
-        const streamingData = response.playerResponse.streamingData;
-        const adaptiveFormats = streamingData.adaptiveFormats || streamingData.adaptiveFromats;
-
-
-        const mappedFmts = mapAdaptiveFormatsToRequired(adaptiveFormats); // your helper
-
-        setRequiredFmts(mappedFmts); // update state with formats
-        openModal();
+        openAskFormat(item); // 
     };
-
-    const closeModal = () => {
-        Animated.timing(slideAnim, {
-            toValue: screenHeight,
-            duration: 300,
-            useNativeDriver: true,
-        }).start(() => setModalVisible(false));
-    };
-
-
-    const mhandleFormatSelect = async (itag: number) => {
-
-        if (currentVideo != undefined) {
-            const { selectedVideoFmt, selectedAudioFmt } = getSelectedFormats(itag, requiredFmts);
-            const videoInformation = JSON.stringify(selectedVideoFmt);
-            const audioInformation = JSON.stringify(selectedAudioFmt);
-            const DownloadItmm: DownloadItem = {
-                transferInfo: "Initiating",
-                progressPercent: 0,
-                isFinished: false,
-                isStopped: false,
-                speed: "500KB/s",
-                message: "Video",
-                video: {
-                    ...currentVideo.video,
-                    title: videoInformation != audioInformation ? `${txt2filename(currentVideo.title)}(${selectedVideoFmt.info}).mp4` : `${txt2filename(currentVideo.title)}.mp3`
-                }
-            }
-            console.log(DownloadItmm);
-
-            const prasedFileName = txt2filename(currentVideo.title);
-            if (videoInformation == audioInformation) {
-                console.log("audiofmt");
-
-                const exists = totalDownloads.some(
-                    item => item.video.videoId === currentVideo.video.videoId
-                );
-
-                if (!exists) {
-                    const insertedId = await addDownload(db, prasedFileName + ".mp3", "music", currentVideo.video.videoId, 0, 0, "unknown");
-                    addDownloadItem(DownloadItmm, 0);
-                }
-
-
-            } else {
-
-
-                const exists = totalDownloads.some(
-                    item => item.video.videoId === currentVideo.video.videoId
-                );
-                console.log(exists);
-
-                if (!exists) {
-                    const insertedId = await addDownload(db, `${prasedFileName}(${selectedVideoFmt.info}).mp4`, "movies", currentVideo.video.videoId, 0, 0, "unknown");
-                    addDownloadItem(DownloadItmm, 0);
-                }
-
-
-            }
-
-            MyNativeModule.native_fileDownloader(videoInformation, audioInformation, currentVideo.video.videoId, prasedFileName);
-
-        }
-    }
 
     const toggleFlatList = () => {
 
@@ -253,7 +232,15 @@ export default function VideoPlayerScreen() {
 
 
     return (
-        <SafeAreaView style={{ flex: 1 }}>
+        <View style={{
+            flex: 1,
+            paddingTop: showFlatList
+                ? Platform.OS === 'android'
+                    ? StatusBar.currentHeight
+                    : 0
+                : 0,
+        }}>
+            <StatusBar hidden={!showFlatList} />
             <Player
                 url={mediaUrl}
                 videoId={currentVideo?.video.videoId ?? ""}
@@ -262,6 +249,7 @@ export default function VideoPlayerScreen() {
                 onProgressSave={handleProgressSave}
                 seekTo={seekTo}
                 key={currentVideo?.video.videoId}   // ✅ stable
+                distroyScreen={() => navigation.pop()}
             />
 
             {
@@ -327,39 +315,15 @@ export default function VideoPlayerScreen() {
                         onSelect={changeResolution}
                         onClose={() => setShowBottomSheet(false)}
                     />
-                    <Modal
-                        transparent
-                        visible={modalVisible}
-                        animationType="none"
-                        onRequestClose={closeModal}
-                    >
-
-                        <TouchableOpacity style={styles.modalOverlay} activeOpacity={1} onPress={closeModal} />
-
-                        <Animated.View
-                            style={[
-                                styles.bottomSheet,
-                                {
-                                    height: screenHeight / 2, // Half screen height
-                                    transform: [{ translateY: slideAnim }],
-                                }
-                            ]}
-                        >
-                            <AskFormat onFormatSelection={(itag) => mhandleFormatSelect(itag)} closeRequest={closeModal} videoTitle={currentVideo?.title ?? ""}
-                                requiredFormats={requiredFmts} />
-                        </Animated.View>
-
-                    </Modal>
                 </View> : <View />
             }
 
-        </SafeAreaView>
+        </View>
 
 
     );
 
 }
-
 
 const styles = StyleSheet.create({
     shortsContainer: {
@@ -367,26 +331,7 @@ const styles = StyleSheet.create({
     },
     shortParentContainer: {
         paddingLeft: 20,
-    },
-    modalOverlay: {
-        flex: 1,
-        backgroundColor: '#00000066',
-    },
-    bottomSheet: {
-        position: 'absolute',
-        bottom: 0,
-        left: 0,
-        right: 0,
-        backgroundColor: 'white',
-        padding: 10,
-        borderTopLeftRadius: 16,
-        borderTopRightRadius: 16,
-        elevation: 10,
-        shadowColor: '#000',
-        shadowOffset: { width: 0, height: -3 },
-        shadowOpacity: 0.3,
-        shadowRadius: 4,
-    },
+    }
 });
 
 

@@ -14,7 +14,7 @@ import BottomNav from './screens/BottomNav/BottomNav';
 import VideoPlayerScreen from './screens/VideoPlayerScreen/VideoPlayerScreen';
 import ShortsPlayer from './screens/ShortsPlayer/ShortsPlayer';
 import DownloadsScreen from './screens/DownloadsScreen/DownloadsScreen';
-
+import { AskFormatProvider } from './screens/AskFormatProvider';
 import {
   initDB,
   createDownloadsTable,
@@ -24,6 +24,7 @@ import {
 import { DownloadsStore } from './utils/Store';
 import { Video, DownloadItem } from './utils/types';
 import { convertBytes } from './utils/Interact';
+import SearchScreen from './screens/SearchScreen/SearchScreen';
 
 const Stack = createNativeStackNavigator<RootStackParamList>();
 const eventEmitter = new NativeEventEmitter();
@@ -110,20 +111,23 @@ export default function App() {
   /* ---------------- NAVIGATION ---------------- */
   return (
     <GestureHandlerRootView style={{ flex: 1 }}>
-      <NavigationContainer>
-        <Stack.Navigator
-          initialRouteName="SplashScreen"
-          screenOptions={{ headerShown: false }}
-        >
-          <Stack.Screen name="SplashScreen" component={SplashScreen} />
-          <Stack.Screen name="LoginScreen" component={LoginScreen} />
-          <Stack.Screen name="BrowserScreen" component={BrowserScreen} />
-          <Stack.Screen name="BottomNav" component={BottomNav} />
-          <Stack.Screen name="VideoPlayerScreen" component={VideoPlayerScreen} />
-          <Stack.Screen name="ShortsPlayerScreen" component={ShortsPlayer} />
-          <Stack.Screen name="DownloadsScreen" component={DownloadsScreen} />
-        </Stack.Navigator>
-      </NavigationContainer>
+      <AskFormatProvider>
+        <NavigationContainer>
+          <Stack.Navigator
+            initialRouteName="SplashScreen"
+            screenOptions={{ headerShown: false }}
+          >
+            <Stack.Screen name="SplashScreen" component={SplashScreen} />
+            <Stack.Screen name="LoginScreen" component={LoginScreen} />
+            <Stack.Screen name="BrowserScreen" component={BrowserScreen} />
+            <Stack.Screen name="BottomNav" component={BottomNav} />
+            <Stack.Screen name="VideoPlayerScreen" component={VideoPlayerScreen} />
+            <Stack.Screen name="ShortsPlayerScreen" component={ShortsPlayer} />
+            <Stack.Screen name="DownloadsScreen" component={DownloadsScreen} />
+            <Stack.Screen name="SearchScreen" component={SearchScreen} />
+          </Stack.Navigator>
+        </NavigationContainer>
+      </AskFormatProvider>
     </GestureHandlerRootView>
   );
 }

@@ -44,12 +44,22 @@ declare global {
         BottomNav: undefined,
         VideoPlayerScreen: { arrivedVideo: Video };
         ShortsPlayerScreen: { arrivedVideo: Video },
-        DownloadsScreen: undefined,
+        DownloadsScreen: { downloadIndex: number },
+        SearchScreen: undefineds
     };
 
     type navStack = NativeStackNavigationProp<
         RootStackParamList
     >;
+
+    type AskFormatOptions = {
+        onSelect: (itag: number) => void;
+    };
+
+    type AskFormatContextType = {
+        openAskFormat: (options: Video) => void;
+        closeAskFormat: () => void;
+    };
 
 
 
