@@ -4,7 +4,8 @@ import {
     StyleSheet,
     View,
     ActivityIndicator,
-    StatusBar, FlatList, NativeModules
+    StatusBar, FlatList, NativeModules,
+    Text, Pressable
 } from "react-native";
 import { BackHandler, Platform } from "react-native";
 import Player from "./widgets/Player";
@@ -21,6 +22,8 @@ import { Video, VideoDescription } from "../../utils/types";
 import { createResolutionPlaylistsRN } from "../../utils/createResolutionPlaylists";
 import ResolutionBottomSheet from "./widgets/ResolutionBottomSheet";
 import { useAskFormat } from "../AskFormatContext";
+import { useVideoStore, useVideoStoreForWatch } from "../../utils/Store";
+import { extractWatchNextBundle } from "../../utils/watchJsonParser";
 
 
 
@@ -31,10 +34,23 @@ type NavigationProp = RouteProp<
 
 
 export default function VideoPlayerScreen() {
+
+    const { visitorData: homeVisitorData } = useVideoStore();
+    const [isFetchingMore, setIsFetchingMore] = useState(false);
+    const [retryCount, setRetryCount] = useState(0);
+    const { visitorData: watchVisitorData,
+        addVideo,
+        clearVideos,
+        continuation,
+        setContinuation,
+        totalVideos
+    } = useVideoStoreForWatch();
+
+
+
     const route = useRoute<NavigationProp>();
     const { arrivedVideo } = route.params;
     const navigation = useNavigation<navStack>();
-    const [wathHtmlVideos, setWathHtmlVideos] = useState<ParseResult>();
     const { MyNativeModule } = NativeModules;
     const [currentVideo, setCurrentVideo] = useState<VideoDescription>();
     const [mediaUrl, setMediaUrl] = useState("")
@@ -49,6 +65,7 @@ export default function VideoPlayerScreen() {
     const isGoingBackRef = useRef(false);
     const backLockRef = useRef(false);
     const currentVideoRef = useRef<Video | null>(null);
+
 
 
 
@@ -97,7 +114,7 @@ export default function VideoPlayerScreen() {
 
         isGoingBackRef.current = false;
         setCurrentVideo(undefined);
-        setWathHtmlVideos(undefined);
+        clearVideos()
         try {
 
 
@@ -158,29 +175,47 @@ export default function VideoPlayerScreen() {
 
 
             try {
-                const jsonString = await MyNativeModule.getYtInitialData(
-                    'https://www.youtube.com/watch?v=' + mvideo.videoId
+
+                const raw = await MyNativeModule.fetchFeed(mvideo.videoId,
+                    null,
+                    homeVisitorData
                 );
-                const ytInitialData = JSON.parse(jsonString);
-                const result = parseWatchNext(ytInitialData.results);
-                const videoDes: VideoDescription = {
-                    title: videoDetails.title,
-                    views: Number(videoDetails.viewCount),
+
+
+                const bundle = extractWatchNextBundle(JSON.parse(raw));
+
+                const freshShorts: Video[] = [];
+                bundle.shorts.forEach(element => {
+                    freshShorts.push(element)
+                });
+                if (freshShorts.length > 0) {
+                    addVideo({
+                        type: "shorts",
+                        videos: freshShorts,
+                        videoId: freshShorts[0].videoId,
+                    });
+                }
+                bundle.relatedVideos.forEach(element => {
+                    addVideo(element)
+                });
+                const videoDes2: VideoDescription = {
+                    title: bundle.videoDetails?.title ?? "",
                     uploaded: mvideo.publishedOn ? mvideo.publishedOn : "",
                     hashTags: Array.isArray(videoDetails.keywords)
                         ? videoDetails.keywords.join(" ")
                         : "",
-                    dislikes: ytInitialData.videoDetails.dislikes,
-                    likes: ytInitialData.videoDetails.likes,
-                    subscriber: ytInitialData.videoDetails.subscriberCount,
-                    commentsCount: ytInitialData.videoDetails.commentsCount,
-                    channelPhoto: mvideo.channel ? mvideo.channel : "",
-                    channelName: ytInitialData.videoDetails.channelName,
+                    dislikes: "Dislikes",
+                    views: Number(videoDetails.viewCount),
+                    subscriber: bundle.videoDetails?.channel?.subscribers ?? "",
+                    likes: bundle.videoDetails?.likes ?? "",
+                    commentsCount: bundle.commentCount ?? "",
+                    channelName: bundle.videoDetails?.channel?.name ?? "",
+                    channelPhoto: bundle.videoDetails?.channel?.photo ?? "",
                     video: mvideo
                 }
-                setCurrentVideo(videoDes)
-                setWathHtmlVideos(result);
-                // console.log(result);
+
+                setContinuation(bundle.nextToken ?? "");
+                setCurrentVideo(videoDes2);
                 currentVideoRef.current = mvideo;
 
             } catch (e) {
@@ -194,6 +229,11 @@ export default function VideoPlayerScreen() {
     useEffect(() => {
         loadData(arrivedVideo);
     }, []);
+
+    function handleRetry() {
+        setRetryCount(0);
+        nextBrowse();
+    }
 
     function changeResolution(res: string) {
         setSelectedResolution(res);
@@ -230,6 +270,47 @@ export default function VideoPlayerScreen() {
 
     }
 
+    async function nextBrowse() {
+
+        if (continuation == "") return;
+        if (retryCount >= 3) return;
+        if (isFetchingMore || !continuation) return;
+
+        setIsFetchingMore(true);
+
+        try {
+            const raw = await MyNativeModule.fetchFeed(
+                currentVideo?.video.videoId ?? null,
+                continuation,
+                homeVisitorData
+            );
+
+            const bundle = extractWatchNextBundle(JSON.parse(raw));
+
+            // Shorts
+            if (bundle.shorts.length > 0) {
+                addVideo({
+                    type: "shorts",
+                    videos: [...bundle.shorts],
+                    videoId: bundle.shorts[0].videoId,
+                });
+            }
+
+            // Related videos
+            for (const v of bundle.relatedVideos) {
+                addVideo(v);
+            }
+
+            setContinuation(bundle.nextToken ?? "");
+        } catch (e) {
+            console.error("Continuation fetch failed", e);
+            setRetryCount(r => r + 1);
+        } finally {
+            setIsFetchingMore(false);
+        }
+    }
+
+
 
     return (
         <View style={{
@@ -256,7 +337,7 @@ export default function VideoPlayerScreen() {
                 showFlatList ? <View>
                     <View>
                         <FlatList
-                            data={wathHtmlVideos?.items}
+                            data={totalVideos}
                             keyExtractor={(_, index) => index.toString()}
                             renderItem={({ item, index }) => {
                                 if (item.type === "video") {
@@ -306,6 +387,23 @@ export default function VideoPlayerScreen() {
                                     <ActivityIndicator size="large" color="red" style={{ margin: 20 }} />
                                 )
                             }
+                            ListFooterComponent={
+                                isFetchingMore ? (
+                                    <View style={styles.centerState}>
+                                        <ActivityIndicator size="large" />
+                                    </View>
+                                ) : retryCount >= 3 ? (
+                                    <View style={styles.centerState}>
+                                        <Text style={styles.retryText}>Something went wrong</Text>
+
+                                        <Pressable style={styles.retryBtn} onPress={handleRetry}>
+                                            <Text style={styles.retryBtnText}>Retry</Text>
+                                        </Pressable>
+                                    </View>
+                                ) : null
+                            }
+                            onEndReached={nextBrowse}
+                            onEndReachedThreshold={0.5}
                         />
                     </View>
                     <ResolutionBottomSheet
@@ -331,7 +429,31 @@ const styles = StyleSheet.create({
     },
     shortParentContainer: {
         paddingLeft: 20,
-    }
+    },
+    centerState: {
+        flex: 1,
+        alignItems: "center",
+        justifyContent: "center",
+        paddingVertical: 40,
+    },
+
+    retryText: {
+        color: "#999",
+        marginBottom: 12,
+        fontSize: 14,
+    },
+
+    retryBtn: {
+        paddingHorizontal: 24,
+        paddingVertical: 10,
+        borderRadius: 20,
+        backgroundColor: "#ff0000", // YouTube red 😉
+    },
+
+    retryBtnText: {
+        color: "#fff",
+        fontWeight: "600",
+    },
 });
 
 

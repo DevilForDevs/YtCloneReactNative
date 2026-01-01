@@ -8,7 +8,7 @@ import { NativeStackNavigationProp } from "@react-navigation/native-stack";
 import { useVideoStore } from '../../utils/Store';
 type NavigationProp = NativeStackNavigationProp<RootStackParamList, "BottomNav">;
 import { sendYoutubeSearchRequest } from '../../utils/sendYoutubeSearchRequest';
-import { videoId } from '../../utils/Interact';
+import { getStreamingData, videoId } from '../../utils/Interact';
 import { Video } from '../../utils/types';
 import { useAskFormat } from '../AskFormatContext';
 
@@ -19,69 +19,14 @@ export default function SearchScreen() {
     const [loading, setLoading] = useState(false);
     const { openAskFormat } = useAskFormat();
 
-
-    const fetchVideos = async () => {
-        try {
-            const jsonBody: any = continuation
-                ? { continuation }
-                : { query }; // 👈 REQUIRED
-
-            jsonBody.context = {
-                request: { internalExperimentFlags: [], useSsl: true },
-                client: {
-                    utcOffsetMinutes: 0,
-                    hl: "en-GB",
-                    gl: "IN",
-                    clientName: "WEB",
-                    clientVersion: "2.20250613.00.00",
-                    platform: "DESKTOP",
-                },
-                user: { lockedSafetyMode: false },
-            };
-
-            const response = await fetch(
-                "https://www.youtube.com/youtubei/v1/search?prettyPrint=false", // 👈 REQUIRED
-                {
-                    method: "POST",
-                    headers: {
-                        "Content-Type": "application/json",
-                        "Accept-Language": "en-GB,en;q=0.9",
-                    },
-                    body: JSON.stringify(jsonBody),
-                }
-            );
-
-            if (!response.ok) {
-                throw new Error(`HTTP ${response.status}`);
-            }
-
-            const data = await response.json();
-            console.log("SEARCH RESULT:", data);
-
-        } catch (err) {
-            console.error("fetchVideos error:", err);
-        }
-    };
-
-
     const handleSubmit = async () => {
-        if (query.includes("playlist?list=")) {
-            //
-        } else {
-            var vid = videoId(query);
-            if (vid == null) {
-                await fetchVideos()
-            } else {
-                openAskFormat({
-                    videoId: vid,
-                    type: "video",
-                    title: "Notitle",
-                    views: "no views",
-                    duration: "no duration"
-                })
-            }
-
-
+        if (videoId(query)) {
+            openAskFormat({
+                videoId: videoId(query),
+                title: "notit",
+                views: "nowview",
+                type: "video"
+            })
         }
     }
 

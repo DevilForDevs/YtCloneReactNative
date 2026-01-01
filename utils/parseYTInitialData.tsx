@@ -152,6 +152,7 @@ export function parseYTInitialData(data: AnyObj) {
 
     for (const item of contents) {
         if (item.richItemRenderer) {
+            console.log(item);
             results.videos.push(extractVideoData(item));
         }
 

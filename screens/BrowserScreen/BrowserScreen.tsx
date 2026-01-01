@@ -1,5 +1,5 @@
-import React, { useRef, useState, useCallback } from "react";
-import { StyleSheet, Text, TouchableOpacity, View } from "react-native";
+import React, { useRef } from "react";
+import { StyleSheet, View } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
 import { WebView } from "react-native-webview";
 import { useNavigation } from "@react-navigation/native";
@@ -13,11 +13,12 @@ export default function BrowserScreen() {
   const navigation = useNavigation<navStack>();
   const webViewRef = useRef<WebView>(null);
   const chunkBuffers = useRef<Record<string, string[]>>({});
-  const [webViewAlive, setWebViewAlive] = useState(true);
-  const [foundVideos, setFoundVideos] = useState(0);
-  const [prevContinuation, setPrevContinuaton] = useState("")
+
+
   const {
     addVideo,
+    setContinuation,
+    setVisitorData
 
   } = useVideoStore();
 
@@ -27,6 +28,7 @@ export default function BrowserScreen() {
 
     videoGroup.videos.forEach((element: any) => {
       if (!element.video_id) return;
+      console.log(element);
 
       addVideo({
         type: "video",
@@ -35,7 +37,7 @@ export default function BrowserScreen() {
         duration: element.duration ?? "",
         views: element.views ?? "null",
         channel: element.channel_photo ?? "",
-        publishedOn: "10 years ago",
+        publishedOn: "10ysagao",
       });
     });
 
@@ -57,12 +59,8 @@ export default function BrowserScreen() {
         videoId: freshShorts[0].videoId,
       });
     }
-
-    setFoundVideos(prev =>
-      isInitial ? videoGroup.videos.length : prev + videoGroup.videos.length
-    );
-
-    setPrevContinuaton(videoGroup.continuationTokens?.[0] ?? "");
+    setContinuation(videoGroup.continuationTokens?.[0] ?? "");
+    navigation.navigate("BottomNav");
   }
 
   async function onMessage(event: any) {
@@ -88,65 +86,38 @@ export default function BrowserScreen() {
 
         if (baseType === "YT_INITIAL_DATA") {
           const videoGroup = parseYTInitialData(payload.data);
+          setVisitorData(payload.data.responseContext.webResponseContextExtensionData.ytConfigData.visitorData);
           processVideoGroup(videoGroup, true);
         }
         return;
       }
-
-      // 3️⃣ Continuation fetch
-      if (type === "YT_FETCH_JSON") {
-        const videoGroup = parseYTInitialData(msg.data);
-        const nextContinuation = videoGroup.continuationTokens?.[0];
-
-        if (!nextContinuation || nextContinuation === prevContinuation) {
-          return;
-        }
-
-        processVideoGroup(videoGroup);
-      }
-
-
-
     } catch (err) {
       console.warn("WebView message error:", err);
     }
   }
 
-  function goToHomeScreen() {
-    navigation.navigate("BottomNav")
-  }
+
 
 
   return (
     <SafeAreaView style={styles.container}>
       <View style={{ flex: 1 }}>
-        {webViewAlive && (
-          <WebView
-            ref={webViewRef}
-            source={{ uri: "https://www.youtube.com" }}
-            javaScriptEnabled
-            domStorageEnabled
-            sharedCookiesEnabled
-            thirdPartyCookiesEnabled
-            allowsInlineMediaPlayback
-            mediaPlaybackRequiresUserAction={false}
-            startInLoadingState
-            allowsFullscreenVideo
-            scalesPageToFit
-            injectedJavaScript={combinedJsCode}
-            onMessage={onMessage}
-            style={{ flex: 1 }}
-          />
-        )}
-        <TouchableOpacity style={[
-          styles.fab,
-          foundVideos === 0 && { opacity: 0.5 }
-        ]}
-          disabled={foundVideos === 0} onPress={goToHomeScreen}>
-          <Text style={{ fontWeight: "600" }}>
-            {`Load ${foundVideos} items in native`}
-          </Text>
-        </TouchableOpacity>
+        <WebView
+          ref={webViewRef}
+          source={{ uri: "https://www.youtube.com" }}
+          javaScriptEnabled
+          domStorageEnabled
+          sharedCookiesEnabled
+          thirdPartyCookiesEnabled
+          allowsInlineMediaPlayback
+          mediaPlaybackRequiresUserAction={false}
+          startInLoadingState
+          allowsFullscreenVideo
+          scalesPageToFit
+          injectedJavaScript={combinedJsCode}
+          onMessage={onMessage}
+          style={{ flex: 1 }}
+        />
       </View>
     </SafeAreaView>
   );
@@ -155,18 +126,5 @@ export default function BrowserScreen() {
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-  },
-
-  fab: {
-    position: "absolute",
-    bottom: 90,
-    right: 20,
-    backgroundColor: "rgba(255,255,255,0.92)",
-    paddingHorizontal: 14,
-    paddingVertical: 8,
-    borderRadius: 20,
-    borderWidth: 1,
-    borderColor: "rgba(0,0,0,0.05)",
-    elevation: 4,
   }
 });

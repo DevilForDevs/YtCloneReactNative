@@ -43,7 +43,7 @@ export async function sendYoutubeSearchRequest(
   console.log(response.status);
 
   const text = await response.text();
-  console.log(text);
 
-  return parseSearchResponse("");
+
+  return parseSearchResponse(text);
 }

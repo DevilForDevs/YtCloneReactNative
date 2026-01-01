@@ -1,4 +1,4 @@
-import { ShortVideo, Video } from "./utils/types";
+import { DownloadItem, ShortVideo, Video } from "./utils/types";
 import { NativeStackNavigationProp } from "@react-navigation/native-stack";
 export { };
 
@@ -44,8 +44,9 @@ declare global {
         BottomNav: undefined,
         VideoPlayerScreen: { arrivedVideo: Video };
         ShortsPlayerScreen: { arrivedVideo: Video },
-        DownloadsScreen: { downloadIndex: number },
-        SearchScreen: undefineds
+        DownloadsScreen: undefined,
+        SearchScreen: undefined,
+        OfflinePlayer: { item: DownloadItem }
     };
 
     type navStack = NativeStackNavigationProp<

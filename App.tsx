@@ -25,6 +25,7 @@ import { DownloadsStore } from './utils/Store';
 import { Video, DownloadItem } from './utils/types';
 import { convertBytes } from './utils/Interact';
 import SearchScreen from './screens/SearchScreen/SearchScreen';
+import OfflinePlayer from './screens/OfflinePlayer/OfflinePlayer';
 
 const Stack = createNativeStackNavigator<RootStackParamList>();
 const eventEmitter = new NativeEventEmitter();
@@ -125,6 +126,7 @@ export default function App() {
             <Stack.Screen name="ShortsPlayerScreen" component={ShortsPlayer} />
             <Stack.Screen name="DownloadsScreen" component={DownloadsScreen} />
             <Stack.Screen name="SearchScreen" component={SearchScreen} />
+            <Stack.Screen name="OfflinePlayer" component={OfflinePlayer} />
           </Stack.Navigator>
         </NavigationContainer>
       </AskFormatProvider>

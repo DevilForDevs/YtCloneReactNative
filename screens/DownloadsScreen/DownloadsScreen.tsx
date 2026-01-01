@@ -19,7 +19,7 @@ export default function DownloadsScreen() {
             <FlatList
                 data={totalDownloads}
                 keyExtractor={(item) => item.video.videoId}
-                renderItem={({ item }) => <DownloadItemView item={item} onItemPress={() => console.log("ranjan")} />}
+                renderItem={({ item }) => <DownloadItemView item={item} onItemPress={() => navigation.navigate("OfflinePlayer", { item })} />}
                 contentContainerStyle={{
                     marginTop: 10,
                     paddingHorizontal: 10,

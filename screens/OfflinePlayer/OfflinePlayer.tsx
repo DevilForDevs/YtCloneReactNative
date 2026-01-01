@@ -11,12 +11,12 @@ import { DownloadItem } from '../../utils/types';
 
 type NavigationProp = RouteProp<
     RootStackParamList,
-    "DownloadsScreen"
+    "OfflinePlayer"
 >;
 
 export default function OfflinePlayer() {
     const route = useRoute<NavigationProp>();
-    const { downloadIndex } = route.params;
+    const { item } = route.params;
     const { totalDownloads } = DownloadsStore();
     const navigation = useNavigation<navStack>();
     // Reactive URL
@@ -28,13 +28,11 @@ export default function OfflinePlayer() {
 
     // Set the initial video based on the incoming downloadIndex
     useEffect(() => {
-        const item = totalDownloads[downloadIndex];
-
         if (item.message === "Video" || item.message === "Finished") {
             const movieDir = RNFS.ExternalStorageDirectoryPath + '/Movies';
             setLocalFile(`${movieDir}/${item.video.title}`);
         }
-    }, [downloadIndex]);
+    },);
 
     const toggleFlatList = () => {
         setShowFlatList(prev => !prev);
