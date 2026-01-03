@@ -1,34 +1,126 @@
-import { StyleSheet, TextInput, TouchableOpacity, View, ActivityIndicator } from 'react-native'
-import React, { useState, useRef } from 'react'
+import {
+    StyleSheet, TextInput, TouchableOpacity,
+    View, ActivityIndicator, NativeModules,
+    FlatList, Text, Pressable
+
+} from 'react-native'
+import React, { useState } from 'react'
 import { SafeAreaView } from 'react-native-safe-area-context'
 import Icon from 'react-native-vector-icons/Ionicons';
 import IconMat from 'react-native-vector-icons/MaterialCommunityIcons';
 import { useNavigation } from "@react-navigation/native";
 import { NativeStackNavigationProp } from "@react-navigation/native-stack";
-import { useVideoStore } from '../../utils/Store';
 type NavigationProp = NativeStackNavigationProp<RootStackParamList, "BottomNav">;
-import { sendYoutubeSearchRequest } from '../../utils/sendYoutubeSearchRequest';
-import { getStreamingData, videoId } from '../../utils/Interact';
-import { Video } from '../../utils/types';
+import { videoId } from '../../utils/Interact';
 import { useAskFormat } from '../AskFormatContext';
+import { parseSearchResponse } from '../../utils/EndPoints';
+import { useVideoStoreForSearch } from '../../utils/Store';
+import VideoItemView from '../HomeScreen/widgets/VideoItemView/VideoItemView';
+import ShortsItemView from '../HomeScreen/widgets/ShortsItemView/ShortsItemView';
+import ShortsHeader from '../HomeScreen/widgets/ShortsHeader/ShortsHeader';
 
 export default function SearchScreen() {
-    const { addVideo, continuation, setContinuation, clearVideos, setQuery, seenVideosIds, clearSeenVideosIds, addSeenVideoId } = useVideoStore();
     const navigation = useNavigation<NavigationProp>();
     const [query, setquery] = useState("");
     const [loading, setLoading] = useState(false);
+    const { MyNativeModule } = NativeModules;
     const { openAskFormat } = useAskFormat();
+    const { addVideo, totalVideos, continuation, setContinuation, clearVideos, setQuery } = useVideoStoreForSearch();
+    const [isFetchingMore, setIsFetchingMore] = useState(false);
+    const [retryCount, setRetryCount] = useState(0);
+    const onEndReachedCalledDuringMomentum = React.useRef(false);
+    const isPlaylist = (q: string) =>
+        q.includes("list=") || q.startsWith("PL") || q.startsWith("OL");
+    const listRef = React.useRef<FlatList<any>>(null);
+
+
 
     const handleSubmit = async () => {
-        if (videoId(query)) {
-            openAskFormat({
-                videoId: videoId(query),
-                title: "notit",
-                views: "nowview",
-                type: "video"
-            })
+        const trimmed = query.trim();
+        if (!trimmed) return;
+
+        clearVideos();
+        setRetryCount(0);
+        setContinuation("");
+
+        // 🔼 move list to top
+        listRef.current?.scrollToOffset({
+            offset: 0,
+            animated: false,
+        });
+
+        setLoading(true);
+
+        try {
+            const vid = videoId(trimmed);
+            if (vid) {
+                setLoading(false);
+                openAskFormat({
+                    videoId: vid,
+                    title: "No title",
+                    views: "No views",
+                    type: "video",
+                });
+                return;
+            }
+
+            if (isPlaylist(trimmed)) {
+                setLoading(false);
+                return;
+            }
+
+            const raw = await MyNativeModule.searchYoutube(trimmed, null, null);
+            const result = parseSearchResponse(raw);
+
+            result.videos.forEach(addVideo);
+            setContinuation(result.continuation ?? "");
+            setQuery(trimmed);
+
+        } catch (e) {
+            console.error("Search failed", e);
+        } finally {
+            setLoading(false);
+        }
+    };
+
+
+
+    function handleRetry() {
+        setRetryCount(0);
+        nextBroswe();
+    }
+
+    async function nextBroswe() {
+        if (loading) return;
+        if (isFetchingMore) return;
+        if (!continuation) return;
+        if (retryCount >= 3) return;
+
+        setIsFetchingMore(true);
+
+        try {
+            const raw = await MyNativeModule.searchYoutube(
+                query,
+                continuation,
+                null
+            );
+
+            const result = parseSearchResponse(raw);
+            result.videos.forEach(addVideo);
+
+            // 🧠 prevent infinite loop
+            if (result.continuation === continuation) return;
+
+            setContinuation(result.continuation ?? "");
+
+        } catch (e) {
+            console.error("Continuation fetch failed", e);
+            setRetryCount(r => r + 1);
+        } finally {
+            setIsFetchingMore(false);
         }
     }
+
 
     return (
         <SafeAreaView style={styles.container}>
@@ -48,11 +140,75 @@ export default function SearchScreen() {
                 </View>
 
             </View>
-            {loading && (
-                <View style={styles.loader}>
+            {loading && totalVideos.length === 0 && (
+                <View style={{ flex: 1, justifyContent: "center", alignItems: "center" }}>
                     <ActivityIndicator size="large" color="#FF0000" />
                 </View>
             )}
+            <FlatList
+                ref={listRef}
+                data={totalVideos}
+                keyExtractor={(_, index) => index.toString()}
+                ListFooterComponent={
+                    isFetchingMore ? (
+                        <View style={styles.centerState}>
+                            <ActivityIndicator size="large" />
+                        </View>
+                    ) : retryCount >= 3 ? (
+                        <View style={styles.centerState}>
+                            <Text style={styles.retryText}>Something went wrong</Text>
+
+                            <Pressable style={styles.retryBtn} onPress={handleRetry}>
+                                <Text style={styles.retryBtnText}>Retry</Text>
+                            </Pressable>
+                        </View>
+                    ) : null
+                }
+                renderItem={({ item }) =>
+                    item.type === "video" ? (
+                        <VideoItemView
+                            item={item}
+                            progress={0}
+                            onItemPress={() =>
+                                navigation.navigate("VideoPlayerScreen", { arrivedVideo: item })
+                            }
+                            onDownload={() => openAskFormat(item)}
+                        />
+                    ) : (
+                        <View style={styles.shortParentContainer}>
+                            <ShortsHeader />
+                            <FlatList
+                                data={item.videos}
+                                horizontal
+                                keyExtractor={(short) => short.videoId}
+                                renderItem={({ item: short }) => (
+                                    <ShortsItemView
+                                        item={short}
+                                        onItemPress={() =>
+                                            navigation.navigate("ShortsPlayerScreen", {
+                                                arrivedVideo: short,
+                                            })
+                                        }
+                                    />
+                                )}
+                                showsHorizontalScrollIndicator={false}
+                                contentContainerStyle={styles.shortsContainer}
+                            />
+                        </View>
+                    )
+                }
+                contentContainerStyle={{ gap: 10, marginTop: 10 }}
+                onMomentumScrollBegin={() => {
+                    onEndReachedCalledDuringMomentum.current = false;
+                }}
+                onEndReached={() => {
+                    if (!onEndReachedCalledDuringMomentum.current) {
+                        onEndReachedCalledDuringMomentum.current = true;
+                        nextBroswe();
+                    }
+                }}
+                onEndReachedThreshold={0.7}
+            />
 
         </SafeAreaView>
     )
@@ -85,8 +241,34 @@ const styles = StyleSheet.create({
         borderRadius: 50
     }
     ,
-    loader: {
+    shortParentContainer: {
+        paddingLeft: 20,
+    },
+    shortsContainer: {
+        gap: 10,
+    },
+    centerState: {
         flex: 1,
-        marginTop: 100
-    }
+        alignItems: "center",
+        justifyContent: "center",
+        paddingVertical: 40,
+    },
+
+    retryText: {
+        color: "#999",
+        marginBottom: 12,
+        fontSize: 14,
+    },
+
+    retryBtn: {
+        paddingHorizontal: 24,
+        paddingVertical: 10,
+        borderRadius: 20,
+        backgroundColor: "#ff0000", // YouTube red 😉
+    },
+
+    retryBtnText: {
+        color: "#fff",
+        fontWeight: "600",
+    },
 })

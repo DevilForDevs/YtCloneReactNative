@@ -28,8 +28,6 @@ export default function BrowserScreen() {
 
     videoGroup.videos.forEach((element: any) => {
       if (!element.video_id) return;
-      console.log(element);
-
       addVideo({
         type: "video",
         videoId: element.video_id,
@@ -37,7 +35,7 @@ export default function BrowserScreen() {
         duration: element.duration ?? "",
         views: element.views ?? "null",
         channel: element.channel_photo ?? "",
-        publishedOn: "10ysagao",
+        publishedOn: element.publishedOn,
       });
     });
 

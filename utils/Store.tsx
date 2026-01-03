@@ -194,6 +194,93 @@ export const useVideoStoreForWatch = create<VideoStore>((set, get) => ({
 }));
 
 
+export const useVideoStoreForSearch = create<VideoStore>((set, get) => ({
+  // ─────────────────────────────
+  // 📦 State
+  // ─────────────────────────────
+  totalVideos: [],
+  seenVideosIds: [],
+  continuation: "",
+  query: "tum hi ho",
+  visitorData: "",
+
+  // ─────────────────────────────
+  // 🎥 Video handling
+  // ─────────────────────────────
+  addVideo: (item) =>
+    set((state) => {
+      if (item.type === "video") {
+        if (state.seenVideosIds.includes(item.videoId)) return state;
+
+        return {
+          totalVideos: [...state.totalVideos, item],
+          seenVideosIds: [...state.seenVideosIds, item.videoId],
+        };
+      }
+
+      if (item.type === "shorts") {
+        const newVideos = item.videos.filter(
+          (v) => !state.seenVideosIds.includes(v.videoId)
+        );
+
+        if (newVideos.length === 0) return state;
+
+        return {
+          totalVideos: [
+            ...state.totalVideos,
+            { ...item, videos: newVideos },
+          ],
+          seenVideosIds: [
+            ...state.seenVideosIds,
+            ...newVideos.map((v) => v.videoId),
+          ],
+        };
+      }
+
+      return state;
+    }),
+
+  // ─────────────────────────────
+  // 👁 Seen videos
+  // ─────────────────────────────
+  addSeenVideoId: (videoId) =>
+    set((state) => {
+      if (state.seenVideosIds.includes(videoId)) return state;
+      return { seenVideosIds: [...state.seenVideosIds, videoId] };
+    }),
+
+  // ─────────────────────────────
+  // 🔁 Continuation / Query
+  // ─────────────────────────────
+  setContinuation: (continuation) => set({ continuation }),
+  setQuery: (query) => set({ query }),
+
+  // ─────────────────────────────
+  // 🧠 Visitor Data (NEW)
+  // ─────────────────────────────
+  setVisitorData: (visitorData: string) =>
+    set((state) => {
+      if (!visitorData || visitorData === state.visitorData) {
+        return state; // avoid useless updates
+      }
+      return { visitorData };
+    }),
+
+  // ─────────────────────────────
+  // 🧹 Clear helpers
+  // ─────────────────────────────
+  clearVideos: () => set({ totalVideos: [] }),
+  clearSeenVideosIds: () => set({ seenVideosIds: [] }),
+
+  clearAll: () =>
+    set({
+      totalVideos: [],
+      seenVideosIds: [],
+      continuation: "",
+      visitorData: "",
+    }),
+}));
+
 function addDownloadItemF(
   state: DownloadStoreModel,
   item: DownloadItem,

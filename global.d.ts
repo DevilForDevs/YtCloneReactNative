@@ -29,6 +29,7 @@ declare global {
         channel_photo: string | null;
         channel_url: string | null;
         duration: string | null;
+        publishedOn?: string
     };
 
     type ShortsData = {

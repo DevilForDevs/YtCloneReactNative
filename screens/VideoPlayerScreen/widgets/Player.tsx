@@ -1,4 +1,4 @@
-import { StyleSheet, Text, View, TouchableOpacity, Image, Pressable } from 'react-native'
+import { StyleSheet, Text, View, TouchableOpacity, Image, Pressable, ToastAndroid } from 'react-native'
 import React, { useEffect, useRef, useState } from 'react'
 import Video, { OnLoadData, OnProgressData } from "react-native-video";
 import Icon from "react-native-vector-icons/Ionicons";
@@ -17,9 +17,13 @@ type Props = {
     onProgressSave: (videoId: string, position: number) => void;
     seekTo?: number; // restore position
     distroyScreen: () => void;
+    onToggle?: (enabled: boolean) => void;
+    videoEnded?: () => void
+
 }
 
-export default function Player({ url, toggleFlatList, videoId, showMenu, onProgressSave, seekTo, distroyScreen }: Props) {
+export default function Player({ url, toggleFlatList, videoId, onToggle,
+    showMenu, onProgressSave, seekTo, distroyScreen, videoEnded }: Props) {
     const videoRef = useRef<React.ElementRef<typeof Video>>(null); // ✅ works
     const [isBuffering, setIsBuffering] = useState(false);
     const [duration, setDuration] = useState(0);
@@ -27,6 +31,13 @@ export default function Player({ url, toggleFlatList, videoId, showMenu, onProgr
     const [isFullscreen, setFullScreen] = useState(false)
     const [showControls, setShowControls] = useState(true)
     const [paused, setPaused] = useState(false);
+    const lastTap = useRef<number>(0);
+    const singleTapTimeout = useRef<ReturnType<typeof setTimeout> | null>(null);
+
+
+
+    const DOUBLE_TAP_DELAY = 300;
+
     const reportProgress = useRef(
         throttle((time: number) => {
             onProgressSave(videoId, time);
@@ -34,6 +45,11 @@ export default function Player({ url, toggleFlatList, videoId, showMenu, onProgr
     ).current;
 
 
+    function seekBy(seconds: number) {
+        const newTime = Math.max(0, Math.min(currentTime + seconds, duration));
+        videoRef.current?.seek(newTime);
+        setCurrentTime(newTime);
+    }
 
     const toggleFullscreen = () => {
         toggleFlatList();
@@ -94,6 +110,8 @@ export default function Player({ url, toggleFlatList, videoId, showMenu, onProgr
     function onEnd() {
         setPaused(true);
         videoRef.current?.seek(0);
+        videoEnded?.();
+
     }
 
     function onSlidingComplete(value: number) {
@@ -127,15 +145,48 @@ export default function Player({ url, toggleFlatList, videoId, showMenu, onProgr
                     onEnd={onEnd}
                     poster={`https://i.ytimg.com/vi/${videoId}/hqdefault.jpg`} // optional poster
                     posterResizeMode="cover"
-                    onError={(e) => console.log(e)}
+                    onError={(e) => {
+                        console.log("Video error:", e);
+
+                        // Access nested error properties safely
+                        const errorMessage =
+                            e.error?.errorString?.replace("ExoPlaybackException:", "") ??
+                            e.error?.errorException ??
+                            e.error?.errorCode ??
+                            "Unable to play video";
+
+                        ToastAndroid.show(errorMessage, ToastAndroid.SHORT);
+                    }}
+
 
                 />
 
                 <Pressable
-                    onPress={click3edONvideo}
-                    style={StyleSheet.absoluteFill} // covers the whole video
-                >
-                </Pressable>
+                    onPress={(e) => {
+                        const now = Date.now();
+
+                        if (now - lastTap.current < DOUBLE_TAP_DELAY) {
+                            if (singleTapTimeout.current) {
+                                clearTimeout(singleTapTimeout.current);
+                                singleTapTimeout.current = null;
+                            }
+
+                            const { locationX } = e.nativeEvent;
+                            const screenWidth = e.nativeEvent.pageX * 2;
+
+                            if (locationX < screenWidth / 2) seekBy(-10);
+                            else seekBy(15);
+                        } else {
+                            singleTapTimeout.current = setTimeout(() => {
+                                setShowControls(s => !s);
+                            }, DOUBLE_TAP_DELAY);
+                        }
+
+                        lastTap.current = now;
+                    }}
+                    style={StyleSheet.absoluteFill}
+                />
+
 
                 {showControls ? <TouchableOpacity onPress={togglePlayPause} style={styles.controlBtn}>
                     <Image source={paused ? require("../../../assets/play.png") : require("../../../assets/pause.png")} style={styles.playPause} />
@@ -145,7 +196,7 @@ export default function Player({ url, toggleFlatList, videoId, showMenu, onProgr
                 </TouchableOpacity> : <View />}
                 {
                     showControls ?
-                        <TopConrols distroyScreen={distroyScreen} showMenu={showMenu} /> : <View />
+                        <TopConrols distroyScreen={distroyScreen} showMenu={showMenu} onToggle={(val) => onToggle?.(val)} /> : <View />
                 }
                 {
                     showControls ? <View style={isFullscreen ? styles.fullScrren : styles.bottomControls}>

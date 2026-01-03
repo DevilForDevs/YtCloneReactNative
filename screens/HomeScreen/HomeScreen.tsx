@@ -19,7 +19,6 @@ export default function HomeScreen() {
   const {
     totalVideos,
     addVideo,
-    clearVideos,
     visitorData,
     continuation,
     setContinuation,
@@ -41,7 +40,7 @@ export default function HomeScreen() {
         duration: element.duration ?? "",
         views: element.views ?? "null",
         channel: element.channel_photo ?? "",
-        publishedOn: "10 years ago",
+        publishedOn: element.publishedOn,
       });
     });
 
@@ -85,7 +84,6 @@ export default function HomeScreen() {
         continuation,
         visitorData
       );
-
       const videoGroup = parseYTInitialData(JSON.parse(raw));
       processVideoGroup(videoGroup);
     } catch (e) {

@@ -117,8 +117,8 @@ function extractVideoData(item: AnyObj): VideoData {
             "browseEndpoint",
             "canonicalBaseUrl",
         ]),
-
         duration: safeGet(video, ["lengthText", "runs", 0, "text"]),
+        publishedOn: safeGet(video, ["publishedTimeText", "runs", 0, "text"])
     };
 }
 
@@ -152,9 +152,9 @@ export function parseYTInitialData(data: AnyObj) {
 
     for (const item of contents) {
         if (item.richItemRenderer) {
-            console.log(item);
             results.videos.push(extractVideoData(item));
         }
+
 
         if (item.richSectionRenderer) {
             const shorts =

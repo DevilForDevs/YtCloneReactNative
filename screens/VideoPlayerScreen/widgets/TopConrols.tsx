@@ -1,13 +1,15 @@
 import { StyleSheet, Text, View, TouchableOpacity, Image } from 'react-native'
 import React from 'react'
 import Icon from "react-native-vector-icons/Ionicons";
+import AutoplayButton from './AutoplayButton';
 
 type props = {
     showMenu: () => void;
     distroyScreen: () => void;
+    onToggle?: (enabled: boolean) => void;
 }
 
-export default function TopConrols({ showMenu, distroyScreen }: props) {
+export default function TopConrols({ showMenu, distroyScreen, onToggle }: props) {
     return (
         <View style={styles.topControls}>
             <TouchableOpacity onPress={distroyScreen}>
@@ -15,9 +17,10 @@ export default function TopConrols({ showMenu, distroyScreen }: props) {
             </TouchableOpacity>
             <View style={styles.rightIcons}>
 
-                <TouchableOpacity>
-                    <Image source={require("../../../assets/autoPlay.png")} style={styles.autoPlay} />
-                </TouchableOpacity>
+                <AutoplayButton
+                    enabled={true}
+                    onToggle={(val) => console.log('Autoplay toggled:', onToggle?.(val))}
+                />
                 <TouchableOpacity>
                     <Image source={require("../../../assets/cast.png")} style={styles.topIcon} />
                 </TouchableOpacity>

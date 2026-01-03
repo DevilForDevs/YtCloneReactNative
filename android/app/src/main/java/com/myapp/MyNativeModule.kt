@@ -13,6 +13,7 @@ import com.myapp.extractors.youtube.NativeFileDownloader
 import com.myapp.extractors.youtube.RelatedShortsFetcher
 import com.myapp.extractors.youtube.ShortMetaFetcher
 import com.myapp.extractors.youtube.YtInitialDataFetcher
+import com.myapp.extractors.youtube.YtSearchFetcher
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
@@ -89,6 +90,29 @@ class MyNativeModule(
             try {
                 val result = YtInitialDataFetcher.fetch(watchUrl)
                 promise.resolve(result.toString())
+            } catch (e: Exception) {
+                promise.reject("ERROR", e.message, e)
+            }
+        }
+    }
+
+    @ReactMethod
+    fun searchYoutube(
+        query: String,
+        continuation: String?,
+        params: String?,
+        promise: Promise,
+    ) {
+        backThread.launch(Dispatchers.IO) {
+            try {
+                val result =
+                    YtSearchFetcher.fetch(
+                        query = query,
+                        continuation = continuation,
+                        params = params,
+                    )
+
+                promise.resolve(result) // ✅ raw string
             } catch (e: Exception) {
                 promise.reject("ERROR", e.message, e)
             }

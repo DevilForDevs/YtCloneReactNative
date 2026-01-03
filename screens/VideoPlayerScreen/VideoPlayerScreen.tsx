@@ -14,16 +14,15 @@ import ShortsHeader from "../HomeScreen/widgets/ShortsHeader/ShortsHeader";
 import ShortsItemView from "../HomeScreen/widgets/ShortsItemView/ShortsItemView";
 import { RouteProp, useNavigation, useRoute } from "@react-navigation/native";
 
-
-import { parseWatchNext, ParseResult } from "../../utils/watchHtmlParser";
+import { parseWatchHtml } from "../../utils/watchHtmlParser";
 import { getIosPlayerResponse } from "../../utils/EndPoints";
 import VideoDetails from "./widgets/VideoDetails";
 import { Video, VideoDescription } from "../../utils/types";
 import { createResolutionPlaylistsRN } from "../../utils/createResolutionPlaylists";
 import ResolutionBottomSheet from "./widgets/ResolutionBottomSheet";
 import { useAskFormat } from "../AskFormatContext";
-import { useVideoStore, useVideoStoreForWatch } from "../../utils/Store";
-import { extractWatchNextBundle } from "../../utils/watchJsonParser";
+import { useVideoStoreForWatch } from "../../utils/Store";
+
 
 
 
@@ -35,10 +34,11 @@ type NavigationProp = RouteProp<
 
 export default function VideoPlayerScreen() {
 
-    const { visitorData: homeVisitorData } = useVideoStore();
     const [isFetchingMore, setIsFetchingMore] = useState(false);
     const [retryCount, setRetryCount] = useState(0);
+
     const { visitorData: watchVisitorData,
+        setVisitorData: setWvisid,
         addVideo,
         clearVideos,
         continuation,
@@ -65,6 +65,9 @@ export default function VideoPlayerScreen() {
     const isGoingBackRef = useRef(false);
     const backLockRef = useRef(false);
     const currentVideoRef = useRef<Video | null>(null);
+    const [autoplayEnabled, setAutoplayEnabled] = useState(true);
+
+
 
 
 
@@ -176,45 +179,32 @@ export default function VideoPlayerScreen() {
 
             try {
 
-                const raw = await MyNativeModule.fetchFeed(mvideo.videoId,
-                    null,
-                    homeVisitorData
+                const jsonString = await MyNativeModule.getYtInitialData(
+                    'https://www.youtube.com/watch?v=' + mvideo.videoId
                 );
-
-
-                const bundle = extractWatchNextBundle(JSON.parse(raw));
-
-                const freshShorts: Video[] = [];
-                bundle.shorts.forEach(element => {
-                    freshShorts.push(element)
-                });
-                if (freshShorts.length > 0) {
-                    addVideo({
-                        type: "shorts",
-                        videos: freshShorts,
-                        videoId: freshShorts[0].videoId,
-                    });
-                }
-                bundle.relatedVideos.forEach(element => {
+                const ytInitialData = JSON.parse(jsonString);
+                const parseResult = parseWatchHtml(ytInitialData)
+                setWvisid(parseResult.visitorData)
+                setContinuation(parseResult.continuation ?? "")
+                parseResult.items.forEach(element => {
                     addVideo(element)
                 });
+
                 const videoDes2: VideoDescription = {
-                    title: bundle.videoDetails?.title ?? "",
+                    title: videoDetails.title,
                     uploaded: mvideo.publishedOn ? mvideo.publishedOn : "",
                     hashTags: Array.isArray(videoDetails.keywords)
                         ? videoDetails.keywords.join(" ")
                         : "",
                     dislikes: "Dislikes",
                     views: Number(videoDetails.viewCount),
-                    subscriber: bundle.videoDetails?.channel?.subscribers ?? "",
-                    likes: bundle.videoDetails?.likes ?? "",
-                    commentsCount: bundle.commentCount ?? "",
-                    channelName: bundle.videoDetails?.channel?.name ?? "",
-                    channelPhoto: bundle.videoDetails?.channel?.photo ?? "",
+                    subscriber: parseResult.channelinfo.subscriberCount,
+                    likes: parseResult.channelinfo.likes,
+                    commentsCount: parseResult.channelinfo.commentsCount ?? "",
+                    channelName: parseResult.channelinfo.channelName,
+                    channelPhoto: parseResult.channelinfo.channelPhoto,
                     video: mvideo
                 }
-
-                setContinuation(bundle.nextToken ?? "");
                 setCurrentVideo(videoDes2);
                 currentVideoRef.current = mvideo;
 
@@ -271,45 +261,57 @@ export default function VideoPlayerScreen() {
     }
 
     async function nextBrowse() {
-
-        if (continuation == "") return;
+        if (!currentVideo?.video?.videoId) return;
+        if (!continuation) return;
+        if (isFetchingMore) return;
         if (retryCount >= 3) return;
-        if (isFetchingMore || !continuation) return;
 
         setIsFetchingMore(true);
 
         try {
             const raw = await MyNativeModule.fetchFeed(
-                currentVideo?.video.videoId ?? null,
+                currentVideoRef.current?.videoId ?? null,
                 continuation,
-                homeVisitorData
+                watchVisitorData
             );
 
-            const bundle = extractWatchNextBundle(JSON.parse(raw));
+            const ytInitialData = JSON.parse(raw);
+            const parseResult = parseWatchHtml(ytInitialData);
 
-            // Shorts
-            if (bundle.shorts.length > 0) {
-                addVideo({
-                    type: "shorts",
-                    videos: [...bundle.shorts],
-                    videoId: bundle.shorts[0].videoId,
-                });
+            // 🔹 append items
+            for (const item of parseResult.items) {
+                addVideo(item);
             }
 
-            // Related videos
-            for (const v of bundle.relatedVideos) {
-                addVideo(v);
-            }
-
-            setContinuation(bundle.nextToken ?? "");
+            // 🔹 update continuation
+            setContinuation(parseResult.continuation ?? "");
         } catch (e) {
-            console.error("Continuation fetch failed", e);
+            console.error("Watch continuation failed", e);
             setRetryCount(r => r + 1);
         } finally {
             setIsFetchingMore(false);
         }
     }
 
+    function playBackfinished() {
+        if (!autoplayEnabled) return;
+
+        // find index of current video
+        const currentIndex = totalVideos.findIndex(
+            (v) => v.type === "video" && v.videoId === currentVideo?.video.videoId
+        );
+
+        // get next video
+        const nextVideo = totalVideos.slice(currentIndex + 1).find(v => v.type === "video");
+
+        if (!nextVideo) {
+            console.log("No next video to autoplay");
+            return;
+        }
+
+        // load the next video
+        loadData(nextVideo);
+    }
 
 
     return (
@@ -331,6 +333,8 @@ export default function VideoPlayerScreen() {
                 seekTo={seekTo}
                 key={currentVideo?.video.videoId}   // ✅ stable
                 distroyScreen={() => navigation.pop()}
+                onToggle={(val) => setAutoplayEnabled(val)}
+                videoEnded={playBackfinished}
             />
 
             {
@@ -346,7 +350,7 @@ export default function VideoPlayerScreen() {
                                             item={item}
                                             progress={0}
                                             onItemPress={() => loadData(item)}
-                                            onDownload={() => console.log("downloadClicked")}
+                                            onDownload={() => openAskFormat(item)}
                                         />
                                     );
                                 } else {

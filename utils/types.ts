@@ -6,6 +6,8 @@ export interface Video {
   views: string;
   channel?: string;
   publishedOn?: string;
+  channelUrl?: string,
+  channelName?: string
 }
 
 export interface VideoDescription {
