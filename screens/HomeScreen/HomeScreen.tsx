@@ -1,8 +1,7 @@
-import React, { useEffect, useState } from "react";
-import { StyleSheet, Text, View, Button, FlatList, NativeModules, Pressable } from "react-native";
-import { SafeAreaView } from "react-native-safe-area-context";
+import React, { useState } from "react";
+import { StyleSheet, Text, View, FlatList, NativeModules, Pressable } from "react-native";
 import { useVideoStore } from "../../utils/Store";
-import { Video, ShortVideo } from "../../utils/types";
+import { Video, } from "../../utils/types";
 import TopBar from "./widgets/TopBar/TopBar";
 import { useNavigation } from "@react-navigation/native";
 import Menu from "./widgets/TopBar/widgets/Menu";
@@ -32,7 +31,6 @@ export default function HomeScreen() {
 
     videoGroup.videos.forEach((element: any) => {
       if (!element.video_id) return;
-
       addVideo({
         type: "video",
         videoId: element.video_id,
@@ -41,6 +39,7 @@ export default function HomeScreen() {
         views: element.views ?? "null",
         channel: element.channel_photo ?? "",
         publishedOn: element.publishedOn,
+        channelUrl: element.channel_url
       });
     });
 
@@ -120,11 +119,11 @@ export default function HomeScreen() {
         }
         renderItem={({ item }) =>
           item.type === "video" ? (
-            <VideoItemView
+            <VideoItemView onChannelClick={() => navigation.navigate("ChannelScreen", { channelUrl: item.channelUrl ?? "" })}
               item={item}
               progress={0}
               onItemPress={() =>
-                navigation.navigate("VideoPlayerScreen", { arrivedVideo: item })
+                navigation.navigate("VideoPlayerScreen", { arrivedVideo: item, playlistId: undefined })
               }
               onDownload={() => openAskFormat(item)}
             />

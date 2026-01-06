@@ -13,7 +13,6 @@ import VideoItemView from "../HomeScreen/widgets/VideoItemView/VideoItemView";
 import ShortsHeader from "../HomeScreen/widgets/ShortsHeader/ShortsHeader";
 import ShortsItemView from "../HomeScreen/widgets/ShortsItemView/ShortsItemView";
 import { RouteProp, useNavigation, useRoute } from "@react-navigation/native";
-
 import { parseWatchHtml } from "../../utils/watchHtmlParser";
 import { getIosPlayerResponse } from "../../utils/EndPoints";
 import VideoDetails from "./widgets/VideoDetails";
@@ -22,6 +21,10 @@ import { createResolutionPlaylistsRN } from "../../utils/createResolutionPlaylis
 import ResolutionBottomSheet from "./widgets/ResolutionBottomSheet";
 import { useAskFormat } from "../AskFormatContext";
 import { useVideoStoreForWatch } from "../../utils/Store";
+import { extractPlaylistData } from "../../utils/playlistParser";
+import { addHistory } from "../SavedScreen/backend/dbo";
+import { SQLiteDatabase } from 'react-native-sqlite-storage';
+import { initDB } from "../../utils/dbfunctions";
 
 
 
@@ -49,7 +52,7 @@ export default function VideoPlayerScreen() {
 
 
     const route = useRoute<NavigationProp>();
-    const { arrivedVideo } = route.params;
+    const { arrivedVideo, playlistId } = route.params;
     const navigation = useNavigation<navStack>();
     const { MyNativeModule } = NativeModules;
     const [currentVideo, setCurrentVideo] = useState<VideoDescription>();
@@ -66,11 +69,25 @@ export default function VideoPlayerScreen() {
     const backLockRef = useRef(false);
     const currentVideoRef = useRef<Video | null>(null);
     const [autoplayEnabled, setAutoplayEnabled] = useState(true);
+    const listRef = useRef<FlatList>(null);
+    const [endedAsScreen, setEndedAsScreen] = useState(false);
+    const [db, setDb] = useState<SQLiteDatabase | null>(null);
 
 
 
+    function scrollToVideo(videoId: string) {
+        const index = totalVideos.findIndex(
+            item => item.type === "video" && item.videoId === videoId
+        );
 
-
+        if (index !== -1) {
+            listRef.current?.scrollToIndex({
+                index,
+                animated: true,
+                viewPosition: 0.3,
+            });
+        }
+    }
 
     useEffect(() => {
         const onBackPress = () => {
@@ -110,20 +127,46 @@ export default function VideoPlayerScreen() {
         return () => sub.remove();
     }, []);
 
+
+    async function loadPlaylist() {
+        const browseId = `VL${playlistId}`;
+        const jsonString = await MyNativeModule.getYtPlaylistBrowse(
+            "browseId",
+            browseId,
+            null
+        );
+
+        const result = extractPlaylistData(JSON.parse(jsonString));
+        result.videos.forEach(element => {
+            addVideo(element);
+        });
+        setContinuation(result.continuationToken ?? "")
+    }
+
     async function loadData(mvideo: Video) {
+
+        let database = db;
+        if (!database) {
+            database = await initDB();
+            setDb(database);
+        }
+
         if (!isGoingBackRef.current && currentVideoRef.current) {
             historyRef.current.push(currentVideoRef.current);
         }
 
         isGoingBackRef.current = false;
         setCurrentVideo(undefined);
-        clearVideos()
+        if (playlistId == undefined) {
+            clearVideos()
+        }
         try {
 
 
             const playerResponse = await getIosPlayerResponse(mvideo.videoId);
             const streamingData = playerResponse.streamingData
             const videoDetails = playerResponse.videoDetails
+
 
             const resolutions = await createResolutionPlaylistsRN(
                 streamingData.hlsManifestUrl,
@@ -184,12 +227,14 @@ export default function VideoPlayerScreen() {
                 );
                 const ytInitialData = JSON.parse(jsonString);
                 const parseResult = parseWatchHtml(ytInitialData)
-                setWvisid(parseResult.visitorData)
-                setContinuation(parseResult.continuation ?? "")
-                parseResult.items.forEach(element => {
-                    addVideo(element)
-                });
 
+                if (playlistId == undefined) {
+                    setWvisid(parseResult.visitorData)
+                    setContinuation(parseResult.continuation ?? "")
+                    parseResult.items.forEach(element => {
+                        addVideo(element)
+                    });
+                }
                 const videoDes2: VideoDescription = {
                     title: videoDetails.title,
                     uploaded: mvideo.publishedOn ? mvideo.publishedOn : "",
@@ -203,14 +248,24 @@ export default function VideoPlayerScreen() {
                     commentsCount: parseResult.channelinfo.commentsCount ?? "",
                     channelName: parseResult.channelinfo.channelName,
                     channelPhoto: parseResult.channelinfo.channelPhoto,
-                    video: mvideo
+                    video: mvideo,
+                    channelId: videoDetails.channelId
                 }
                 setCurrentVideo(videoDes2);
                 currentVideoRef.current = mvideo;
 
+
             } catch (e) {
                 console.log(e);
             }
+
+            await addHistory(
+                database,
+                mvideo.videoId,
+                mvideo.title,
+                currentVideo?.channelName ?? "",
+                mvideo.duration ?? ""
+            )
 
         } catch (e) {
             console.error(e);
@@ -218,6 +273,10 @@ export default function VideoPlayerScreen() {
     }
     useEffect(() => {
         loadData(arrivedVideo);
+        if (playlistId != undefined) {
+            loadPlaylist()
+        }
+
     }, []);
 
     function handleRetry() {
@@ -269,22 +328,36 @@ export default function VideoPlayerScreen() {
         setIsFetchingMore(true);
 
         try {
-            const raw = await MyNativeModule.fetchFeed(
-                currentVideoRef.current?.videoId ?? null,
-                continuation,
-                watchVisitorData
-            );
 
-            const ytInitialData = JSON.parse(raw);
-            const parseResult = parseWatchHtml(ytInitialData);
+            if (playlistId == undefined) {
+                const raw = await MyNativeModule.fetchFeed(
+                    currentVideoRef.current?.videoId ?? null,
+                    continuation,
+                    watchVisitorData
+                );
 
-            // 🔹 append items
-            for (const item of parseResult.items) {
-                addVideo(item);
+                const ytInitialData = JSON.parse(raw);
+                const parseResult = parseWatchHtml(ytInitialData);
+
+                // 🔹 append items
+                for (const item of parseResult.items) {
+                    addVideo(item);
+                }
+
+                // 🔹 update continuation
+                setContinuation(parseResult.continuation ?? "");
+            } else {
+                const jsonString = await MyNativeModule.getYtPlaylistBrowse(
+                    "continuation",
+                    continuation, null
+                );
+                const result = extractPlaylistData(JSON.parse(jsonString));
+                result.videos.forEach(element => {
+                    addVideo(element);
+                });
+                setContinuation(result.continuationToken ?? "")
             }
 
-            // 🔹 update continuation
-            setContinuation(parseResult.continuation ?? "");
         } catch (e) {
             console.error("Watch continuation failed", e);
             setRetryCount(r => r + 1);
@@ -293,7 +366,11 @@ export default function VideoPlayerScreen() {
         }
     }
 
+
+
+
     function playBackfinished() {
+
         if (!autoplayEnabled) return;
 
         // find index of current video
@@ -325,6 +402,7 @@ export default function VideoPlayerScreen() {
         }}>
             <StatusBar hidden={!showFlatList} />
             <Player
+                startAsScreen={endedAsScreen}
                 url={mediaUrl}
                 videoId={currentVideo?.video.videoId ?? ""}
                 toggleFlatList={toggleFlatList}
@@ -334,13 +412,17 @@ export default function VideoPlayerScreen() {
                 key={currentVideo?.video.videoId}   // ✅ stable
                 distroyScreen={() => navigation.pop()}
                 onToggle={(val) => setAutoplayEnabled(val)}
-                videoEnded={playBackfinished}
+                videoEnded={(endedAsScreen) => {
+                    setEndedAsScreen(endedAsScreen);
+                    playBackfinished();
+                }}
             />
 
             {
                 showFlatList ? <View>
                     <View>
                         <FlatList
+                            ref={listRef}
                             data={totalVideos}
                             keyExtractor={(_, index) => index.toString()}
                             renderItem={({ item, index }) => {
@@ -351,6 +433,7 @@ export default function VideoPlayerScreen() {
                                             progress={0}
                                             onItemPress={() => loadData(item)}
                                             onDownload={() => openAskFormat(item)}
+                                            onChannelClick={() => navigation.navigate("ChannelScreen", { channelUrl: item.channelUrl })}
                                         />
                                     );
                                 } else {
@@ -386,6 +469,7 @@ export default function VideoPlayerScreen() {
                                         onDownloadPress={() =>
                                             handleThreeDotClick(currentVideo.video)
                                         }
+                                        onChannelClick={() => navigation.navigate("ChannelScreen", { channelUrl: currentVideo.channelId ?? "" })}
                                     />
                                 ) : (
                                     <ActivityIndicator size="large" color="red" style={{ margin: 20 }} />

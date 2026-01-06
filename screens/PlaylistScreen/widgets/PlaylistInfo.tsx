@@ -2,13 +2,20 @@ import { StyleSheet, Text, View, TouchableOpacity, Image } from 'react-native'
 import React from 'react'
 import Icon from 'react-native-vector-icons/Ionicons';
 import IconMat from 'react-native-vector-icons/MaterialCommunityIcons';
-import { RootStackParamList } from '../../../App';
 import { useNavigation } from "@react-navigation/native";
 import { NativeStackNavigationProp } from "@react-navigation/native-stack";
+import { PlaylistMetadata } from '../../../utils/playlistParser';
 
 type NavigationProp = NativeStackNavigationProp<RootStackParamList, "BottomNav">;
 
-export default function PlaylistInfo() {
+
+type Props = {
+    info: PlaylistMetadata,
+    onClickPlay: () => void;
+    onChannelClick: () => void;
+}
+
+export default function PlaylistInfo({ info, onClickPlay, onChannelClick }: Props) {
     const navigation = useNavigation<NavigationProp>();
     const assetsFolder = "../../../assets"
     return (
@@ -30,25 +37,28 @@ export default function PlaylistInfo() {
                 </View>
             </View>
             <View style={styles.imgWrapper}>
-                <Image style={styles.banner} source={{ uri: "https://i.ytimg.com/vi/r9izeaT00Ho/hqdefault.jpg" }} />
+                <Image style={styles.banner} source={{ uri: info.heroImage }} />
             </View>
             <Text style={{
                 fontFamily: "Roboto-Medium",
                 fontSize: 18,
                 marginTop: 8
             }}>
-                jeannie aur juju
+                {info.title}
             </Text>
             <View style={styles.channelInfo}>
-                <Image style={styles.channelPhoto} source={{ uri: "https://yt3.ggpht.com/ytc/AIdro_mNlS9MLeBIPYVDqL-7F2cBj-gv6akWIMuF6ls4k_8urg=s64-c-k-c0x00ffffff-no-rj" }} />
+                <TouchableOpacity onPress={onChannelClick}>
+                    <Image style={styles.channelPhoto} source={{ uri: info.channelAvatar }} />
+                </TouchableOpacity>
                 <Text style={{
                     fontSize: 15
-                }}>by LIVE kIDES</Text>
+                }}>{info.createdBy}</Text>
             </View>
             <Text style={{
-                marginTop: 5
+                marginTop: 5,
+                alignItems: "center"
             }}>
-                Playlist • 417 videos • views
+                Playlist • {info.info1}• {info.info2}
             </Text>
             <Text style={{
                 marginTop: 5
@@ -56,10 +66,13 @@ export default function PlaylistInfo() {
                 Description
             </Text>
             <View style={styles.downloadButton}>
-
+                <TouchableOpacity onPress={onClickPlay}>
+                    <IconMat name="play" size={24} color="red" />
+                </TouchableOpacity>
                 <TouchableOpacity>
                     <IconMat name="download" size={24} color="red" />
                 </TouchableOpacity>
+
 
             </View>
         </View>
@@ -116,9 +129,10 @@ const styles = StyleSheet.create({
         alignItems: "center",
         gap: 5
     }
-,
+    ,
     downloadButton: {
-        flexDirection:"row",
-        justifyContent:"flex-end"
+        flexDirection: "row",
+        justifyContent: "flex-end",
+        gap: 10
     }
-  })
+})

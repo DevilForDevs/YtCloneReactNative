@@ -2,21 +2,33 @@ import { Image, StyleSheet, Text, TouchableOpacity, View } from 'react-native'
 import React from 'react'
 import Icon from 'react-native-vector-icons/Ionicons';
 import { Bar } from "react-native-progress";   // ✅ named import
-export default function HistoryItem() {
+import { ytThumbs } from '../../../utils/downloadFunctions';
+
+type Props = {
+    title: string;
+    channelTitle: string;
+    duration: string;
+    watchedAt: number;
+    thumbnail: string;
+    onPress: () => void;
+};
+
+
+export default function HistoryItem(props: Props) {
     return (
         <View style={styles.root}>
-            <Image source={require("../../../assets/beach.png")} style={styles.img} />
-            <Text style={styles.floatingDuration}>0:50</Text>
+            <Image source={{ uri: props.thumbnail }} style={styles.img} />
+            <Text style={styles.floatingDuration}>{props.duration}</Text>
             <Bar progress={40} color='red' height={2} style={styles.progress} />
             <View>
 
                 <View style={styles.top}>
-                    <Text style={styles.title} numberOfLines={2}>Heart Touching Nasheed #Shorts</Text>
+                    <Text style={styles.title} numberOfLines={2}>{props.title}</Text>
                     <TouchableOpacity>
                         <Icon name="ellipsis-vertical" size={16} color="#555" />
                     </TouchableOpacity>
                 </View>
-                <Text style={styles.channel}>An Naffe</Text>
+                <Text style={styles.channel}>{props.channelTitle}</Text>
 
             </View>
         </View>

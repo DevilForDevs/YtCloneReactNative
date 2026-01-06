@@ -23,6 +23,7 @@ export interface VideoDescription {
   channelName: string,
   video: Video,
   hlsUrl?: string
+  channelId?: string
 }
 
 export interface ShortVideo {
@@ -40,17 +41,14 @@ export interface SearchResponse {
 export interface VideoStore {
   //states
   totalVideos: (Video | ShortVideo)[];
-  seenVideosIds: string[];
   continuation: string;
   query: string;
   visitorData: string;
   //updates
   addVideo: (item: Video | ShortVideo) => void;
-  addSeenVideoId: (videoId: string) => void
   setContinuation: (continuation: string) => void;
   setQuery: (query: string) => void;
   clearVideos: () => void;
-  clearSeenVideosIds: () => void;
   setVisitorData: (visitorData: string) => void;
 };
 

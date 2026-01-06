@@ -20,6 +20,10 @@ import { createResolutionPlaylistsRN } from '../../utils/createResolutionPlaylis
 import RNFS from 'react-native-fs';
 import { fetchHlsUrl } from '../../utils/downloadFunctions';
 import { useAskFormat } from '../AskFormatContext';
+import { parseShortMeta } from '../../utils/shortsMetaParser';
+import { SQLiteDatabase } from 'react-native-sqlite-storage';
+import { initDB } from "../../utils/dbfunctions";
+import { addHistory } from '../SavedScreen/backend/dbo';
 
 export default function ShortsPlayer() {
     const route = useRoute<NavigationProp>();
@@ -38,10 +42,12 @@ export default function ShortsPlayer() {
     const [nextVideoInfo, setNextVideoInfo] = useState<VideoDescription>();
     const [prevStack, setPrevStack] = useState<VideoDescription[]>([]);
     const { openAskFormat } = useAskFormat();
+    const [db, setDb] = useState<SQLiteDatabase | null>(null);
 
 
 
     async function playVideo(hlsUrl: string, videoId: string) {
+
         const resolutions = await createResolutionPlaylistsRN(
             hlsUrl,
             RNFS.DocumentDirectoryPath,
@@ -54,7 +60,7 @@ export default function ShortsPlayer() {
 
             for (let i = 0; i < resolutions.length; i++) {
                 const res = resolutions[i];
-                console.log(res);
+
 
                 const height = Number(res.split("x")[0]);
                 if (height === 480) {
@@ -64,7 +70,7 @@ export default function ShortsPlayer() {
                 }
             }
 
-            console.log("SELECTED:", appropriateResolution);
+
 
             if (!appropriateResolution) {
                 // fallback (max 360/480, avoid 720+)
@@ -85,28 +91,23 @@ export default function ShortsPlayer() {
             // fallback to original manifest
             setMediaUrl(hlsUrl);
         }
+
+        let database = db;
+        if (!database) {
+            database = await initDB();
+            setDb(database);
+        }
+
+        await addHistory(
+            database,
+            videoId,
+            currentVideoInfo?.title ?? "",
+            currentVideoInfo?.channelName ?? "",
+            currentVideoInfo?.video.duration ?? "Short"
+        )
+
     }
 
-
-
-
-
-
-
-    const decreaseResolution = () => {
-        if (resolutions.length === 0) return;
-
-        if (currentResolutionIndex != 0) {
-            const nextIndex = currentResolutionIndex - 1;
-            if (nextIndex < resolutions.length) {
-                const nextRes = resolutions[nextIndex];
-                const localM3u8Path = `${RNFS.DocumentDirectoryPath}/${currentVideoId}(${nextRes}).m3u8`;
-                setMediaUrl(`file://${localM3u8Path}`);
-                setPaused(false);
-                setCurrentResolutionIndex(nextIndex);
-            }
-        }
-    };
 
     async function safeGetShortMeta(videoId: string): Promise<any | null> {
         try {
@@ -183,9 +184,9 @@ export default function ShortsPlayer() {
         while (queue.length > 0) {
             const id = queue.shift()!; // remove immediately
 
-            console.log("preloading", id);
+            const result = await safeGetShortMeta(id);
+            const meta = parseShortMeta(result);
 
-            const meta = await safeGetShortMeta(id);
             if (!meta) continue;
 
             const hlsUrl = await fetchHlsUrl(id);
@@ -208,7 +209,8 @@ export default function ShortsPlayer() {
                     title: meta.title ?? "",
                     views: "",
                 },
-                hlsUrl
+                hlsUrl,
+                channelId: meta.canonicalUrl
             });
 
             setUnusedIds(queue); // ✅ clean queue
@@ -237,36 +239,39 @@ export default function ShortsPlayer() {
     async function loadInitial() {
 
 
-
         const videoId = arrivedVideo.videoId;
-
         const meta = await safeGetShortMeta(videoId);
+        const result = parseShortMeta(meta);
         if (!meta) return;
-
         const hlsUrl = await fetchHlsUrl(videoId);
-        if (!hlsUrl) console.log("streamingData not found");
 
+        if (!hlsUrl) console.log("streamingData not found");
         setCurrentVideoInfo({
-            title: meta.title ?? "",
+            title: result.title,
             views: 0,
             uploaded: "unknown",
             hashTags: "",
-            likes: meta.likes ?? "",
+            likes: result.likes,
             dislikes: "",
             subscriber: "",
-            commentsCount: meta.comments ?? "",
-            channelName: meta.channelName ?? "",
-            channelPhoto: meta.channelThumbnail ?? "",
+            commentsCount: result.comments,
+            channelName: result.channelName,
+            channelPhoto: result.channelThumbnail,
             video: {
                 type: "video",
                 videoId,
-                title: meta.title ?? "",
+                title: result.title,
                 views: "",
             },
-            hlsUrl: hlsUrl ?? ""
+            hlsUrl: hlsUrl ?? "",
+            channelId: result.canonicalUrl
         });
 
         playVideo(hlsUrl ?? "", videoId);
+
+
+
+
 
         const ids = await refillUnusedIds(videoId);
         const remaining: string[] = [];
@@ -274,7 +279,8 @@ export default function ShortsPlayer() {
         for (const id of ids) {
             console.log("loading next", id);
 
-            const nextMeta = await safeGetShortMeta(id);
+            const jsonString = await safeGetShortMeta(id);
+            const nextMeta = parseShortMeta(jsonString);
             if (!nextMeta) {
                 console.log(`Dropping videoId ${id}`);
                 continue; // ❌ removed
@@ -303,7 +309,8 @@ export default function ShortsPlayer() {
                     title: nextMeta.title ?? "",
                     views: "",
                 },
-                hlsUrl: nextHlsUrl
+                hlsUrl: nextHlsUrl,
+                channelId: nextMeta.canonicalUrl
             });
 
             console.log("loaded next video");
@@ -385,13 +392,6 @@ export default function ShortsPlayer() {
                     {buffering && (
                         <View style={styles.centerIcon}>
                             <ActivityIndicator size="large" color="red" />
-                            <TouchableOpacity onPress={decreaseResolution} style={styles.swithResolution}>
-                                <Text>
-                                    {resolutions[currentResolutionIndex - 1]
-                                        ? `${resolutions[currentResolutionIndex - 1].split("x")[0]}p`
-                                        : resolutions.length}
-                                </Text>
-                            </TouchableOpacity>
                         </View>
                     )}
 
@@ -404,7 +404,8 @@ export default function ShortsPlayer() {
                     <BottomControls
                         channelName={currentVideoInfo?.channelName ?? ""}
                         channelThumbnail={currentVideoInfo?.channelPhoto ?? ""}
-                        title={currentVideoInfo?.title ?? "NO titel"}
+                        title={currentVideoInfo?.title ?? "Loading..."}
+                        onChannePress={() => navigation.navigate("ChannelScreen", { channelUrl: currentVideoInfo?.channelId ?? "" })}
                     />
 
                 </View>

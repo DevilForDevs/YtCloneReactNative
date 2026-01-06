@@ -168,11 +168,13 @@ export default function SearchScreen() {
                     item.type === "video" ? (
                         <VideoItemView
                             item={item}
+                            onChannelClick={() => navigation.navigate("ChannelScreen", { channelUrl: item.channelUrl })}
                             progress={0}
                             onItemPress={() =>
-                                navigation.navigate("VideoPlayerScreen", { arrivedVideo: item })
+                                navigation.navigate("VideoPlayerScreen", { arrivedVideo: item, playlistId: undefined })
                             }
                             onDownload={() => openAskFormat(item)}
+
                         />
                     ) : (
                         <View style={styles.shortParentContainer}>

@@ -1,4 +1,4 @@
-import SQLite, { SQLiteDatabase, ResultSet } from 'react-native-sqlite-storage';
+import SQLite, { SQLiteDatabase } from 'react-native-sqlite-storage';
 import RNFS from 'react-native-fs';
 SQLite.enablePromise(true);
 
@@ -15,6 +15,7 @@ export async function initDB(): Promise<SQLiteDatabase> {
         throw error;
     }
 }
+
 
 // ✅ Create table
 export async function createDownloadsTable(db: SQLiteDatabase): Promise<void> {

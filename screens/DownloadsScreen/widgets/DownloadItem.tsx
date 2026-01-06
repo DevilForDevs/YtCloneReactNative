@@ -7,9 +7,10 @@ import { DownloadItem } from '../../../utils/types';
 
 type Props = {
     item: DownloadItem,
-    onItemPress: () => void
+    onItemPress: () => void,
+    onMenuPress: () => void;
 }
-export default function DownloadItemView({ item, onItemPress }: Props) {
+export default function DownloadItemView({ item, onItemPress, onMenuPress }: Props) {
     const videoId = item.video.videoId
     return (
         <View style={styles.root}>
@@ -40,7 +41,9 @@ export default function DownloadItemView({ item, onItemPress }: Props) {
                             {item.video.title}
                         </Text>
 
-                        <Icon name="ellipsis-vertical" size={22} color="black" />
+                        <TouchableOpacity onPress={onMenuPress}>
+                            <Icon name="ellipsis-vertical" size={22} color="black" />
+                        </TouchableOpacity>
                     </View>
                     <Text style={{
                         fontFamily: "Roboto-Regular",
@@ -57,7 +60,7 @@ export default function DownloadItemView({ item, onItemPress }: Props) {
                         {item.isFinished ? item.video.views : item.message}
 
                     </Text>
-                    <Bar progress={item.progressPercent / 100} height={3} />
+
 
 
                 </View>

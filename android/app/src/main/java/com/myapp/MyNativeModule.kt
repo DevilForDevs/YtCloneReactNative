@@ -13,6 +13,7 @@ import com.myapp.extractors.youtube.NativeFileDownloader
 import com.myapp.extractors.youtube.RelatedShortsFetcher
 import com.myapp.extractors.youtube.ShortMetaFetcher
 import com.myapp.extractors.youtube.YtInitialDataFetcher
+import com.myapp.extractors.youtube.YtPlaylistBrowseFetcher
 import com.myapp.extractors.youtube.YtSearchFetcher
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
@@ -92,6 +93,27 @@ class MyNativeModule(
                 promise.resolve(result.toString())
             } catch (e: Exception) {
                 promise.reject("ERROR", e.message, e)
+            }
+        }
+    }
+
+    @ReactMethod
+    fun getYtPlaylistBrowse(
+        key: String, // "browseId" or "continuation"
+        value: String, // VL... or continuation token
+        paras: String?, // optional "params"
+        promise: Promise,
+    ) {
+        backThread.launch(Dispatchers.IO) {
+            try {
+                // Pass paras to the fetcher (it handles null automatically)
+                val result = YtPlaylistBrowseFetcher.fetch(key, value, paras)
+                promise.resolve(result) // ALWAYS returns a string
+            } catch (e: Exception) {
+                // Failsafe: should never happen
+                promise.resolve(
+                    """{"error":"bridge_exception","message":"${e.message}"}""",
+                )
             }
         }
     }

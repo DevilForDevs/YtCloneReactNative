@@ -7,10 +7,11 @@ import { VideoDescription } from '../../../utils/types';
 
 type Props = {
     videoDes: VideoDescription
-    onDownloadPress: () => void
+    onDownloadPress: () => void,
+    onChannelClick: () => void;
 
 }
-export default function VideoDetails({ videoDes, onDownloadPress }: Props) {
+export default function VideoDetails({ videoDes, onDownloadPress, onChannelClick }: Props) {
     const formattedViews = Number(videoDes.views).toLocaleString();
     const viewInfo = `${formattedViews} views • ${videoDes.uploaded}`
     const cleanTags = videoDes.hashTags
@@ -46,7 +47,7 @@ export default function VideoDetails({ videoDes, onDownloadPress }: Props) {
 
             </View>
             <ActionButtons onDownloadPress={() => onDownloadPress()} likesCount={videoDes.likes} dislikesCount={videoDes.dislikes} />
-            <ChannelDetails channelName={videoDes.channelName} channelPhoto={videoDes.channelPhoto} subscriberCount={videoDes.subscriber} />
+            <ChannelDetails channelName={videoDes.channelName} channelPhoto={videoDes.channelPhoto} subscriberCount={videoDes.subscriber} onChannelClick={onChannelClick} />
             <View style={styles.commentBlock}>
 
                 <View style={styles.cmt}>

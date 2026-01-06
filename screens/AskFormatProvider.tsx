@@ -12,6 +12,8 @@ import { DownloadItem } from "../utils/types";
 import { DownloadsStore } from "../utils/Store";
 import { SQLiteDatabase } from 'react-native-sqlite-storage';
 import { addDownload, initDB } from "../utils/dbfunctions";
+import { formatDurationHMS } from "../utils/EndPoints";
+
 
 export const AskFormatProvider: React.FC<{ children: React.ReactNode }> = ({
     children,
@@ -19,12 +21,12 @@ export const AskFormatProvider: React.FC<{ children: React.ReactNode }> = ({
 
     const [visible, setVisible] = useState(false);
     const [loading, setLoading] = useState(false);
-    const [videoTitle, setVideoTitle] = useState("");
     const [requiredFmts, setRequiredFmts] = useState<AskFormatModel[]>([]);
     const [currentVideo, setCurrentVideo] = useState<Video>();
     const { addDownloadItem, totalDownloads } = DownloadsStore();
     const [db, setDb] = useState<SQLiteDatabase | null>(null);
     const { MyNativeModule } = NativeModules;
+
 
     const fetchStreamingInfo = useCallback(async (video: Video) => {
         try {
@@ -39,17 +41,24 @@ export const AskFormatProvider: React.FC<{ children: React.ReactNode }> = ({
             const player = response?.playerResponse;
             const streamingData = player?.streamingData;
 
+
             if (!streamingData?.adaptiveFormats) {
                 console.warn("No adaptiveFormats found", streamingData);
                 setRequiredFmts([]);
                 return;
             }
-
-            setVideoTitle(player.videoDetails?.title ?? "");
             setRequiredFmts(mapAdaptiveFormatsToRequired(
                 streamingData.adaptiveFormats
             ));
-            setCurrentVideo(video);
+
+            const fmtduration = formatDurationHMS(player.videoDetails.lengthSeconds);
+            const title = player.videoDetails.title;
+
+            setCurrentVideo({
+                ...video,
+                title: title,
+                duration: fmtduration
+            });
         } catch (err) {
             console.error("fetchStreamingInfo failed:", err);
             setRequiredFmts([]);
@@ -73,7 +82,7 @@ export const AskFormatProvider: React.FC<{ children: React.ReactNode }> = ({
                 message: "Video",
                 video: {
                     ...currentVideo,
-                    title: videoInformation != audioInformation ? `${txt2filename(videoTitle)}(${selectedVideoFmt.info}).mp4` : `${txt2filename(videoTitle)}.mp3`
+                    title: videoInformation != audioInformation ? `${txt2filename(currentVideo.title)}(${selectedVideoFmt.info}).mp4` : `${txt2filename(currentVideo.title)}.mp3`
                 }
             }
             console.log(DownloadItmm);
@@ -89,7 +98,7 @@ export const AskFormatProvider: React.FC<{ children: React.ReactNode }> = ({
                 );
 
                 if (!exists) {
-                    const insertedId = await addDownload(db, prasedFileName + ".mp3", "music", currentVideo.videoId, 0, 0, "unknown");
+                    const insertedId = await addDownload(db, prasedFileName + ".mp3", "music", currentVideo.videoId, 0, 0, currentVideo.duration ?? "");
                     addDownloadItem(DownloadItmm, 0);
                 }
 
@@ -103,7 +112,7 @@ export const AskFormatProvider: React.FC<{ children: React.ReactNode }> = ({
                 console.log(exists);
 
                 if (!exists) {
-                    const insertedId = await addDownload(db, `${prasedFileName}(${selectedVideoFmt.info}).mp4`, "movies", currentVideo.videoId, 0, 0, "unknown");
+                    const insertedId = await addDownload(db, `${prasedFileName}(${selectedVideoFmt.info}).mp4`, "movies", currentVideo.videoId, 0, 0, currentVideo.duration ?? "");
                     addDownloadItem(DownloadItmm, 0);
                 }
 
@@ -129,7 +138,6 @@ export const AskFormatProvider: React.FC<{ children: React.ReactNode }> = ({
     const closeAskFormat = () => {
         setVisible(false);
         setRequiredFmts([]);
-        setVideoTitle("");
         setLoading(false);
     };
 
@@ -161,7 +169,7 @@ export const AskFormatProvider: React.FC<{ children: React.ReactNode }> = ({
 
                         {!loading && requiredFmts.length > 0 && (
                             <AskFormat
-                                videoTitle={videoTitle}
+                                videoTitle={currentVideo?.title ?? "No title"}
                                 requiredFormats={requiredFmts}
                                 closeRequest={closeAskFormat}
                                 onFormatSelection={(itag) => {

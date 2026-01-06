@@ -7,12 +7,7 @@ const deepGet = (obj: any, path: (string | number)[], defaultValue: any = null):
     }
 };
 
-export interface Channel {
-    name?: string;
-    canonicalUrl?: string;
-    photo?: string;
-    subscribers?: string;
-}
+
 
 export interface VideoDetails {
     videoId?: string;

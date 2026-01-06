@@ -260,7 +260,7 @@ function processWatchItems(
                 "onTap",
                 "innertubeCommand",
                 "browseEndpoint",
-                "canonicalBaseUrl",
+                "browseId",
             ]);
 
             videos.push({

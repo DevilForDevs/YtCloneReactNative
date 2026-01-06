@@ -5,6 +5,13 @@ import { generateContentPlaybackNonce, generateTParameter } from "./misfunction"
 function createVideoTree(videoRenderer: Record<string, unknown>): Video {
   const videoId = videoRenderer["videoId"] as string;
 
+  const channelId = (deepGet(videoRenderer,
+    "avatar",
+    "decoratedAvatarViewModel", "rendererContext", "commandContext", "onTap",
+    "innertubeCommand", "browseEndpoint", "browseId"
+  ) as string) ?? "Unknown";
+
+
   const title =
     (deepGet(videoRenderer, "title", "runs", 0, "text") as string) ?? "Unknown";
 
@@ -40,6 +47,7 @@ function createVideoTree(videoRenderer: Record<string, unknown>): Video {
     views,
     channel,
     ...(publishedOn ? { publishedOn } : {}),
+    channelUrl: channelId
   };
 }
 
@@ -96,7 +104,6 @@ function parseShorts(shorts: unknown[]): ShortVideo {
 function parseVideos(items: unknown[], totalVideos: (Video | ShortVideo)[]) {
   for (const vr of items) {
     const obj = vr as Record<string, unknown>;
-
     if ("videoRenderer" in obj) {
       totalVideos.push(
         createVideoTree(obj["videoRenderer"] as Record<string, unknown>)
@@ -285,7 +292,56 @@ export async function getIosPlayerResponse(videoId: string): Promise<any> {
   return res.json();
 }
 
-export async function playlistFromUrl(url:string) {
+export async function fetchPlaylistUsingPost(
+  url: string,
+  mkey: string,
+  value: string
+) {
+  const headers = {
+    "Content-Type": "application/json",
+    "User-Agent": "Mozilla/5.0",
+    "X-Youtube-Client-Name": "1",
+    "X-Youtube-Client-Version": "2.20260101.00.00",
+    "Origin": "https://www.youtube.com",
+    "Referer": "https://www.youtube.com/",
+  };
 
+  const payload = {
+    context: {
+      client: {
+        clientName: "WEB",
+        clientVersion: "2.20260101.00.00",
+        hl: "en",
+        gl: "IN",
+      },
+    },
+    [mkey]: value, // 🔑 browseId OR continuation
+  };
+
+  const res = await fetch(url, {
+    method: "POST",
+    headers,
+    body: JSON.stringify(payload),
+  });
+
+  if (!res.ok) {
+    throw new Error(`Request failed: ${res.status}`);
+  }
+
+  return res.json();
+}
+
+export function formatDurationHMS(lengthSeconds: string | number): string {
+  const totalSeconds = Number(lengthSeconds) || 0
+
+  const hours = Math.floor(totalSeconds / 3600)
+  const minutes = Math.floor((totalSeconds % 3600) / 60)
+  const seconds = totalSeconds % 60
+
+  if (hours > 0) {
+    return `${String(hours).padStart(2, '0')}:${String(minutes).padStart(2, '0')}:${String(seconds).padStart(2, '0')}`
+  }
+
+  return `${String(minutes).padStart(2, '0')}:${String(seconds).padStart(2, '0')}`
 }
 

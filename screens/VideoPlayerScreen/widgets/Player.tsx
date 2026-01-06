@@ -3,12 +3,16 @@ import React, { useEffect, useRef, useState } from 'react'
 import Video, { OnLoadData, OnProgressData } from "react-native-video";
 import Icon from "react-native-vector-icons/Ionicons";
 import Slider from "@react-native-community/slider"; // optional but recommended
-import Orientation from 'react-native-orientation-locker';
+
 import { BackHandler } from "react-native";
 import { ActivityIndicator } from 'react-native';
 import TopConrols from './TopConrols';
 import { formatSeconds } from '../../../utils/misfunction';
 import throttle from "lodash.throttle";
+import Orientation from "react-native-orientation-locker"
+
+
+
 type Props = {
     url: string,
     toggleFlatList: () => void;
@@ -18,23 +22,21 @@ type Props = {
     seekTo?: number; // restore position
     distroyScreen: () => void;
     onToggle?: (enabled: boolean) => void;
-    videoEnded?: () => void
-
+    videoEnded?: (endedAsScreen: boolean) => void,
+    startAsScreen: boolean
 }
 
 export default function Player({ url, toggleFlatList, videoId, onToggle,
-    showMenu, onProgressSave, seekTo, distroyScreen, videoEnded }: Props) {
+    showMenu, onProgressSave, seekTo, distroyScreen, videoEnded, startAsScreen }: Props) {
     const videoRef = useRef<React.ElementRef<typeof Video>>(null); // ✅ works
     const [isBuffering, setIsBuffering] = useState(false);
     const [duration, setDuration] = useState(0);
     const [currentTime, setCurrentTime] = useState(0);
-    const [isFullscreen, setFullScreen] = useState(false)
-    const [showControls, setShowControls] = useState(true)
+    const [isFullscreen, setFullScreen] = useState(false);
+    const [showControls, setShowControls] = useState(true);
     const [paused, setPaused] = useState(false);
     const lastTap = useRef<number>(0);
     const singleTapTimeout = useRef<ReturnType<typeof setTimeout> | null>(null);
-
-
 
     const DOUBLE_TAP_DELAY = 300;
 
@@ -63,6 +65,7 @@ export default function Player({ url, toggleFlatList, videoId, onToggle,
     }
 
     useEffect(() => {
+
         const onBackPress = () => {
             if (isFullscreen) {
                 Orientation.lockToPortrait();
@@ -80,11 +83,15 @@ export default function Player({ url, toggleFlatList, videoId, onToggle,
             onBackPress
         );
 
+
         return () => subscription.remove();
     }, [isFullscreen]);
 
 
     function onLoad(data: OnLoadData) {
+        if (startAsScreen) {
+            toggleFullscreen();
+        }
         setDuration(data.duration);
         setIsBuffering(false);
 
@@ -108,10 +115,12 @@ export default function Player({ url, toggleFlatList, videoId, onToggle,
 
 
     function onEnd() {
+        if (isFullscreen) {
+            toggleFullscreen();
+        }
         setPaused(true);
         videoRef.current?.seek(0);
-        videoEnded?.();
-
+        videoEnded?.(isFullscreen);
     }
 
     function onSlidingComplete(value: number) {
@@ -122,13 +131,7 @@ export default function Player({ url, toggleFlatList, videoId, onToggle,
         setPaused((p) => !p);
 
     }
-    const click3edONvideo = () => {
-        if (showControls) {
-            setShowControls(false)
-        } else {
-            setShowControls(true)
-        }
-    }
+
 
     return (
         <View>

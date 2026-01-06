@@ -36,6 +36,7 @@ export default function BrowserScreen() {
         views: element.views ?? "null",
         channel: element.channel_photo ?? "",
         publishedOn: element.publishedOn,
+        channelUrl: element.channel_url
       });
     });
 

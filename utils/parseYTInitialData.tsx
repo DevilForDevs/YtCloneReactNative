@@ -81,8 +81,6 @@ function extractVideoData(item: AnyObj): VideoData {
             duration: null,
         };
     }
-
-    // normalize views (remove \xa0)
     const rawViews = safeGet(video, ["shortViewCountText", "runs", 0, "text"]);
     const views =
         typeof rawViews === "string"
@@ -110,12 +108,10 @@ function extractVideoData(item: AnyObj): VideoData {
         ]),
 
         channel_url: safeGet(video, [
-            "shortBylineText",
-            "runs",
-            0,
-            "navigationEndpoint",
+            "channelThumbnail",
+            "channelThumbnailWithLinkRenderer", "navigationEndpoint",
             "browseEndpoint",
-            "canonicalBaseUrl",
+            "browseId"
         ]),
         duration: safeGet(video, ["lengthText", "runs", 0, "text"]),
         publishedOn: safeGet(video, ["publishedTimeText", "runs", 0, "text"])
@@ -154,8 +150,6 @@ export function parseYTInitialData(data: AnyObj) {
         if (item.richItemRenderer) {
             results.videos.push(extractVideoData(item));
         }
-
-
         if (item.richSectionRenderer) {
             const shorts =
                 item.richSectionRenderer

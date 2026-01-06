@@ -1,25 +1,76 @@
-import { StyleSheet, Text, View, Image } from 'react-native'
-import React from 'react'
+import { StyleSheet, Text, View, Image, FlatList } from 'react-native'
+import React, { useEffect, useState } from 'react'
 import TopBar from '../HomeScreen/widgets/TopBar/TopBar'
 import { SafeAreaView } from 'react-native-safe-area-context'
 import HistoryItem from './widgets/HistoryItem'
 import MenuItem from './widgets/MenuItem'
 import Icon from 'react-native-vector-icons/Ionicons';
 import { useNavigation } from '@react-navigation/native'
+import { DownloadsStore } from '../../utils/Store'
+import { loadHistory } from './backend/dbo'
+import { initDB } from '../../utils/dbfunctions'
+import { ytThumbs } from '../../utils/downloadFunctions'
 
 export default function SavedScreen() {
 
   const navigation = useNavigation<navStack>();
+  const { totalDownloads } = DownloadsStore();
+  const [history, setHistory] = useState<any[]>([]);
+
+  useEffect(() => {
+    let mounted = true;
+
+    const restoreHistory = async () => {
+      try {
+        const dbInstance = await initDB();
+        const data = await loadHistory(dbInstance);
+        if (mounted) setHistory(data);
+      } catch (e) {
+        console.error(e);
+      }
+    };
+
+    restoreHistory();
+
+    return () => {
+      mounted = false;
+    };
+  }, []);
 
   return (
     <SafeAreaView style={styles.root}>
       <TopBar onLensPress={() => console.log("lens clicked")} />
-      <HistoryItem />
+      <FlatList
+        data={history}
+        horizontal
+        showsHorizontalScrollIndicator={false}
+        contentContainerStyle={{ gap: 10, marginTop: 10, paddingHorizontal: 10 }}
+        keyExtractor={(item) => item.videoId}
+        renderItem={({ item }) => (
+          <HistoryItem
+            title={item.title}
+            channelTitle={item.channelTitle}
+            duration={item.duration}
+            watchedAt={item.watchedAt}
+            thumbnail={ytThumbs(item.videoId).mq}
+            onPress={() => {
+              console.log("Open video:", item.videoId);
+            }}
+          />
+        )}
+        ListEmptyComponent={
+          <Text style={{ textAlign: 'center', marginTop: 20 }}>
+            No watch history
+          </Text>
+        }
+      />
+
+
       <View style={styles.horizontalLine} />
 
       <MenuItem showCheck={false} icon='history' title='History' subtitle='' onItemClick={() => console.log("ranjan")} />
       <MenuItem showCheck={false} icon='yourVideo' title='Your Videos' subtitle='' onItemClick={() => console.log("ranjan")} />
-      <MenuItem showCheck={true} icon='downloads' title='Downloads' subtitle='67 videos' onItemClick={() => navigation.navigate("DownloadsScreen")} />
+      <MenuItem showCheck={true} icon='downloads' title='Downloads' subtitle={`${totalDownloads.length} videos`} onItemClick={() => navigation.navigate("DownloadsScreen")} />
       <MenuItem showCheck={false} icon='yourMovies' title='Your Movies' subtitle='' onItemClick={() => console.log("ranjan")} />
       <MenuItem showCheck={false} icon='watchLater' title='Watch Later' subtitle='4 unwatched  videos' onItemClick={() => console.log("ranjan")} />
       <View style={styles.horizontalLine} />
@@ -27,7 +78,7 @@ export default function SavedScreen() {
       <View style={styles.playlistHeader}>
         <Text style={styles.playlist}>Playlist</Text>
         <View style={styles.downchev}>
-          <Text style={{ color: "#0A0A0A", fontFamily: "Roboto-Regular", fontSize: 15 }}>Recently added</Text>
+          <Text style={{ color: "#702f2fff", fontFamily: "Roboto-Regular", fontSize: 15 }}>Recently added</Text>
           <Icon name='chevron-down' size={24} />
         </View>
       </View>

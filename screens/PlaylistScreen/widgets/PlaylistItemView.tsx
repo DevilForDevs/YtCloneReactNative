@@ -1,74 +1,122 @@
-import { StyleSheet, Text, View, Image, TouchableOpacity } from 'react-native'
-import React from 'react'
+import React from 'react';
+import {
+    StyleSheet,
+    Text,
+    View,
+    Image,
+    TouchableOpacity,
+    useColorScheme,
+} from 'react-native';
 import Icon from 'react-native-vector-icons/Ionicons';
-export default function PlaylistItemView() {
+import { ytThumbs } from '../../../utils/downloadFunctions';
+import { Video } from '../../../utils/types';
+
+
+type Props = {
+    video: Video,
+    onMenuClick: () => void;
+    onItemClick: () => void;
+}
+export default function PlaylistItemView({ video, onItemClick, onMenuClick }: Props) {
+    const scheme = useColorScheme();
+    const isDark = scheme === 'dark';
+
+    const colors = {
+        primary: isDark ? '#FFFFFF' : '#0F0F0F',
+        secondary: isDark ? '#B0B0B0' : '#606060',
+        overlay: 'rgba(0,0,0,0.6)',
+    };
+
     return (
         <View style={styles.root}>
-            <View style={styles.imageWrapper}>
-                <Image source={{ uri: `https://img.youtube.com/vi/39f9IfQgQAA/hqdefault.jpg` }} style={styles.image} />
-                <Text style={styles.floatingDuration}>4:50</Text>
-            </View>
-            <View style={styles.info}>
-                <View style={styles.top}>
-                    <Text style={{
-                        fontFamily: "Roboto-Regular",
-                        fontSize: 16,
-                    }}>videotitle</Text>
-                    <TouchableOpacity onPress={() => console.log("ranjan")}>
-                        <Icon name="ellipsis-vertical" size={22} color="black" />
-                    </TouchableOpacity>
-                </View>
-                <Text style={{
-                    fontFamily: "Roboto-Regular",
-                    fontSize: 14,
-                    color: "#6C6C6C"
-                }}>ChannelName</Text>
-                <Text style={{
-                    fontFamily: "Roboto-Regular",
-                    fontSize: 14,
-                    color: "#6C6C6C"
-                }}>views updated</Text>
+            {/* Thumbnail */}
+            <View style={styles.thumbnailWrapper}>
+                <Image
+                    source={{ uri: ytThumbs(video.videoId).hq }}
+                    style={styles.thumbnail}
+                />
+                <Text style={styles.duration}>{video.duration}</Text>
             </View>
 
+            {/* Info */}
+            <TouchableOpacity style={styles.info} onPress={onItemClick}>
+                <View style={styles.titleRow}>
+                    <Text
+                        numberOfLines={2}
+                        style={[styles.title, { color: colors.primary }]}
+                    >
+                        {video.title}
+                    </Text>
+
+                    <TouchableOpacity onPress={onMenuClick}>
+                        <Icon
+                            name="ellipsis-vertical"
+                            size={20}
+                            color={colors.primary}
+                        />
+                    </TouchableOpacity>
+                </View>
+                <Text style={[styles.meta, { color: colors.secondary }]}>
+                    {video.views} • {video.publishedOn}
+                </Text>
+            </TouchableOpacity>
         </View>
-    )
+    );
 }
 
 const styles = StyleSheet.create({
-    image: {
-        height: 80,
-        width: 120,
-        borderRadius: 10
-    }
-    ,
-    imageWrapper: {
-        height: 80,
-        width: 120,
-    },
-    floatingDuration: {
-        position: "absolute",
-        bottom: 5,
-        right: 5,
-        backgroundColor: "rgba(10, 10, 10, 0.4)",
-        borderRadius: 5,
-        color: "white",
-        paddingHorizontal: 5
-    }
-    ,
     root: {
-        flexDirection: "row",
-        flex: 1,
-        gap: 5
+        flexDirection: 'row',
+        paddingVertical: 8,
+    },
 
-    }
-    ,
-    top: {
-        flexDirection: "row",
-        justifyContent: "space-between",
-        alignItems: "center"
-    }
-    ,
+    thumbnailWrapper: {
+        width: 120,
+        height: 80,
+        marginRight: 12,
+    },
+
+    thumbnail: {
+        width: '100%',
+        height: '100%',
+        borderRadius: 10,
+    },
+
+    duration: {
+        position: 'absolute',
+        right: 6,
+        bottom: 6,
+        fontSize: 12,
+        color: '#FFF',
+        backgroundColor: 'rgba(0,0,0,0.7)',
+        paddingHorizontal: 6,
+        paddingVertical: 2,
+        borderRadius: 4,
+        overflow: 'hidden',
+    },
+
     info: {
-        flex: 1
-    }
-})
+        flex: 1,
+        justifyContent: 'center',
+    },
+
+    titleRow: {
+        flexDirection: 'row',
+        alignItems: 'flex-start',
+        justifyContent: 'space-between',
+        gap: 8,
+    },
+
+    title: {
+        flex: 1,
+        fontSize: 16,
+        fontFamily: 'Roboto-Medium',
+        lineHeight: 22,
+    },
+
+    meta: {
+        fontSize: 14,
+        fontFamily: 'Roboto-Regular',
+        marginTop: 2,
+    },
+});

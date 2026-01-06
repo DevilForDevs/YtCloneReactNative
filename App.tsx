@@ -26,6 +26,9 @@ import { Video, DownloadItem } from './utils/types';
 import { convertBytes } from './utils/Interact';
 import SearchScreen from './screens/SearchScreen/SearchScreen';
 import OfflinePlayer from './screens/OfflinePlayer/OfflinePlayer';
+import PlaylistScreen from './screens/PlaylistScreen/PlaylistScreen';
+import ChannelScreen from './screens/ChannelScreen/ChannelScreen';
+import { createHistoryTable } from './screens/SavedScreen/backend/dbo';
 
 const Stack = createNativeStackNavigator<RootStackParamList>();
 const eventEmitter = new NativeEventEmitter();
@@ -60,6 +63,7 @@ export default function App() {
 
     const dbInstance = await initDB();
     await createDownloadsTable(dbInstance);
+    await createHistoryTable(dbInstance);
     setDb(dbInstance);
 
     const items = await loadDownloads(dbInstance);
@@ -127,6 +131,8 @@ export default function App() {
             <Stack.Screen name="DownloadsScreen" component={DownloadsScreen} />
             <Stack.Screen name="SearchScreen" component={SearchScreen} />
             <Stack.Screen name="OfflinePlayer" component={OfflinePlayer} />
+            <Stack.Screen name="PlaylistScreen" component={PlaylistScreen} />
+            <Stack.Screen name="ChannelScreen" component={ChannelScreen} />
           </Stack.Navigator>
         </NavigationContainer>
       </AskFormatProvider>

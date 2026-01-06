@@ -9,13 +9,14 @@ type Props = {
   onItemPress: () => void;
   progress: number;
   onDownload: () => void;
+  onChannelClick: () => void;
 
 };
 
 export default function VideoItemView({
   item,
   onItemPress,
-  progress,
+  onChannelClick,
   onDownload,
 }: Props) {
 
@@ -36,7 +37,9 @@ export default function VideoItemView({
         {item.duration}
       </Text>)}
       <View style={styles.info}>
-        <Image source={{ uri: item.channel }} style={styles.profile} />
+        <TouchableOpacity onPress={onChannelClick}>
+          <Image source={{ uri: item.channel }} style={styles.profile} />
+        </TouchableOpacity>
 
         <View style={styles.rightSection}>
           <View style={styles.titleRow}>

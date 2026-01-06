@@ -1,12 +1,13 @@
-import { Image, StyleSheet, Text, View } from 'react-native'
+import { Image, StyleSheet, Text, TouchableOpacity, View } from 'react-native'
 import React from 'react'
 
 type props = {
   title: string,
   channelName: string,
-  channelThumbnail: string
+  channelThumbnail: string,
+  onChannePress: () => void;
 }
-export default function BottomControls({ title, channelName, channelThumbnail }: props) {
+export default function BottomControls({ title, channelName, channelThumbnail, onChannePress }: props) {
   return (
     <View style={styles.container}>
       <Text style={styles.title}>{title}</Text>
@@ -14,9 +15,9 @@ export default function BottomControls({ title, channelName, channelThumbnail }:
 
 
         <View style={styles.firstGroup}>
-          <View style={styles.channelPhotoContainer}>
+          <TouchableOpacity style={styles.channelPhotoContainer} onPress={onChannePress}>
             <Image source={{ uri: channelThumbnail }} style={styles.channelPhoto} />
-          </View>
+          </TouchableOpacity>
           <Text numberOfLines={1}
             ellipsizeMode="tail" style={styles.channelName}>
             {channelName}

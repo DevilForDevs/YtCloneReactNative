@@ -4,16 +4,16 @@ import React from 'react'
 type Props = {
     channelName: string,
     channelPhoto: string,
-    subscriberCount: string
+    subscriberCount: string,
+    onChannelClick: () => void;
 }
-export default function ChannelDetails({ channelName, channelPhoto, subscriberCount }: Props) {
+export default function ChannelDetails({ channelName, channelPhoto, subscriberCount, onChannelClick }: Props) {
     return (
         <View style={styles.channelBlock}>
             <View style={styles.channelDetail}>
-                <View>
+                <TouchableOpacity onPress={onChannelClick} >
                     <Image source={{ uri: channelPhoto }} style={styles.channelPhoto} />
-
-                </View>
+                </TouchableOpacity>
                 <View>
                     <Text style={{ fontFamily: "Roboto-Medium", fontSize: 16 }}>
                         {channelName}

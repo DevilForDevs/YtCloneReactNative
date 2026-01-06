@@ -1,3 +1,4 @@
+import { channelTabs } from "./utils/channelVideosParser";
 import { DownloadItem, ShortVideo, Video } from "./utils/types";
 import { NativeStackNavigationProp } from "@react-navigation/native-stack";
 export { };
@@ -43,11 +44,13 @@ declare global {
         LoginScreen: undefined,
         BrowserScreen: undefined,
         BottomNav: undefined,
-        VideoPlayerScreen: { arrivedVideo: Video };
+        VideoPlayerScreen: { arrivedVideo: Video, playlistId: string | undefined };
         ShortsPlayerScreen: { arrivedVideo: Video },
         DownloadsScreen: undefined,
         SearchScreen: undefined,
-        OfflinePlayer: { item: DownloadItem }
+        OfflinePlayer: { item: DownloadItem },
+        PlaylistScreen: { playlistlink: string },
+        ChannelScreen: { channelUrl: string }
     };
 
     type navStack = NativeStackNavigationProp<
@@ -62,6 +65,18 @@ declare global {
         openAskFormat: (options: Video) => void;
         closeAskFormat: () => void;
     };
+
+    export interface Channel {
+        name?: string;
+        canonicalUrl?: string;
+        photo?: string;
+        subscribers?: string;
+        totalVideos?: string,
+        posterUrl?: string,
+        channelTabs: ChannelTab[]
+    }
+
+
 
 
 

@@ -39,11 +39,7 @@ export async function sendYoutubeSearchRequest(
       body: JSON.stringify(jsonBody),
     }
   );
-  console.log("response");
-  console.log(response.status);
 
   const text = await response.text();
-
-
   return parseSearchResponse(text);
 }
