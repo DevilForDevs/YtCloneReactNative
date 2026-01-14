@@ -13,32 +13,27 @@ type Props = {
 
 };
 
-export default function VideoItemView({
-  item,
-  onItemPress,
-  onChannelClick,
-  onDownload,
-}: Props) {
+export default function VideoItemView(props: Props) {
 
-  const [thumb, setThumb] = useState(ytThumbs(item.videoId).hq);
+  const [thumb, setThumb] = useState(ytThumbs(props.item.videoId).hq);
 
 
   return (
     <View style={styles.root}>
-      <TouchableOpacity onPress={onItemPress}>
+      <TouchableOpacity onPress={props.onItemPress}>
         <Image
           source={{ uri: thumb }}
           style={styles.img}
           resizeMode="cover"
-          onError={() => setThumb(ytThumbs(item.videoId).mq)}
+          onError={() => setThumb(ytThumbs(props.item.videoId).mq)}
         />
       </TouchableOpacity>
-      {item.duration != null && (<Text style={styles.floatingDuration}>
-        {item.duration}
+      {props.item.duration != null && (<Text style={styles.floatingDuration}>
+        {props.item.duration}
       </Text>)}
       <View style={styles.info}>
-        <TouchableOpacity onPress={onChannelClick}>
-          <Image source={{ uri: item.channel }} style={styles.profile} />
+        <TouchableOpacity onPress={props.onChannelClick}>
+          <Image source={{ uri: props.item.channel }} style={styles.profile} />
         </TouchableOpacity>
 
         <View style={styles.rightSection}>
@@ -48,10 +43,10 @@ export default function VideoItemView({
               numberOfLines={2}
               ellipsizeMode="tail"
             >
-              {item.title}
+              {props.item.title}
             </Text>
 
-            <TouchableOpacity style={styles.vertMore} onPress={() => onDownload()}>
+            <TouchableOpacity style={styles.vertMore} onPress={() => props.onDownload()}>
               <Icon name="more-vert" size={22} color="#000" />
             </TouchableOpacity>
           </View>
@@ -61,7 +56,7 @@ export default function VideoItemView({
             numberOfLines={1}
             ellipsizeMode="tail"
           >
-            {item.views} • {item.publishedOn}
+            {props.item.views} • {props.item.publishedOn}
           </Text>
         </View>
       </View>

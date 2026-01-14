@@ -356,6 +356,7 @@ export default function ShortsPlayer() {
                         style={StyleSheet.absoluteFill}
                         resizeMode="cover"
                         paused={paused}
+                        repeat={true}
                         onBuffer={({ isBuffering }) => setBuffering(isBuffering)}
                         onLoadStart={() => setBuffering(true)}
                         onLoad={() => setBuffering(false)}

@@ -15,7 +15,7 @@ type Props = {
     onChannelClick: () => void;
 }
 
-export default function PlaylistInfo({ info, onClickPlay, onChannelClick }: Props) {
+export default function PlaylistInfo(props: Props) {
     const navigation = useNavigation<NavigationProp>();
     const assetsFolder = "../../../assets"
     return (
@@ -37,28 +37,28 @@ export default function PlaylistInfo({ info, onClickPlay, onChannelClick }: Prop
                 </View>
             </View>
             <View style={styles.imgWrapper}>
-                <Image style={styles.banner} source={{ uri: info.heroImage }} />
+                <Image style={styles.banner} source={{ uri: props.info.heroImage }} />
             </View>
             <Text style={{
                 fontFamily: "Roboto-Medium",
                 fontSize: 18,
                 marginTop: 8
             }}>
-                {info.title}
+                {props.info.title}
             </Text>
             <View style={styles.channelInfo}>
-                <TouchableOpacity onPress={onChannelClick}>
-                    <Image style={styles.channelPhoto} source={{ uri: info.channelAvatar }} />
+                <TouchableOpacity onPress={props.onChannelClick}>
+                    <Image style={styles.channelPhoto} source={{ uri: props.info.channelAvatar }} />
                 </TouchableOpacity>
                 <Text style={{
                     fontSize: 15
-                }}>{info.createdBy}</Text>
+                }}>{props.info.createdBy}</Text>
             </View>
             <Text style={{
                 marginTop: 5,
                 alignItems: "center"
             }}>
-                Playlist • {info.info1}• {info.info2}
+                Playlist • {props.info.info1}• {props.info.info2}
             </Text>
             <Text style={{
                 marginTop: 5
@@ -66,7 +66,7 @@ export default function PlaylistInfo({ info, onClickPlay, onChannelClick }: Prop
                 Description
             </Text>
             <View style={styles.downloadButton}>
-                <TouchableOpacity onPress={onClickPlay}>
+                <TouchableOpacity onPress={props.onClickPlay}>
                     <IconMat name="play" size={24} color="red" />
                 </TouchableOpacity>
                 <TouchableOpacity>

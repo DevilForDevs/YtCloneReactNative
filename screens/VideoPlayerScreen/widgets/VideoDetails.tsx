@@ -11,10 +11,10 @@ type Props = {
     onChannelClick: () => void;
 
 }
-export default function VideoDetails({ videoDes, onDownloadPress, onChannelClick }: Props) {
-    const formattedViews = Number(videoDes.views).toLocaleString();
-    const viewInfo = `${formattedViews} views • ${videoDes.uploaded}`
-    const cleanTags = videoDes.hashTags
+export default function VideoDetails(props: Props) {
+    const formattedViews = Number(props.videoDes.views).toLocaleString();
+    const viewInfo = `${formattedViews} views • ${props.videoDes.uploaded}`
+    const cleanTags = props.videoDes.hashTags
         .replace(/\\/g, "")   // remove all backslashes
         .trim();
 
@@ -26,7 +26,7 @@ export default function VideoDetails({ videoDes, onDownloadPress, onChannelClick
                 <Text style={{ fontFamily: "Roboto-Medium", fontSize: 18 }}
                     numberOfLines={3}
                     ellipsizeMode="tail">
-                    {videoDes.title}
+                    {props.videoDes.title}
                 </Text>
                 <TouchableOpacity>
                     <Icon name="chevron-down" size={28} color="black" />
@@ -46,8 +46,8 @@ export default function VideoDetails({ videoDes, onDownloadPress, onChannelClick
                 </Text>
 
             </View>
-            <ActionButtons onDownloadPress={() => onDownloadPress()} likesCount={videoDes.likes} dislikesCount={videoDes.dislikes} />
-            <ChannelDetails channelName={videoDes.channelName} channelPhoto={videoDes.channelPhoto} subscriberCount={videoDes.subscriber} onChannelClick={onChannelClick} />
+            <ActionButtons onDownloadPress={() => props.onDownloadPress()} likesCount={props.videoDes.likes} dislikesCount={props.videoDes.dislikes} />
+            <ChannelDetails channelName={props.videoDes.channelName} channelPhoto={props.videoDes.channelPhoto} subscriberCount={props.videoDes.subscriber} onChannelClick={props.onChannelClick} />
             <View style={styles.commentBlock}>
 
                 <View style={styles.cmt}>
@@ -57,7 +57,7 @@ export default function VideoDetails({ videoDes, onDownloadPress, onChannelClick
 
                     </Text>
                     <Text style={{ fontFamily: "Roboto-Regular", fontSize: 14, color: "#6C6C6C" }}>
-                        {videoDes.commentsCount}
+                        {props.videoDes.commentsCount}
                     </Text>
 
                 </View>

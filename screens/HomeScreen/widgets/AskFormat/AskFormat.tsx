@@ -7,26 +7,26 @@ import { convertBytes } from '../../../../utils/Interact';
 type Props = {
     closeRequest: () => void,
     onFormatSelection: (itag: number) => void,
-    videoTitle:string,
-    requiredFormats: AskFormatModel[] 
+    videoTitle: string,
+    requiredFormats: AskFormatModel[]
 }
-export default function AskFormat({ closeRequest, onFormatSelection,videoTitle,requiredFormats }: Props) {
+export default function AskFormat(props: Props) {
 
     const [selectedFmt, setSelectedFmt] = useState<FormatGroup | null>(null);
     return (
         <View style={styles.container}>
             {/* MAIN FORMAT LIST */}
             <FlatList
-                data={requiredFormats}
+                data={props.requiredFormats}
                 keyExtractor={(item) => item.title}
                 showsVerticalScrollIndicator={false}
                 ListHeaderComponent={
                     <Text style={{
-                        textAlign:"center",
-                        fontSize:16,
-                        fontFamily:"Roboto-Medium"
+                        textAlign: "center",
+                        fontSize: 16,
+                        fontFamily: "Roboto-Medium"
                     }}>
-                        {videoTitle}
+                        {props.videoTitle}
                     </Text>
                 }
                 renderItem={({ item }) => (
@@ -67,7 +67,7 @@ export default function AskFormat({ closeRequest, onFormatSelection,videoTitle,r
                 <View style={styles.buttonRow}>
                     <TouchableOpacity
                         style={[styles.actionButton, { backgroundColor: '#888' }]}
-                        onPress={() =>closeRequest()}
+                        onPress={() => props.closeRequest()}
                     >
                         <Text style={styles.buttonText}>Cancel</Text>
                     </TouchableOpacity>
@@ -79,9 +79,9 @@ export default function AskFormat({ closeRequest, onFormatSelection,videoTitle,r
                         ]}
                         disabled={!selectedFmt}
                         onPress={() => {
-                            closeRequest()
+                            props.closeRequest()
                             if (selectedFmt != undefined) {
-                                onFormatSelection(selectedFmt?.itag)
+                                props.onFormatSelection(selectedFmt?.itag)
                             }
 
                         }}

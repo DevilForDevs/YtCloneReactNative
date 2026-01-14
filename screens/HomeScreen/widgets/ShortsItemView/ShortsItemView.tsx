@@ -9,17 +9,17 @@ type Props = {
   onItemPress: () => void;
 }
 
-export default function ({ item, onItemPress }: Props) {
-  const [thumb, setThumb] = useState(ytThumbs(item.videoId).hq);
+export default function (props: Props) {
+  const [thumb, setThumb] = useState(ytThumbs(props.item.videoId).hq);
 
   return (
     <View style={styles.root}>
-      <TouchableOpacity onPress={onItemPress}>
+      <TouchableOpacity onPress={props.onItemPress}>
         <Image
           source={{ uri: thumb }}
           style={styles.img}
           resizeMode="cover"
-          onError={() => setThumb(ytThumbs(item.videoId).mq)}
+          onError={() => setThumb(ytThumbs(props.item.videoId).mq)}
         />
       </TouchableOpacity>
 
@@ -32,9 +32,9 @@ export default function ({ item, onItemPress }: Props) {
       <View style={styles.info}>
         <Text style={styles.title}
           numberOfLines={2}        // ⚡ Limit to 2 lines
-          ellipsizeMode="tail"  >{item.title}</Text>
-        {item.views != null && item.views !== "null" && (
-          <Text style={styles.views}>{item.views}</Text>
+          ellipsizeMode="tail"  >{props.item.title}</Text>
+        {props.item.views != null && props.item.views !== "null" && (
+          <Text style={styles.views}>{props.item.views}</Text>
         )}
 
       </View>

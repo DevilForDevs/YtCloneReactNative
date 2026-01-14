@@ -7,19 +7,19 @@ type Props = {
     dislikesCount: string
     onDownloadPress: () => void
 }
-export default function ActionButtons({ likesCount, dislikesCount, onDownloadPress }: Props) {
+export default function ActionButtons(props: Props) {
     return (
         <View style={styles.actionbtns}>
             <TouchableOpacity>
                 <View>
                     <Image source={require("../../../assets/actionIcons/like.png")} style={styles.actionIcon} />
-                    <Text style={{ fontFamily: "Roboto-Regular", fontSize: 14 }}>{likesCount}</Text>
+                    <Text style={{ fontFamily: "Roboto-Regular", fontSize: 14 }}>{props.likesCount}</Text>
                 </View>
             </TouchableOpacity>
             <TouchableOpacity>
                 <View>
                     <Image source={require("../../../assets/actionIcons/dislike.png")} style={styles.actionIcon} />
-                    <Text style={{ fontFamily: "Roboto-Regular", fontSize: 14 }}>{dislikesCount}</Text>
+                    <Text style={{ fontFamily: "Roboto-Regular", fontSize: 14 }}>{props.dislikesCount}</Text>
                 </View>
             </TouchableOpacity>
             <TouchableOpacity>
@@ -28,7 +28,7 @@ export default function ActionButtons({ likesCount, dislikesCount, onDownloadPre
                     <Text style={{ fontFamily: "Roboto-Regular", fontSize: 14 }} >Share</Text>
                 </View>
             </TouchableOpacity>
-            <TouchableOpacity onPress={() => onDownloadPress()}>
+            <TouchableOpacity onPress={() => props.onDownloadPress()}>
                 <View>
                     <Image source={require("../../../assets/actionIcons/downloadbtn.png")} style={styles.actionIcon} />
                     <Text style={{ fontFamily: "Roboto-Regular", fontSize: 14 }}>Download</Text>

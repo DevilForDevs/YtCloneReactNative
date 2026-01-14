@@ -4,16 +4,16 @@ import Icon from 'react-native-vector-icons/Ionicons';
 
 type topBarCallbacks = {
     onLensPress: () => void,
-    onBackPress:()=>void
+    onBackPress: () => void
 }
 
-export default function TopBar({ onLensPress,onBackPress }: topBarCallbacks) {
+export default function TopBar(props: topBarCallbacks) {
     const assetsFolder = "../../../assets"
     return (
         <View style={styles.root}>
             <View style={styles.logoCast}>
                 <View style={styles.left}>
-                    <TouchableOpacity onPress={onBackPress}>
+                    <TouchableOpacity onPress={props.onBackPress}>
                         <Icon name='arrow-back' size={28} />
                     </TouchableOpacity>
                     <Text style={{
@@ -25,7 +25,7 @@ export default function TopBar({ onLensPress,onBackPress }: topBarCallbacks) {
                 <View style={styles.otherIcons}>
                     <Image style={styles.cstIcon} source={require(`${assetsFolder}/topRightIcons/cast.png`)} />
                     <Image style={styles.smIcons} source={require(`${assetsFolder}/topRightIcons/bell.png`)} />
-                    <TouchableOpacity onPress={onLensPress}>
+                    <TouchableOpacity onPress={props.onLensPress}>
                         <Image style={styles.smIcons} source={require(`${assetsFolder}/topRightIcons/lens.png`)} />
                     </TouchableOpacity>
                     <Image style={styles.smIcons} source={require(`${assetsFolder}/topRightIcons/person.png`)} />
@@ -88,3 +88,5 @@ const styles = StyleSheet.create({
         gap: 10
     }
 })
+
+

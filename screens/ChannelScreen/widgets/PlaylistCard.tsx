@@ -9,17 +9,17 @@ type Props = {
     onPress: () => void;
 }
 
-export default function PlaylistCard({ item, onPress }: Props) {
+export default function PlaylistCard(props: Props) {
     return (
         <Pressable
             style={styles.container}
-            onPress={onPress}
+            onPress={props.onPress}
         >
             {/* Thumbnail */}
             <View style={styles.thumbWrapper}>
                 <Image
                     source={{
-                        uri: item.videoId
+                        uri: props.item.videoId
                             ? `https://i.ytimg.com/vi/${item.videoId}/hqdefault.jpg`
                             : undefined,
                     }}
@@ -27,10 +27,10 @@ export default function PlaylistCard({ item, onPress }: Props) {
                 />
 
                 {/* Video count overlay */}
-                {item.views && (
+                {props.item.views && (
                     <View style={styles.countBadge}>
                         <Icon name="playlist-play" size={16} color="#fff" />
-                        <Text style={styles.countText}>{item.views}</Text>
+                        <Text style={styles.countText}>{props.item.views}</Text>
                     </View>
                 )}
             </View>
@@ -42,7 +42,7 @@ export default function PlaylistCard({ item, onPress }: Props) {
                     numberOfLines={2}
                     ellipsizeMode="tail"
                 >
-                    {item.title || 'Untitled playlist'}
+                    {props.item.title || 'Untitled playlist'}
                 </Text>
 
                 <Text style={styles.subText}>Playlist</Text>

@@ -7,20 +7,20 @@ type props = {
   channelThumbnail: string,
   onChannePress: () => void;
 }
-export default function BottomControls({ title, channelName, channelThumbnail, onChannePress }: props) {
+export default function BottomControls(props: props) {
   return (
     <View style={styles.container}>
-      <Text style={styles.title}>{title}</Text>
+      <Text style={styles.title}>{props.title}</Text>
       <View style={styles.bottomBar}>
 
 
         <View style={styles.firstGroup}>
-          <TouchableOpacity style={styles.channelPhotoContainer} onPress={onChannePress}>
-            <Image source={{ uri: channelThumbnail }} style={styles.channelPhoto} />
+          <TouchableOpacity style={styles.channelPhotoContainer} onPress={props.onChannePress}>
+            <Image source={{ uri: props.channelThumbnail }} style={styles.channelPhoto} />
           </TouchableOpacity>
           <Text numberOfLines={1}
             ellipsizeMode="tail" style={styles.channelName}>
-            {channelName}
+            {props.channelName}
           </Text>
           <View style={styles.subscribeBtn}>
             <Text style={{ color: "white" }}>SUBSCRIBE</Text>

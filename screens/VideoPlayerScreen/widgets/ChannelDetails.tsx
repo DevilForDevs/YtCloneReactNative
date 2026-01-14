@@ -7,19 +7,19 @@ type Props = {
     subscriberCount: string,
     onChannelClick: () => void;
 }
-export default function ChannelDetails({ channelName, channelPhoto, subscriberCount, onChannelClick }: Props) {
+export default function ChannelDetails(props: Props) {
     return (
         <View style={styles.channelBlock}>
             <View style={styles.channelDetail}>
-                <TouchableOpacity onPress={onChannelClick} >
-                    <Image source={{ uri: channelPhoto }} style={styles.channelPhoto} />
+                <TouchableOpacity onPress={props.onChannelClick} >
+                    <Image source={{ uri: props.channelPhoto }} style={styles.channelPhoto} />
                 </TouchableOpacity>
                 <View>
                     <Text style={{ fontFamily: "Roboto-Medium", fontSize: 16 }}>
-                        {channelName}
+                        {props.channelName}
                     </Text>
                     <Text style={{ fontFamily: "Roboto-Regular", fontSize: 14, color: "#6C6C6C" }}>
-                        {subscriberCount}
+                        {props.subscriberCount}
                     </Text>
                 </View>
             </View>

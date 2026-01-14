@@ -8,8 +8,15 @@ fun djDownloader(
     fos: FileOutputStream,
     onDisk: Long,
     totalBytes: Long,
+    isCancelled: () -> Boolean, // NEW
     progress: (dbyt: String, percent: Int, speed: String) -> Unit,
 ) {
+    if (isCancelled()) {
+        // Stop immediately before starting
+        progress("Cancelled", 0, "0 KB/s")
+        return
+    }
+
     val dclient = OkHttpClient()
     val chunkSize = 9437184L // 9MB
     val start = onDisk
@@ -34,6 +41,16 @@ fun djDownloader(
             var lastTime = System.currentTimeMillis()
 
             while (inputStream.read(buffer).also { bytesRead = it } != -1) {
+                if (isCancelled()) {
+                    // Stop download immediately
+                    try {
+                        fos.close()
+                    } catch (_: Exception) {
+                    }
+                    progress("Cancelled", 0, "0 KB/s")
+                    return
+                }
+
                 fos.write(buffer, 0, bytesRead)
                 downloadedInChunk += bytesRead
                 speedBytes += bytesRead
@@ -57,8 +74,9 @@ fun djDownloader(
             val percent = ((finalDownloaded * 100) / totalBytes).toInt()
             progress(pg, percent, convertSpeed(speedBytes))
 
-            if (finalDownloaded < totalBytes) {
-                djDownloader(url, fos, finalDownloaded, totalBytes, progress)
+            // Continue next chunk if needed
+            if (finalDownloaded < totalBytes && !isCancelled()) {
+                djDownloader(url, fos, finalDownloaded, totalBytes, isCancelled, progress)
             }
         }
     } else {
@@ -91,5 +109,3 @@ fun convertSpeed(bytesPerSec: Long): String {
         else -> "$bytesPerSec B/s"
     }
 }
-
-

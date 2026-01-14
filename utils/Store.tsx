@@ -1,5 +1,5 @@
 import { create } from "zustand";
-import { Video, ShortVideo, DownloadStoreModel, DownloadItem } from "./types";
+import { DownloadStoreModel, DownloadItem } from "./types";
 import { VideoStore } from "./types";
 
 
@@ -159,41 +159,70 @@ export const useVideoStoreForPlaylist = create<VideoStore>((set, get) => ({
 
 export const useVideoStoreForSearch = create<VideoStore>((set, get) => ({
   totalVideos: [],
-  seenVideosIds: [],
   continuation: "",
   query: "tum hi ho",
   visitorData: "",
+
   addVideo: (item) =>
     set((state) => {
+      // ---------- SINGLE VIDEO ----------
       if (item.type === "video") {
+        const exists = state.totalVideos.some(
+          (v: any) => v.type === "video" && v.videoId === item.videoId
+        );
+
+        if (exists) return state; // ⛔ already added
+
         return {
           totalVideos: [...state.totalVideos, item],
         };
       }
 
+      // ---------- SHORTS GROUP ----------
       if (item.type === "shorts") {
+        // collect all existing videoIds (videos + shorts)
+        const existingIds = new Set<string>();
+
+        state.totalVideos.forEach((v: any) => {
+          if (v.type === "video") {
+            existingIds.add(v.videoId);
+          } else if (v.type === "shorts") {
+            v.videos.forEach((sv: any) => existingIds.add(sv.videoId));
+          }
+        });
+
+        const newShorts = item.videos.filter(
+          (v: any) => !existingIds.has(v.videoId)
+        );
+
+        if (newShorts.length === 0) return state; // ⛔ nothing new
+
         return {
           totalVideos: [
             ...state.totalVideos,
-            { ...item, videos: item.videos },
+            { ...item, videos: newShorts },
           ],
         };
       }
 
       return state;
     }),
+
   setContinuation: (continuation) => set({ continuation }),
   setQuery: (query) => set({ query }),
 
   setVisitorData: (visitorData: string) =>
     set((state) => {
       if (!visitorData || visitorData === state.visitorData) {
-        return state; // avoid useless updates
+        return state;
       }
       return { visitorData };
     }),
-  clearVideos: () => set({ totalVideos: [] }),
 
+  clearVideos: () =>
+    set({
+      totalVideos: [],
+    }),
 
   clearAll: () =>
     set({
@@ -202,6 +231,7 @@ export const useVideoStoreForSearch = create<VideoStore>((set, get) => ({
       visitorData: "",
     }),
 }));
+
 
 function addDownloadItemF(
   state: DownloadStoreModel,

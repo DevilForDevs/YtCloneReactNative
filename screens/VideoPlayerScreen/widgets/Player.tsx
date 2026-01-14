@@ -23,11 +23,12 @@ type Props = {
     distroyScreen: () => void;
     onToggle?: (enabled: boolean) => void;
     videoEnded?: (endedAsScreen: boolean) => void,
-    startAsScreen: boolean
+    startAsScreen: boolean,
+    pageUrl?: string
 }
 
-export default function Player({ url, toggleFlatList, videoId, onToggle,
-    showMenu, onProgressSave, seekTo, distroyScreen, videoEnded, startAsScreen }: Props) {
+export default function Player(props: Props) {
+
     const videoRef = useRef<React.ElementRef<typeof Video>>(null); // ✅ works
     const [isBuffering, setIsBuffering] = useState(false);
     const [duration, setDuration] = useState(0);
@@ -42,7 +43,7 @@ export default function Player({ url, toggleFlatList, videoId, onToggle,
 
     const reportProgress = useRef(
         throttle((time: number) => {
-            onProgressSave(videoId, time);
+            props.onProgressSave(props.videoId, time);
         }, 2000)
     ).current;
 
@@ -54,7 +55,7 @@ export default function Player({ url, toggleFlatList, videoId, onToggle,
     }
 
     const toggleFullscreen = () => {
-        toggleFlatList();
+        props.toggleFlatList();
         if (isFullscreen) {
             Orientation.lockToPortrait(); // exit fullscreen
             setFullScreen(false);
@@ -71,7 +72,7 @@ export default function Player({ url, toggleFlatList, videoId, onToggle,
                 Orientation.lockToPortrait();
                 setFullScreen(false);
 
-                toggleFlatList(); // ✅ SHOW FlatList again
+                props.toggleFlatList(); // ✅ SHOW FlatList again
 
                 return true; // consume back press
             }
@@ -89,7 +90,7 @@ export default function Player({ url, toggleFlatList, videoId, onToggle,
 
 
     function onLoad(data: OnLoadData) {
-        if (startAsScreen) {
+        if (props.startAsScreen) {
             toggleFullscreen();
         }
         setDuration(data.duration);
@@ -97,8 +98,8 @@ export default function Player({ url, toggleFlatList, videoId, onToggle,
 
 
         // 👇 restore seek
-        if (seekTo && seekTo > 3) {
-            videoRef.current?.seek(seekTo);
+        if (props.seekTo && props.seekTo > 3) {
+            videoRef.current?.seek(props.seekTo);
         }
     }
 
@@ -120,7 +121,7 @@ export default function Player({ url, toggleFlatList, videoId, onToggle,
         }
         setPaused(true);
         videoRef.current?.seek(0);
-        videoEnded?.(isFullscreen);
+        props.videoEnded?.(isFullscreen);
     }
 
     function onSlidingComplete(value: number) {
@@ -133,12 +134,31 @@ export default function Player({ url, toggleFlatList, videoId, onToggle,
     }
 
 
+
     return (
         <View>
             <View style={isFullscreen ? styles.fullScreenWrapper : styles.videoWrapper}>
                 <Video
                     ref={videoRef}
-                    source={{ uri: url }}
+                    source={{
+                        uri: props.url,
+                        headers: {
+                            "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/143.0.0.0 Safari/537.36",
+                            "Origin": "https://xhamster1.desi",
+                            "Referer": props.pageUrl ?? "https://xhamster1.desi/",
+                            "Accept": "*/*",
+                            "Platform": "Windows",
+                            "Sec-CH-UA": `"Google Chrome";v="143", "Chromium";v="143", "Not A(Brand";v="24"`,
+                            "Sec-CH-UA-Mobile": "?0",
+                            "Sec-CH-UA-Platform": `"Windows"`,
+                            "Sec-CH-UA-Platform-Version": `"10.0.0"`,
+                            "Cache-Control": "no-cache",
+                            "Pragma": "no-cache",
+                            "Accept-Encoding": "gzip, deflate, br, zstd",
+                            "Accept-Language": "en-GB,en;q=0.9",
+                        },
+
+                    }}
                     style={styles.video}
                     resizeMode="contain"
                     paused={paused}
@@ -146,7 +166,7 @@ export default function Player({ url, toggleFlatList, videoId, onToggle,
                     onProgress={onProgress}
                     onBuffer={onBuffer}
                     onEnd={onEnd}
-                    poster={`https://i.ytimg.com/vi/${videoId}/hqdefault.jpg`} // optional poster
+                    poster={`https://i.ytimg.com/vi/${props.videoId}/hqdefault.jpg`} // optional poster
                     posterResizeMode="cover"
                     onError={(e) => {
                         console.log("Video error:", e);
@@ -199,7 +219,7 @@ export default function Player({ url, toggleFlatList, videoId, onToggle,
                 </TouchableOpacity> : <View />}
                 {
                     showControls ?
-                        <TopConrols distroyScreen={distroyScreen} showMenu={showMenu} onToggle={(val) => onToggle?.(val)} /> : <View />
+                        <TopConrols distroyScreen={props.distroyScreen} showMenu={props.showMenu} onToggle={(val) => props.onToggle?.(val)} /> : <View />
                 }
                 {
                     showControls ? <View style={isFullscreen ? styles.fullScrren : styles.bottomControls}>

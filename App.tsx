@@ -29,6 +29,9 @@ import OfflinePlayer from './screens/OfflinePlayer/OfflinePlayer';
 import PlaylistScreen from './screens/PlaylistScreen/PlaylistScreen';
 import ChannelScreen from './screens/ChannelScreen/ChannelScreen';
 import { createHistoryTable } from './screens/SavedScreen/backend/dbo';
+import SitesScreen from './screens/SitesScreen/SitesScreen';
+import CommanScreen from './screens/CommanScreen/CommanScreen';
+import CommanPlayerScreen from './screens/CommanPlayerScreen/CommanPlayerScreen';
 
 const Stack = createNativeStackNavigator<RootStackParamList>();
 const eventEmitter = new NativeEventEmitter();
@@ -133,6 +136,9 @@ export default function App() {
             <Stack.Screen name="OfflinePlayer" component={OfflinePlayer} />
             <Stack.Screen name="PlaylistScreen" component={PlaylistScreen} />
             <Stack.Screen name="ChannelScreen" component={ChannelScreen} />
+            <Stack.Screen name="SitesScreen" component={SitesScreen} />
+            <Stack.Screen name="CommanScreen" component={CommanScreen} />
+            <Stack.Screen name="CommanPlayerScreen" component={CommanPlayerScreen} />
           </Stack.Navigator>
         </NavigationContainer>
       </AskFormatProvider>

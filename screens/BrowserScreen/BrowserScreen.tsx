@@ -1,18 +1,29 @@
-import React, { useRef } from "react";
-import { StyleSheet, View } from "react-native";
+import React, { useEffect, useRef, useState } from "react";
+import { StyleSheet, View, BackHandler, Platform } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
 import { WebView } from "react-native-webview";
-import { useNavigation } from "@react-navigation/native";
+
 import { parseYTInitialData } from "../../utils/parseYTInitialData";
 import combinedJsCode from "../../utils/rawJs";
 import { useVideoStore } from "../../utils/Store";
 import { Video } from "../../utils/types";
+import { RouteProp, useNavigation, useRoute } from "@react-navigation/native";
 
+
+
+type NavigationProp = RouteProp<
+  RootStackParamList,
+  "BrowserScreen"
+>;
 
 export default function BrowserScreen() {
   const navigation = useNavigation<navStack>();
   const webViewRef = useRef<WebView>(null);
   const chunkBuffers = useRef<Record<string, string[]>>({});
+  const route = useRoute<NavigationProp>();
+  const { name } = route.params;
+  const [canGoBack, setCanGoBack] = useState(false);
+
 
 
   const {
@@ -21,6 +32,25 @@ export default function BrowserScreen() {
     setVisitorData
 
   } = useVideoStore();
+
+
+  useEffect(() => {
+    if (Platform.OS !== "android") return;
+
+    const backHandler = BackHandler.addEventListener(
+      "hardwareBackPress",
+      () => {
+        if (canGoBack && webViewRef.current) {
+          webViewRef.current.goBack();
+          return true; // ⛔ prevent screen pop
+        }
+        return false; // allow navigation stack to handle
+      }
+    );
+
+    return () => backHandler.remove();
+  }, [canGoBack]);
+
 
 
   function processVideoGroup(videoGroup: any, isInitial = false) {
@@ -59,7 +89,9 @@ export default function BrowserScreen() {
       });
     }
     setContinuation(videoGroup.continuationTokens?.[0] ?? "");
-    navigation.navigate("BottomNav");
+    if (name == "Youtube") {
+      navigation.navigate("BottomNav");
+    }
   }
 
   async function onMessage(event: any) {
@@ -115,8 +147,12 @@ export default function BrowserScreen() {
           scalesPageToFit
           injectedJavaScript={combinedJsCode}
           onMessage={onMessage}
+          onNavigationStateChange={(navState) =>
+            setCanGoBack(navState.canGoBack)
+          }
           style={{ flex: 1 }}
         />
+
       </View>
     </SafeAreaView>
   );

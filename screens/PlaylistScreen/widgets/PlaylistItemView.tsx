@@ -17,7 +17,7 @@ type Props = {
     onMenuClick: () => void;
     onItemClick: () => void;
 }
-export default function PlaylistItemView({ video, onItemClick, onMenuClick }: Props) {
+export default function PlaylistItemView(props: Props) {
     const scheme = useColorScheme();
     const isDark = scheme === 'dark';
 
@@ -32,23 +32,23 @@ export default function PlaylistItemView({ video, onItemClick, onMenuClick }: Pr
             {/* Thumbnail */}
             <View style={styles.thumbnailWrapper}>
                 <Image
-                    source={{ uri: ytThumbs(video.videoId).hq }}
+                    source={{ uri: ytThumbs(props.video.videoId).hq }}
                     style={styles.thumbnail}
                 />
-                <Text style={styles.duration}>{video.duration}</Text>
+                <Text style={styles.duration}>{props.video.duration}</Text>
             </View>
 
             {/* Info */}
-            <TouchableOpacity style={styles.info} onPress={onItemClick}>
+            <TouchableOpacity style={styles.info} onPress={props.onItemClick}>
                 <View style={styles.titleRow}>
                     <Text
                         numberOfLines={2}
                         style={[styles.title, { color: colors.primary }]}
                     >
-                        {video.title}
+                        {props.video.title}
                     </Text>
 
-                    <TouchableOpacity onPress={onMenuClick}>
+                    <TouchableOpacity onPress={props.onMenuClick}>
                         <Icon
                             name="ellipsis-vertical"
                             size={20}
@@ -57,7 +57,7 @@ export default function PlaylistItemView({ video, onItemClick, onMenuClick }: Pr
                     </TouchableOpacity>
                 </View>
                 <Text style={[styles.meta, { color: colors.secondary }]}>
-                    {video.views} • {video.publishedOn}
+                    {props.video.views} • {props.video.publishedOn}
                 </Text>
             </TouchableOpacity>
         </View>

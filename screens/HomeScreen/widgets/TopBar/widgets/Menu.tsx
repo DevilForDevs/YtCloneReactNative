@@ -1,14 +1,14 @@
 import { StyleSheet, Text, View, ScrollView, Image, TouchableOpacity } from 'react-native'
 import React, { useState } from 'react'
-import { ResizeMode } from 'react-native-video'
+
 
 
 export default function Menu() {
 
     const menus = [
-        "All", "Music", "Mixes", "Graphics","Bollywood"
+        "All", "Music", "Mixes", "Graphics", "Bollywood"
     ]
-    const[selectedMenu,setSelcetedMenu]=useState("All")
+    const [selectedMenu, setSelcetedMenu] = useState("All")
 
     return (
         <View style={styles.root}>
@@ -23,10 +23,10 @@ export default function Menu() {
                     {
                         menus.map((menuItem) =>
 
-                            <TouchableOpacity key={menuItem} style={selectedMenu==menuItem?styles.selectedMenu:styles.menuItem} 
-                            onPress={()=>setSelcetedMenu(menuItem)}>
+                            <TouchableOpacity key={menuItem} style={selectedMenu == menuItem ? styles.selectedMenu : styles.menuItem}
+                                onPress={() => setSelcetedMenu(menuItem)}>
 
-                                <Text style={{ fontFamily: 'Roboto-Regular', fontSize: 14, color:menuItem==selectedMenu?"#FFFFFF": "#000000" }}>{menuItem}</Text>
+                                <Text style={{ fontFamily: 'Roboto-Regular', fontSize: 14, color: menuItem == selectedMenu ? "#FFFFFF" : "#000000" }}>{menuItem}</Text>
 
                             </TouchableOpacity>
                         )
@@ -60,7 +60,7 @@ const styles = StyleSheet.create({
     }
     ,
     root: {
-        marginLeft:10
+        marginLeft: 10
     }
     ,
     verticalLine: {
@@ -89,7 +89,7 @@ const styles = StyleSheet.create({
         borderWidth: 1
 
     },
-    selectedMenu:{
+    selectedMenu: {
         backgroundColor: "#3B3B3B",
         paddingHorizontal: 8,
         paddingVertical: 8,

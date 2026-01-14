@@ -8,7 +8,7 @@ type Props = {
     commentCount: string
 }
 
-export default function RightControls({ onDownload, likes, commentCount }: Props) {
+export default function RightControls(props: Props) {
     return (
         <View style={styles.rightControls}>
             <TouchableOpacity style={styles.button}>
@@ -17,7 +17,7 @@ export default function RightControls({ onDownload, likes, commentCount }: Props
 
             <TouchableOpacity style={styles.button}>
                 <Image source={require("../../assets/shortsIcons/likeWhite.png")} style={styles.rightIcons} />
-                <Text style={styles.text}>{likes}</Text>
+                <Text style={styles.text}>{props.likes}</Text>
             </TouchableOpacity>
 
             <TouchableOpacity style={styles.button}>
@@ -27,10 +27,10 @@ export default function RightControls({ onDownload, likes, commentCount }: Props
 
             <TouchableOpacity style={styles.button}>
                 <Image source={require("../../assets/shortsIcons/commentWhite.png")} style={styles.rightIconsBig} />
-                <Text style={styles.text}>{commentCount}</Text>
+                <Text style={styles.text}>{props.commentCount}</Text>
             </TouchableOpacity>
 
-            <TouchableOpacity style={styles.button} onPress={() => onDownload()}>
+            <TouchableOpacity style={styles.button} onPress={() => props.onDownload()}>
                 <Image source={require("../../assets/shortsIcons/shareWhite.png")} style={styles.rightIconsBig} />
                 <Text style={styles.text}>Share</Text>
             </TouchableOpacity>

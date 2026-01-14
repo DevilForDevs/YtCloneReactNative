@@ -42,7 +42,7 @@ declare global {
     export type RootStackParamList = {
         SplashScreen: undefined,
         LoginScreen: undefined,
-        BrowserScreen: undefined,
+        BrowserScreen: { name: string },
         BottomNav: undefined,
         VideoPlayerScreen: { arrivedVideo: Video, playlistId: string | undefined };
         ShortsPlayerScreen: { arrivedVideo: Video },
@@ -50,7 +50,10 @@ declare global {
         SearchScreen: undefined,
         OfflinePlayer: { item: DownloadItem },
         PlaylistScreen: { playlistlink: string },
-        ChannelScreen: { channelUrl: string }
+        ChannelScreen: { channelUrl: string },
+        SitesScreen: undefined,
+        CommanScreen: undefined,
+        CommanPlayerScreen: { arrivedVideo: Video }
     };
 
     type navStack = NativeStackNavigationProp<

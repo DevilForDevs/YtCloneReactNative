@@ -15,39 +15,33 @@ type Props = {
     onClose: () => void;
 };
 
-export default function ResolutionBottomSheet({
-    visible,
-    resolutions,
-    selectedResolution,
-    onSelect,
-    onClose,
-}: Props) {
+export default function ResolutionBottomSheet(props: Props) {
     return (
         <Modal
-            visible={visible}
+            visible={props.visible}
             transparent
             animationType="slide"
-            onRequestClose={onClose}
+            onRequestClose={props.onClose}
         >
             <TouchableOpacity
                 style={styles.modalOverlay}
                 activeOpacity={1}
-                onPress={onClose}
+                onPress={props.onClose}
             >
                 <View style={styles.bottomSheet}>
                     <Text style={styles.title}>Video Quality</Text>
 
-                    {resolutions.map(res => (
+                    {props.resolutions.map(res => (
                         <TouchableOpacity
                             key={res}
-                            onPress={() => onSelect(res)}
+                            onPress={() => props.onSelect(res)}
                             style={styles.item}
                         >
                             <Text style={styles.text}>
                                 {res.split("x")[1] + "p"}
                             </Text>
 
-                            {selectedResolution === res && (
+                            {props.selectedResolution === res && (
                                 <Text style={styles.check}>✓</Text>
                             )}
                         </TouchableOpacity>

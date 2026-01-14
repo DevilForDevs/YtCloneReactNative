@@ -17,21 +17,21 @@ const icons: Record<string, any> = {
   watchLater: require('../../../assets/libscreen/clock.png'),
 }
 
-export default function MenuItem({ icon, title, subtitle, showCheck, onItemClick }: Props) {
-  const iconSource = icons[icon] || require('../../../assets/libscreen/downloadbtn.png') // fallback
+export default function MenuItem(props: Props) {
+  const iconSource = icons[props.icon] || require('../../../assets/libscreen/downloadbtn.png') // fallback
 
   return (
     <View style={styles.root}>
-      <TouchableOpacity onPress={onItemClick}>
+      <TouchableOpacity onPress={props.onItemClick}>
         <View style={styles.left}>
           <Image source={iconSource} style={styles.img} />
           <View>
-            <Text style={styles.title}>{title}</Text>
-            <Text style={styles.subtitle}>{subtitle}</Text>
+            <Text style={styles.title}>{props.title}</Text>
+            <Text style={styles.subtitle}>{props.subtitle}</Text>
           </View>
         </View>
       </TouchableOpacity>
-      {showCheck ? (
+      {props.showCheck ? (
         <Image
           source={require('../../../assets/libscreen/CheckCircle.png')}
           style={styles.checkImg}

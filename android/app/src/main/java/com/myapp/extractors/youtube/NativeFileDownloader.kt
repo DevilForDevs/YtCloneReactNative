@@ -2,18 +2,18 @@ package com.myapp.extractors.youtube
 import android.content.Context
 import android.media.MediaScannerConnection
 import android.os.Environment
+import convertBytes2
+import djDownloader
+import muxer.mpfour.DashedParser
+import muxer.mpfour.DashedWriter
+import muxer.webm.WebMParser
+import muxer.webm.WebmMuxer
 import org.json.JSONObject
 import java.io.File
 import java.io.FileInputStream
 import java.io.FileOutputStream
 import java.io.RandomAccessFile
-import djDownloader
-import convertBytes2
-import muxer.mpfour.DashedParser
-import muxer.mpfour.DashedWriter
-import muxer.webm.WebMParser
-import muxer.webm.WebmMuxer
-
+import kotlin.jvm.Volatile
 
 class NativeFileDownloader(
     private val context: Context,
@@ -25,6 +25,12 @@ class NativeFileDownloader(
         message: String,
     ) -> Unit,
 ) {
+    @Volatile
+    private var isCancelled = false
+
+    fun cancel() {
+        isCancelled = true
+    }
 
     fun download(
         videoInformation: String,
@@ -68,6 +74,7 @@ class NativeFileDownloader(
             fos,
             if (destinationFile.exists()) destinationFile.length() else 0L,
             audio.getInt("contentLength").toLong(),
+            isCancelled = { this.isCancelled },
         ) { progress, percent, speed ->
             onProgress(videoId, progress, percent, speed, "$percent%")
         }
@@ -111,8 +118,13 @@ class NativeFileDownloader(
             videoFos,
             if (videoTempFile.exists()) videoTempFile.length() else 0L,
             video.getInt("contentLength").toLong(),
+            isCancelled = { this.isCancelled },
         ) { progress, percent, speed ->
             onProgress(videoId, progress, percent, speed, "$percent%")
+        }
+
+        if (isCancelled) {
+            return
         }
 
         // ---------- AUDIO ----------
@@ -122,8 +134,14 @@ class NativeFileDownloader(
             audioFos,
             if (audioTempFile.exists()) audioTempFile.length() else 0L,
             audio.getInt("contentLength").toLong(),
+            isCancelled = { this.isCancelled },
         ) { progress, percent, speed ->
+
             onProgress(videoId, progress, percent, speed, "$percent% Audio")
+        }
+
+        if (isCancelled) {
+            return
         }
 
         // Append audio
@@ -157,9 +175,6 @@ class NativeFileDownloader(
         }
     }
 
-    // =========================
-    // WEBM MERGE
-    // =========================
     private fun mergeWebm(
         raf: RandomAccessFile,
         videoLength: Long,
@@ -205,9 +220,6 @@ class NativeFileDownloader(
         writer.writeSegment()
     }
 
-    // =========================
-    // MP4 MERGE (DASH)
-    // =========================
     private fun mergeMp4(
         raf: RandomAccessFile,
         videoLength: Long,
@@ -235,7 +247,7 @@ class NativeFileDownloader(
                     val percent = (samplesWritten * 100) / totalSamples
                     onProgress(
                         videoId,
-                        "Samples Written: $samplesWritten/$totalSamples",
+                        "Frames $samplesWritten/$totalSamples",
                         percent,
                         "500KB/s",
                         "Merging",

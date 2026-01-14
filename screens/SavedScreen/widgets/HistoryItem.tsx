@@ -1,8 +1,7 @@
 import { Image, StyleSheet, Text, TouchableOpacity, View } from 'react-native'
 import React from 'react'
 import Icon from 'react-native-vector-icons/Ionicons';
-import { Bar } from "react-native-progress";   // ✅ named import
-import { ytThumbs } from '../../../utils/downloadFunctions';
+
 
 type Props = {
     title: string;
@@ -19,7 +18,6 @@ export default function HistoryItem(props: Props) {
         <View style={styles.root}>
             <Image source={{ uri: props.thumbnail }} style={styles.img} />
             <Text style={styles.floatingDuration}>{props.duration}</Text>
-            <Bar progress={40} color='red' height={2} style={styles.progress} />
             <View>
 
                 <View style={styles.top}>

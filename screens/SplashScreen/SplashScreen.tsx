@@ -21,7 +21,7 @@ export default function SplashScreen() {
             })
         ]).start(
             () => {
-                navigation.navigate("LoginScreen");
+                navigation.navigate("CommanScreen");
             }
         )
     }, [])

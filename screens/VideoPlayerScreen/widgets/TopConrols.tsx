@@ -9,17 +9,17 @@ type props = {
     onToggle?: (enabled: boolean) => void;
 }
 
-export default function TopConrols({ showMenu, distroyScreen, onToggle }: props) {
+export default function TopConrols(props: props) {
     return (
         <View style={styles.topControls}>
-            <TouchableOpacity onPress={distroyScreen}>
+            <TouchableOpacity onPress={props.distroyScreen}>
                 <Icon name="chevron-down" size={28} color="white" />
             </TouchableOpacity>
             <View style={styles.rightIcons}>
 
                 <AutoplayButton
                     enabled={true}
-                    onToggle={(val) => console.log('Autoplay toggled:', onToggle?.(val))}
+                    onToggle={(val) => console.log('Autoplay toggled:', props.onToggle?.(val))}
                 />
                 <TouchableOpacity>
                     <Image source={require("../../../assets/cast.png")} style={styles.topIcon} />
@@ -27,7 +27,7 @@ export default function TopConrols({ showMenu, distroyScreen, onToggle }: props)
                 <TouchableOpacity>
                     <Image source={require("../../../assets/caption.png")} style={styles.topIcon} />
                 </TouchableOpacity>
-                <TouchableOpacity onPress={showMenu}>
+                <TouchableOpacity onPress={props.showMenu}>
                     <Image source={require("../../../assets/threedot.png")} style={styles.topIcon} />
                 </TouchableOpacity>
             </View>

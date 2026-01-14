@@ -8,6 +8,8 @@ import com.facebook.react.bridge.ReactMethod
 import com.facebook.react.bridge.WritableMap
 import com.facebook.react.module.annotations.ReactModule
 import com.facebook.react.modules.core.DeviceEventManagerModule
+import com.myapp.extractors.xhamster.XhInitialsFetcher
+import com.myapp.extractors.xhamster.XhRelatedFetcher
 import com.myapp.extractors.youtube.FeedRouter
 import com.myapp.extractors.youtube.NativeFileDownloader
 import com.myapp.extractors.youtube.RelatedShortsFetcher
@@ -17,7 +19,10 @@ import com.myapp.extractors.youtube.YtPlaylistBrowseFetcher
 import com.myapp.extractors.youtube.YtSearchFetcher
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.Job
 import kotlinx.coroutines.launch
+import org.json.JSONObject
+import java.util.concurrent.ConcurrentHashMap
 
 @ReactModule(name = MyNativeModule.NAME)
 class MyNativeModule(
@@ -28,6 +33,8 @@ class MyNativeModule(
     }
 
     val backThread = CoroutineScope(Dispatchers.IO)
+    private val activeDownloads =
+        ConcurrentHashMap<String, Pair<NativeFileDownloader, Job>>()
 
     @ReactMethod
     fun fetchFeed(
@@ -78,6 +85,54 @@ class MyNativeModule(
                 promise.resolve(result.toString())
             } catch (e: Exception) {
                 promise.reject("ERROR", e.message, e)
+            }
+        }
+    }
+
+    @ReactMethod
+    fun getXhInitials(
+        pageUrl: String,
+        promise: Promise,
+    ) {
+        backThread.launch(Dispatchers.IO) {
+            val result = XhInitialsFetcher.fetch(pageUrl)
+            promise.resolve(result)
+        }
+    }
+
+    @ReactMethod
+    fun getXhRelated(
+        paramsJsonString: String,
+        pageUrl: String,
+        promise: Promise,
+    ) {
+        backThread.launch(Dispatchers.IO) {
+            try {
+                val paramsJson = JSONObject(paramsJsonString)
+
+                val headers =
+                    mapOf(
+                        "User-Agent" to
+                            "Mozilla/5.0 (Windows NT 10.0; Win64; x64)",
+                        "Accept" to "application/json",
+                        "X-Requested-With" to "XMLHttpRequest",
+                        "Referer" to pageUrl,
+                        "Sec-Fetch-Mode" to "cors",
+                        "Sec-Fetch-Site" to "same-origin",
+                    )
+
+                val result =
+                    XhRelatedFetcher.fetch(
+                        paramsJson = paramsJson,
+                        headers = headers,
+                    )
+
+                promise.resolve(result)
+            } catch (e: Exception) {
+                promise.reject(
+                    "XH_RELATED_ERROR",
+                    e.message ?: "unknown error",
+                )
             }
         }
     }
@@ -148,20 +203,39 @@ class MyNativeModule(
         videoId: String,
         fileName: String,
     ) {
+        if (activeDownloads.containsKey(videoId)) return
+
         backThread.launch {
+            val job = coroutineContext[Job]!!
+
             val downloader =
                 NativeFileDownloader(reactContext) { id, progress, percent, speed, message ->
-                    backThread.launch(Dispatchers.Main) {
+                    CoroutineScope(Dispatchers.Main).launch {
                         sendProgressUpdate(id, progress, percent, speed, message)
                     }
                 }
 
-            downloader.download(
-                videoInformation,
-                audioInformation,
-                videoId,
-                fileName,
-            )
+            activeDownloads[videoId] = Pair(downloader, job)
+
+            try {
+                downloader.download(
+                    videoInformation,
+                    audioInformation,
+                    videoId,
+                    fileName,
+                )
+            } finally {
+                activeDownloads.remove(videoId)
+            }
+        }
+    }
+
+    @ReactMethod
+    fun cancelDownload(videoId: String) {
+        activeDownloads[videoId]?.let { (downloader, job) ->
+            downloader.cancel() // stop IO loop
+            job.cancel() // stop coroutine
+            activeDownloads.remove(videoId)
         }
     }
 

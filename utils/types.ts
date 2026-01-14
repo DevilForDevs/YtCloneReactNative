@@ -7,7 +7,10 @@ export interface Video {
   channel?: string;
   publishedOn?: string;
   channelUrl?: string,
-  channelName?: string
+  channelName?: string,
+  thumbnail?: string,
+  pageUrl?: string,
+  hls?: string; // 👈 NEW (optional)
 }
 
 export interface VideoDescription {
