@@ -1,5 +1,5 @@
-import { useState, useCallback } from "react";
-import { Modal, View, StyleSheet, Pressable, Text, NativeModules } from "react-native";
+import { useState, useCallback, useRef } from "react";
+import { Modal, View, StyleSheet, Pressable, Text, NativeModules, Image } from "react-native";
 import AskFormat from "./HomeScreen/widgets/AskFormat/AskFormat";
 import { AskFormatContext } from "./AskFormatContext";
 import { Video } from "../utils/types";
@@ -7,12 +7,13 @@ import { getStreamingData, txt2filename } from "../utils/Interact";
 import { mapAdaptiveFormatsToRequired } from "../utils/praserHelpers";
 import { AskFormatModel } from "../utils/types";
 import { ActivityIndicator } from "react-native";
-import { getSelectedFormats } from "../utils/downloadFunctions";
-import { DownloadItem } from "../utils/types";
-import { DownloadsStore } from "../utils/Store";
 import { SQLiteDatabase } from 'react-native-sqlite-storage';
-import { addDownload, initDB } from "../utils/dbfunctions";
+import { initDB } from "../utils/dbfunctions";
 import { formatDurationHMS } from "../utils/EndPoints";
+import { handleFormatSelect } from "./AskFromatBackends/handleFormatSelect";
+import { findCategories } from "./AskFromatBackends/categoriesParser";
+import { FlatList } from "react-native-gesture-handler";
+
 
 
 export const AskFormatProvider: React.FC<{ children: React.ReactNode }> = ({
@@ -22,10 +23,13 @@ export const AskFormatProvider: React.FC<{ children: React.ReactNode }> = ({
     const [visible, setVisible] = useState(false);
     const [loading, setLoading] = useState(false);
     const [requiredFmts, setRequiredFmts] = useState<AskFormatModel[]>([]);
+    const [requiredCategories, setRequiredCategorires] = useState<CategoryGroup[]>([]);
     const [currentVideo, setCurrentVideo] = useState<Video>();
-    const { addDownloadItem, totalDownloads } = DownloadsStore();
     const [db, setDb] = useState<SQLiteDatabase | null>(null);
-    const { MyNativeModule } = NativeModules;
+    const resolverRef = useRef<((result: string) => void) | null>(null);
+
+
+
 
 
     const fetchStreamingInfo = useCallback(async (video: Video) => {
@@ -67,93 +71,46 @@ export const AskFormatProvider: React.FC<{ children: React.ReactNode }> = ({
         }
     }, []);
 
-    async function mhandleFormatSelect(itag: number) {
-        if (currentVideo != undefined) {
 
-            const { selectedVideoFmt, selectedAudioFmt } = getSelectedFormats(itag, requiredFmts);
-            const videoInformation = JSON.stringify(selectedVideoFmt);
-            const audioInformation = JSON.stringify(selectedAudioFmt);
-            const DownloadItmm: DownloadItem = {
-                transferInfo: "Initiating",
-                progressPercent: 0,
-                isFinished: false,
-                isStopped: false,
-                speed: "500KB/s",
-                message: "Video",
-                video: {
-                    ...currentVideo,
-                    title: videoInformation != audioInformation ? `${txt2filename(currentVideo.title)}(${selectedVideoFmt.info}).mp4` : `${txt2filename(currentVideo.title)}.mp3`
-                }
-            }
-            console.log(DownloadItmm);
-
-
-
-            const prasedFileName = txt2filename(currentVideo.title);
-            if (videoInformation == audioInformation) {
-                console.log("audiofmt");
-
-                const exists = totalDownloads.some(
-                    item => item.video.videoId === currentVideo.videoId
-                );
-
-                if (!exists) {
-                    const insertedId = await addDownload(db, prasedFileName + ".mp3", "music", currentVideo.videoId, 0, 0, currentVideo.duration ?? "");
-                    addDownloadItem(DownloadItmm, 0);
-                }
-
-
-            } else {
-
-
-                const exists = totalDownloads.some(
-                    item => item.video.videoId === currentVideo.videoId
-                );
-                console.log(exists);
-
-                if (!exists) {
-                    const insertedId = await addDownload(db, `${prasedFileName}(${selectedVideoFmt.info}).mp4`, "movies", currentVideo.videoId, 0, 0, currentVideo.duration ?? "");
-                    addDownloadItem(DownloadItmm, 0);
-                }
-
-
-            }
-
-            MyNativeModule.native_fileDownloader(videoInformation, audioInformation, currentVideo.videoId, prasedFileName);
-
-        }
-    }
-
-    /**
-     * Open bottom sheet
-     */
-    const openAskFormat = (video: Video) => {
+    const openAskFormat = async (video: Video, onClose: (result: string) => void) => {
         setVisible(true);
-        fetchStreamingInfo(video);
+        if (video.title == "pornCategories") {
+            const categories = await findCategories(video);
+            setRequiredCategorires(categories);
+            resolverRef.current = onClose;
+        } else {
+            fetchStreamingInfo(video);
+        }
+
     };
 
-    /**
-     * Close bottom sheet & cleanup
-     */
-    const closeAskFormat = () => {
+    const closeAskFormat = (result: string) => {
         setVisible(false);
+        // pass result back to caller
+        resolverRef.current?.(result);
+        resolverRef.current = null;
         setRequiredFmts([]);
         setLoading(false);
     };
 
+
     return (
-        <AskFormatContext.Provider value={{ openAskFormat, closeAskFormat }}>
+        <AskFormatContext.Provider value={{
+            openAskFormat, closeAskFormat() {
+
+            },
+        }}>
             {children}
 
             <Modal
                 visible={visible}
                 transparent
                 animationType="slide"
-                onRequestClose={closeAskFormat}
+                onRequestClose={() => closeAskFormat("")}
             >
                 <View style={styles.overlay}>
                     {/* backdrop */}
-                    <Pressable style={styles.backdrop} onPress={closeAskFormat} />
+                    <Pressable style={styles.backdrop} onPress={() => closeAskFormat("")} />
 
                     {/* bottom sheet */}
                     <View style={styles.halfSheet}>
@@ -166,18 +123,59 @@ export const AskFormatProvider: React.FC<{ children: React.ReactNode }> = ({
                                 No formats available
                             </Text>
                         )}
-
                         {!loading && requiredFmts.length > 0 && (
                             <AskFormat
                                 videoTitle={currentVideo?.title ?? "No title"}
                                 requiredFormats={requiredFmts}
-                                closeRequest={closeAskFormat}
+                                closeRequest={() => closeAskFormat("")}
                                 onFormatSelection={(itag) => {
-                                    mhandleFormatSelect(itag);
-                                    closeAskFormat();
+                                    handleFormatSelect(itag, currentVideo, requiredFmts);
+                                    closeAskFormat("");
                                 }}
                             />
                         )}
+
+                        {!loading && requiredCategories.length > 0 && (
+                            <FlatList
+                                data={requiredCategories}
+                                keyExtractor={(item, index) => `${item.name}-${index}`}
+                                renderItem={({ item }) => (
+                                    <View style={{ marginBottom: 20 }}>
+                                        {/* Group title */}
+                                        <Text style={styles.groupTitle}>
+                                            {item.name}
+                                        </Text>
+
+                                        {/* Inner FlatList */}
+                                        <FlatList
+                                            data={item.categories}
+                                            keyExtractor={(cat, idx) => `${cat.pageUrl}-${idx}`}
+                                            horizontal
+                                            showsHorizontalScrollIndicator={false}
+                                            renderItem={({ item: cat }) => (
+                                                <Pressable
+                                                    style={styles.categoryCard}
+                                                    onPress={() => {
+                                                        closeAskFormat(cat.pageUrl);
+                                                    }}
+                                                >
+                                                    <Image
+                                                        source={{ uri: cat.thumbnail }}
+                                                        style={styles.thumbnail}
+                                                        resizeMode="cover"
+                                                    />
+                                                    <Text style={styles.categoryName} numberOfLines={2}>
+                                                        {cat.name}
+                                                    </Text>
+                                                </Pressable>
+                                            )}
+                                        />
+                                    </View>
+                                )}
+                            />
+                        )}
+
+
                     </View>
                 </View>
             </Modal>
@@ -208,4 +206,28 @@ const styles = StyleSheet.create({
         marginTop: 32,
         color: "#666",
     },
+    groupTitle: {
+        fontSize: 16,
+        fontWeight: "600",
+        marginBottom: 8,
+    },
+
+    categoryCard: {
+        width: 120,
+        marginRight: 12,
+    },
+
+    thumbnail: {
+        width: "100%",
+        height: 80,
+        borderRadius: 8,
+        backgroundColor: "#ddd",
+    },
+
+    categoryName: {
+        marginTop: 6,
+        fontSize: 12,
+        textAlign: "center",
+    },
+
 });

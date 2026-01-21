@@ -8,6 +8,7 @@ import com.facebook.react.bridge.ReactMethod
 import com.facebook.react.bridge.WritableMap
 import com.facebook.react.module.annotations.ReactModule
 import com.facebook.react.modules.core.DeviceEventManagerModule
+import com.myapp.extractors.metaporn.JsonHtmlBridge
 import com.myapp.extractors.xhamster.XhInitialsFetcher
 import com.myapp.extractors.xhamster.XhRelatedFetcher
 import com.myapp.extractors.youtube.FeedRouter
@@ -97,6 +98,26 @@ class MyNativeModule(
         backThread.launch(Dispatchers.IO) {
             val result = XhInitialsFetcher.fetch(pageUrl)
             promise.resolve(result)
+        }
+    }
+
+    @ReactMethod
+    fun htmlJsonBridge(
+        pageUrl: String,
+        schemaJson: String,
+        promise: Promise,
+    ) {
+        backThread.launch(Dispatchers.IO) {
+            try {
+                val schema = JSONObject(schemaJson)
+                val result = JsonHtmlBridge.fetch(pageUrl, schema)
+                promise.resolve(result)
+            } catch (e: Exception) {
+                promise.reject(
+                    "META_PORN_SCHEMA_ERROR",
+                    e.message ?: "invalid schema",
+                )
+            }
         }
     }
 

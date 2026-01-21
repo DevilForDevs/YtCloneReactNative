@@ -144,7 +144,7 @@ export default function Player(props: Props) {
                         uri: props.url,
                         headers: {
                             "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/143.0.0.0 Safari/537.36",
-                            "Origin": "https://xhamster1.desi",
+                            "Origin": props.pageUrl ?? "",
                             "Referer": props.pageUrl ?? "https://xhamster1.desi/",
                             "Accept": "*/*",
                             "Platform": "Windows",

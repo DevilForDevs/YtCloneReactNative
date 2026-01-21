@@ -52,8 +52,10 @@ declare global {
         PlaylistScreen: { playlistlink: string },
         ChannelScreen: { channelUrl: string },
         SitesScreen: undefined,
-        CommanScreen: undefined,
-        CommanPlayerScreen: { arrivedVideo: Video }
+        CommanScreen: { link: string },
+        CommanPlayerScreen: { arrivedVideo: Video },
+        CategoryScreen: { link: string },
+        CategoryItemsScreen: { link: string }
     };
 
     type navStack = NativeStackNavigationProp<
@@ -65,7 +67,7 @@ declare global {
     };
 
     type AskFormatContextType = {
-        openAskFormat: (options: Video) => void;
+        openAskFormat: (options: Video, onClose: (result: string) => void) => void;
         closeAskFormat: () => void;
     };
 
@@ -77,6 +79,16 @@ declare global {
         totalVideos?: string,
         posterUrl?: string,
         channelTabs: ChannelTab[]
+    }
+
+    export interface CategoryType {
+        name: string,
+        pageUrl: string,
+        thumbnail?: string
+    }
+    type CategoryGroup = {
+        name: string,
+        categories: CategoryType[]
     }
 
 

@@ -95,6 +95,7 @@ export default function OfflinePlayer() {
                         <DownloadItemView
                             item={item}
                             onItemPress={() => handleItemClick(item)}
+
                         />
                     )}
                     contentContainerStyle={styles.listContent}

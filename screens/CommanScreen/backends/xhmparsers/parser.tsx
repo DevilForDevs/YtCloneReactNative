@@ -55,6 +55,81 @@ export type ExtractedData = {
     standard: string[];
 };
 
+export function metaPornSimplifiers(jsonString: string): Video[] {
+    const videos: Video[] = [];
+    let parsed;
+
+    try {
+        parsed = JSON.parse(jsonString);
+    } catch {
+        console.error("Invalid JSON:", jsonString);
+        return videos;
+    }
+
+    if (Array.isArray(parsed)) {
+        parsed.forEach(el => console.log(el));
+    } else if (Array.isArray(parsed.items)) {
+        parsed.items.forEach((el: any) => {
+            videos.push(
+                {
+                    type: "video",
+                    videoId: String(el.title),
+                    title: String(el.title),
+                    duration: "",
+                    views: "",
+                    channel: "",
+                    channelName: "",
+                    channelUrl: "",
+                    thumbnail: el.thumbnail,
+                    pageUrl: el.href,
+                }
+            )
+        });
+        return videos
+    } else {
+        console.log("No iterable items found");
+    }
+    return videos
+}
+
+export function metaPornCatSimplifiers(jsonString: string): Video[] {
+    const videos: Video[] = [];
+
+    let parsed;
+
+    try {
+        parsed = JSON.parse(jsonString);
+    } catch {
+        console.error("Invalid JSON:", jsonString);
+        return videos;
+    }
+
+    if (Array.isArray(parsed)) {
+        parsed.forEach(el => console.log(el));
+    } else if (Array.isArray(parsed.items)) {
+        parsed.items.forEach((el: any) => {
+            videos.push(
+                {
+                    type: "video",
+                    videoId: String(el.title),
+                    title: String(el.title),
+                    duration: el.duration,
+                    views: "",
+                    channel: "",
+                    channelName: el.host,
+                    channelUrl: "",
+                    thumbnail: el.thumbnail,
+                    pageUrl: el.outUrl,
+                }
+            )
+        });
+        return videos;
+    } else {
+        console.log("No iterable items found");
+    }
+    return videos;
+}
+
 
 const toArray = (v: any): any[] => Array.isArray(v) ? v : [];
 

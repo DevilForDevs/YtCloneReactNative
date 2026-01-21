@@ -3,7 +3,7 @@ import {
     Text,
     View,
     Image, NativeModules, FlatList,
-    ActivityIndicator, Pressable
+    ActivityIndicator, Pressable, ToastAndroid
 
 } from 'react-native'
 import React, { useCallback, useEffect, useRef, useState } from 'react'
@@ -15,22 +15,33 @@ import { extractItems } from './backends/xhmparsers/parser'
 import { useVideoStoreForWatch } from '../../utils/Store'
 import { ShortVideo, Video } from '../../utils/types'
 import { ListRenderItem } from 'react-native';
-import { useNavigation } from '@react-navigation/native'
+import { useAskFormat } from '../AskFormatContext'
+import { RouteProp, useNavigation, useRoute } from "@react-navigation/native";
+import { feeds, nextBrowseContinuation, searchApi } from './backends/siteManager'
+
+
+type NavigationProp = RouteProp<
+    RootStackParamList,
+    "CommanScreen"
+>;
 
 
 export default function CommanScreen() {
     const { MyNativeModule } = NativeModules;
     const navigation = useNavigation<navStack>();
-
-
+    const route = useRoute<NavigationProp>();
+    const { link } = route.params;
     const listRef = useRef<FlatList>(null);
     const onEndReachedCalledDuringMomentum = useRef(false);
 
     const [menuVisible, setMenuVisible] = useState(false);
-    const [pageNo, setPageNo] = useState(1);
+    const [pageNo, setPageNo] = useState(2);
     const [isFetchingMore, setIsFetchingMore] = useState(false);
     const [retryCount, setRetryCount] = useState(0);
     const [isSearch, setIsSearch] = useState(false);
+    const { openAskFormat } = useAskFormat();
+    const [currentCategory, setCurrentCategory] = useState("");
+    const [isReachedEnd, setReachedEnd] = useState(false);
 
     const {
         totalVideos,
@@ -45,92 +56,20 @@ export default function CommanScreen() {
     }, []);
 
     const loadHome = async () => {
-        try {
-            const jsonString = await MyNativeModule.getXhInitials(
-                'https://xhamster1.desi/'
-            );
-            const result = extractItems(JSON.parse(jsonString));
-            result.videos.forEach(element => {
-                addVideo(element)
-            });
-            setPageNo(2);
-        } catch (e) {
-            console.log('Initial load failed', e);
-        }
+        const items = await feeds(link);
+        items.forEach(element => {
+            addVideo(element);
+        });
     };
 
 
-    const nextBrowse = useCallback(async () => {
-        if (isFetchingMore) return;
-
-        try {
-            setIsFetchingMore(true);
-
-            const currentPage = pageNo;
-            let url = '';
-
-            if (isSearch) {
-                const trimmed = query.trim();
-                if (!trimmed) return;
-
-                url = `https://xhamster1.desi/search/${encodeURIComponent(
-                    trimmed
-                )}?page=${currentPage}`;
-            } else {
-                url = `https://xhamster1.desi/${currentPage}`;
-            }
-
-            const jsonString = await MyNativeModule.getXhInitials(url);
-            const result = extractItems(JSON.parse(jsonString));
-
-            result.videos.forEach(element => {
-                addVideo(element)
-            });
-            setPageNo(prev => prev + 1);
-            setRetryCount(0);
-        } catch (e) {
-            console.log('Pagination error', e);
-
-            if (retryCount < 3) {
-                setRetryCount(prev => prev + 1);
-                nextBrowse();
-            }
-        } finally {
-            setIsFetchingMore(false);
-        }
-    }, [isFetchingMore, isSearch, pageNo, query, retryCount]);
-
-    /* -------------------- SEARCH -------------------- */
-
-    const search = async (text: string) => {
-        const trimmed = text.trim();
-        if (!trimmed) return;
-
-        clearVideos();
-        setQuery(trimmed);
-        setIsSearch(true);
-        setRetryCount(0);
-
-        try {
-            const url = `https://xhamster1.desi/search/${encodeURIComponent(
-                trimmed
-            )}`;
-            const jsonString = await MyNativeModule.getXhInitials(url);
-            const result = extractItems(JSON.parse(jsonString));
-
-            result.videos.forEach(element => {
-                addVideo(element)
-            });
-            setPageNo(2);
-            listRef.current?.scrollToOffset({ offset: 0, animated: false });
-        } catch (e) {
-            console.log('Search failed', e);
-        }
-    };
 
     async function handleItemClick(item: Video | ShortVideo) {
         if (item.type == "video") {
-            navigation.navigate("CommanPlayerScreen", { arrivedVideo: item })
+            if (item.pageUrl?.includes("category")) {
+                navigation.navigate("CategoryItemsScreen", { link: item.pageUrl })
+            }
+            // navigation.navigate("CommanPlayerScreen", { arrivedVideo: item })
         }
     }
 
@@ -141,6 +80,42 @@ export default function CommanScreen() {
         return null;
     };
 
+    async function nextBrowse() {
+        if (isReachedEnd) {
+            ToastAndroid.show("Reached End", ToastAndroid.SHORT);
+            return; // ✅ STOP HERE
+        }
+
+        if (isFetchingMore) return;
+
+        try {
+            setIsFetchingMore(true);
+
+            const continuationItems = await nextBrowseContinuation(
+                link,
+                pageNo,
+                currentCategory,
+                query
+            );
+
+            if (continuationItems.length === 0) {
+                setReachedEnd(true);
+                setRetryCount(0);
+            } else {
+                continuationItems.forEach(addVideo);
+                setPageNo(prev => prev + 1);
+                setRetryCount(0);
+            }
+        } catch (e) {
+            if (retryCount < 3) {
+                setRetryCount(prev => prev + 1);
+                nextBrowse();
+            }
+            console.log(e);
+        } finally {
+            setIsFetchingMore(false);
+        }
+    }
 
 
     const renderFooter = () => {
@@ -166,7 +141,39 @@ export default function CommanScreen() {
         return null;
     };
 
-    /* -------------------- UI -------------------- */
+    async function handleCatSel(params: string) {
+        clearVideos();
+        setIsSearch(true);
+        setRetryCount(0);
+        const jsonString = await MyNativeModule.getXhInitials(
+            params
+        );
+        console.log(JSON.parse(jsonString));
+        const result = extractItems(JSON.parse(jsonString));
+        result.videos.forEach(element => {
+            addVideo(element)
+        });
+
+    }
+
+    async function search(text: string) {
+        if (isFetchingMore) return;
+        try {
+            setIsFetchingMore(true);
+            const searchItems = await searchApi(link, text);
+            searchItems.forEach(element => {
+                addVideo(element)
+            });
+        } catch (e) {
+            if (retryCount < 3) {
+                setRetryCount(prev => prev + 1);
+                nextBrowse();
+            }
+        } finally {
+            setIsFetchingMore(false);
+        }
+
+    }
 
     return (
         <SafeAreaView style={styles.container}>
@@ -186,7 +193,26 @@ export default function CommanScreen() {
                     onToggle={() => setMenuVisible(v => !v)}
                     onClose={() => setMenuVisible(false)}
                     items={[
-                        { label: 'Categories', onPress: () => setMenuVisible(false) },
+                        {
+                            label: 'Categories', onPress: () => {
+                                setMenuVisible(false);
+                                const firstVideo = totalVideos.find(
+                                    (item): item is Video => item.type === "video"
+                                );
+                                if (firstVideo != undefined) {
+
+                                    openAskFormat({
+                                        ...firstVideo,
+                                        title: "pornCategories"
+                                    }, (result) => {
+                                        handleCatSel(result);
+                                    });
+
+
+                                }
+
+                            }
+                        },
                         { label: 'Tags', onPress: () => setMenuVisible(false) },
                     ]}
                 />
@@ -278,6 +304,6 @@ const styles = StyleSheet.create({
     },
     contentContainer: {
         gap: 10,
-        marginHorizontal: 12,
+        alignItems: "center"
     },
 })

@@ -260,37 +260,40 @@ export async function getIosPlayerResponse(videoId: string): Promise<any> {
         osVersion: "18.2.1.22C161",
         hl: "en-GB",
         gl: "GB",
-        utcOffsetMinutes: 0
+        utcOffsetMinutes: 0,
       },
       request: {
         internalExperimentFlags: [],
-        useSsl: true
+        useSsl: true,
       },
       user: {
-        lockedSafetyMode: false
-      }
+        lockedSafetyMode: false,
+      },
     },
     videoId,
     cpn,
     contentCheckOk: true,
-    racyCheckOk: true
+    racyCheckOk: true,
   };
 
   const headers = {
-    "User-Agent": "com.google.ios.youtube/20.03.02(iPhone16,2; U; CPU iOS 18_2_1 like Mac OS X; GB)",
+    "User-Agent":
+      "com.google.ios.youtube/20.03.02(iPhone16,2; U; CPU iOS 18_2_1 like Mac OS X; GB)",
     "X-Goog-Api-Format-Version": "2",
     "Content-Type": "application/json",
-    "Accept-Language": "en-GB, en;q=0.9"
+    "Accept-Language": "en-GB, en;q=0.9",
   };
 
   const res = await fetch(url, {
     method: "POST",
     headers,
-    body: JSON.stringify(body)
+    body: JSON.stringify(body),
   });
 
   return res.json();
 }
+
+
 
 export async function fetchPlaylistUsingPost(
   url: string,

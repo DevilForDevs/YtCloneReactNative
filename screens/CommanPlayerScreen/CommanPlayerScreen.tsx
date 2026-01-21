@@ -5,14 +5,13 @@ import { SafeAreaView } from 'react-native-safe-area-context'
 import { RouteProp, useNavigation, useRoute } from "@react-navigation/native";
 import { extractItems, fetchM3u8Resolutions } from '../CommanScreen/backends/xhmparsers/parser';
 import Player from '../VideoPlayerScreen/widgets/Player';
-import { useVideoStoreForPlaylist, useVideoStoreForWatch } from '../../utils/Store';
+import { useVideoStoreForPlaylist, useVideoStoreForSearch, useVideoStoreForWatch } from '../../utils/Store';
 import { Video, ShortVideo } from '../../utils/types';
 import GridItem from '../CommanScreen/widgets/GridItem';
 import { ListRenderItem } from 'react-native';
 import { VideoDescription } from '../../utils/types';
-import ChannelHeader from '../ChannelScreen/widgets/ChannelHeader';
 import VideoDetails from '../VideoPlayerScreen/widgets/VideoDetails';
-import { videoId } from '../../utils/Interact';
+import { decodeLParam } from './backends/utils';
 
 
 type NavigationProp = RouteProp<
@@ -45,7 +44,7 @@ export default function CommanPlayerScreen() {
         clearVideos,
         setQuery,
         query,
-    } = useVideoStoreForPlaylist();
+    } = useVideoStoreForSearch();
 
 
     function buildNextPagingParams(
@@ -71,13 +70,12 @@ export default function CommanPlayerScreen() {
 
 
     async function loadData(mvideo: Video) {
-        clearVideos();
 
         const jsonString = await MyNativeModule.getXhInitials(
-            mvideo.pageUrl
+            decodeLParam(mvideo.pageUrl ?? "")
         );
         const jsoboject = JSON.parse(jsonString);
-
+        console.log(jsoboject);
         const result = extractItems(jsoboject);
         setMediaUrl(jsoboject.mp4Url);
         result.videos.forEach(element => {
@@ -108,6 +106,8 @@ export default function CommanPlayerScreen() {
             dislikes: "",
             commentsCount: jsoboject?.videoEntity?.commentsCount ?? 0
         });
+
+
     }
 
 
