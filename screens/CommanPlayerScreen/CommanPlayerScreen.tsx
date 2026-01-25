@@ -3,15 +3,14 @@ import React, { useCallback, useEffect, useRef, useState } from 'react'
 import { SafeAreaView } from 'react-native-safe-area-context'
 
 import { RouteProp, useNavigation, useRoute } from "@react-navigation/native";
-import { extractItems, fetchM3u8Resolutions } from '../CommanScreen/backends/xhmparsers/parser';
 import Player from '../VideoPlayerScreen/widgets/Player';
-import { useVideoStoreForPlaylist, useVideoStoreForSearch, useVideoStoreForWatch } from '../../utils/Store';
+import { useVideoStoreForSearch } from '../../utils/Store';
 import { Video, ShortVideo } from '../../utils/types';
 import GridItem from '../CommanScreen/widgets/GridItem';
 import { ListRenderItem } from 'react-native';
 import { VideoDescription } from '../../utils/types';
 import VideoDetails from '../VideoPlayerScreen/widgets/VideoDetails';
-import { decodeLParam } from './backends/utils';
+import { getVideoFileUrlAndDetails } from './backends/utils';
 
 
 type NavigationProp = RouteProp<
@@ -37,7 +36,6 @@ export default function CommanPlayerScreen() {
     const [currentVideo, setCurrentVideo] = useState<VideoDescription>();
     const [pagingParams, setPagingParams] = useState<any>(null);
 
-
     const {
         totalVideos,
         addVideo,
@@ -47,69 +45,24 @@ export default function CommanPlayerScreen() {
     } = useVideoStoreForSearch();
 
 
-    function buildNextPagingParams(
-        base: any,
-        pageNo: number
-    ) {
-        if (!base) return null;
-
-        return {
-            ...base,
-            page: pageNo,
-            currentlyShownCount:
-                (base.currentlyShownCount ?? 0) + 12,
-            // ⚠️ keep this stable across pages
-            viewIdForce: base.viewIdForce,
-            "tabId": null,
-            "tabType": "video",
-            "isDesktop": true,
-            "withWidget": true,
-            videoId: currentVideo?.video.videoId
-        };
-    }
-
-
     async function loadData(mvideo: Video) {
+        clearVideos()
+        const vid = await getVideoFileUrlAndDetails(mvideo);
+        setCurrentVideo(vid);
 
-        const jsonString = await MyNativeModule.getXhInitials(
-            decodeLParam(mvideo.pageUrl ?? "")
-        );
-        const jsoboject = JSON.parse(jsonString);
-        console.log(jsoboject);
-        const result = extractItems(jsoboject);
-        setMediaUrl(jsoboject.mp4Url);
-        result.videos.forEach(element => {
-            addVideo(element);
-        });
-        const paging =
-            jsoboject?.relatedVideosComponent?.pagingRequestData;
 
-        if (paging) {
-            setPagingParams(paging);
+        const source =
+            vid.streamingSources?.find(s => s.type === "mp4") ??
+            vid.streamingSources?.[0];
+
+        if (source) {
+            setMediaUrl(source.ref);
         }
 
-        setCurrentVideo({
-            title: mvideo.title,
-            channelName: mvideo.channelName ?? "",
-            channelPhoto:
-                jsoboject?.videoSponsor?.avatarUrl ??
-                mvideo.channel ??
-                "",
-            channelId: jsoboject?.videoEntity?.authorId ?? "",
-            video: mvideo,
-            hashTags: "",
-            hlsUrl: "",
-            views: jsoboject?.videoEntity?.views ?? 0,
-            uploaded: jsoboject?.videoEntity?.dateAgo ?? "",
-            subscriber: "",
-            likes: "",
-            dislikes: "",
-            commentsCount: jsoboject?.videoEntity?.commentsCount ?? 0
+        vid.suggestedVideos?.forEach(element => {
+            addVideo(element);
         });
-
-
     }
-
 
     useEffect(() => {
         loadData(arrivedVideo)
@@ -125,7 +78,6 @@ export default function CommanPlayerScreen() {
 
     }
 
-
     async function handleItemClick(item: Video | ShortVideo) {
         if (item.type == "video") {
             setPageNo(2);
@@ -139,47 +91,6 @@ export default function CommanPlayerScreen() {
         }
         return null;
     };
-
-    const nextBrowse = useCallback(async () => {
-        if (isFetchingMore) return;
-        if (!currentVideo || !pagingParams) return;
-
-        try {
-            setIsFetchingMore(true);
-
-            const nextParams = buildNextPagingParams(
-                pagingParams,
-                pageNo
-            );
-
-            const jsonString = await MyNativeModule.getXhRelated(
-                JSON.stringify(nextParams),
-                currentVideo.video.pageUrl
-            );
-
-            const jsoboject = JSON.parse(jsonString);
-            const result = extractItems(jsoboject);
-
-            result.videos.forEach(addVideo);
-
-            // 🔥 update paging data from response
-            const newPaging =
-                jsoboject?.relatedVideosComponent?.pagingRequestData;
-
-            if (newPaging) {
-                setPagingParams(newPaging);
-            }
-
-            setPageNo(prev => prev + 1);
-            setRetryCount(0);
-
-        } catch (e) {
-            console.log("Pagination error", e);
-            setRetryCount(prev => prev + 1);
-        } finally {
-            setIsFetchingMore(false);
-        }
-    }, [isFetchingMore, pagingParams, pageNo, currentVideo]);
 
 
     const renderFooter = () => {
@@ -195,7 +106,7 @@ export default function CommanPlayerScreen() {
             return (
                 <View style={styles.centerState}>
                     <Text style={styles.retryText}>Something went wrong</Text>
-                    <Pressable style={styles.retryBtn} onPress={nextBrowse}>
+                    <Pressable style={styles.retryBtn} onPress={() => console.log("retrying")}>
                         <Text style={styles.retryBtnText}>Retry</Text>
                     </Pressable>
                 </View>
@@ -208,6 +119,7 @@ export default function CommanPlayerScreen() {
     async function handleProgress() {
 
     }
+
 
 
     return (
@@ -227,6 +139,7 @@ export default function CommanPlayerScreen() {
 
                 }}
                 pageUrl={arrivedVideo.pageUrl}
+                videoHeaders={currentVideo?.streamingRefrer}
             />
             {
                 showFlatList ? <FlatList
@@ -243,7 +156,6 @@ export default function CommanPlayerScreen() {
                     windowSize={7}
                     onEndReached={() => {
                         if (!onEndReachedCalledDuringMomentum.current) {
-                            nextBrowse();
                             onEndReachedCalledDuringMomentum.current = true;
                         }
                     }}

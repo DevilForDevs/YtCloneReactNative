@@ -29,7 +29,8 @@ export default function BrowserScreen() {
   const {
     addVideo,
     setContinuation,
-    setVisitorData
+    setVisitorData,
+    totalVideos
 
   } = useVideoStore();
 
@@ -89,9 +90,14 @@ export default function BrowserScreen() {
       });
     }
     setContinuation(videoGroup.continuationTokens?.[0] ?? "");
-    if (name == "Youtube") {
+
+    if (totalVideos.length != 0) {
       navigation.navigate("BottomNav");
     }
+
+    // if (name == "Youtube") {
+    //   navigation.navigate("BottomNav");
+    // }
   }
 
   async function onMessage(event: any) {
@@ -126,9 +132,6 @@ export default function BrowserScreen() {
       console.warn("WebView message error:", err);
     }
   }
-
-
-
 
   return (
     <SafeAreaView style={styles.container}>

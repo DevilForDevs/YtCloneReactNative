@@ -21,7 +21,7 @@ export default function SplashScreen() {
             })
         ]).start(
             () => {
-                navigation.navigate("CommanScreen", { link: "https://www.metaporn.com" });
+                navigation.navigate("SitesScreen");
             }
         )
     }, [])

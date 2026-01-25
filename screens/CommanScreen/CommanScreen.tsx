@@ -6,7 +6,7 @@ import {
     ActivityIndicator, Pressable, ToastAndroid
 
 } from 'react-native'
-import React, { useCallback, useEffect, useRef, useState } from 'react'
+import React, { useEffect, useRef, useState } from 'react'
 import { SafeAreaView } from 'react-native-safe-area-context'
 import SearchBar from './widgets/SearchBar'
 import OverflowMenu from './widgets/OverflowMenu'
@@ -30,7 +30,7 @@ export default function CommanScreen() {
     const { MyNativeModule } = NativeModules;
     const navigation = useNavigation<navStack>();
     const route = useRoute<NavigationProp>();
-    const { link } = route.params;
+    const { site } = route.params;
     const listRef = useRef<FlatList>(null);
     const onEndReachedCalledDuringMomentum = useRef(false);
 
@@ -56,20 +56,23 @@ export default function CommanScreen() {
     }, []);
 
     const loadHome = async () => {
-        const items = await feeds(link);
+        clearVideos();
+        setIsFetchingMore(true);
+        const items = await feeds(site.url);
         items.forEach(element => {
             addVideo(element);
         });
+        setIsFetchingMore(false);
     };
-
-
 
     async function handleItemClick(item: Video | ShortVideo) {
         if (item.type == "video") {
             if (item.pageUrl?.includes("category")) {
                 navigation.navigate("CategoryItemsScreen", { link: item.pageUrl })
+            } else {
+                navigation.navigate("CommanPlayerScreen", { arrivedVideo: item })
             }
-            // navigation.navigate("CommanPlayerScreen", { arrivedVideo: item })
+
         }
     }
 
@@ -85,14 +88,12 @@ export default function CommanScreen() {
             ToastAndroid.show("Reached End", ToastAndroid.SHORT);
             return; // ✅ STOP HERE
         }
-
         if (isFetchingMore) return;
 
         try {
             setIsFetchingMore(true);
-
             const continuationItems = await nextBrowseContinuation(
-                link,
+                site.url,
                 pageNo,
                 currentCategory,
                 query
@@ -160,7 +161,7 @@ export default function CommanScreen() {
         if (isFetchingMore) return;
         try {
             setIsFetchingMore(true);
-            const searchItems = await searchApi(link, text);
+            const searchItems = await searchApi(site.url, text);
             searchItems.forEach(element => {
                 addVideo(element)
             });
@@ -183,7 +184,7 @@ export default function CommanScreen() {
                         source={{ uri: 'https://picsum.photos/id/237/536/354' }}
                         style={styles.logo}
                     />
-                    <Text style={styles.title}>CommanScreen</Text>
+                    <Text style={styles.title}>{site.name}</Text>
                 </View>
 
                 <SearchBar onSubmit={search} />
@@ -196,20 +197,7 @@ export default function CommanScreen() {
                         {
                             label: 'Categories', onPress: () => {
                                 setMenuVisible(false);
-                                const firstVideo = totalVideos.find(
-                                    (item): item is Video => item.type === "video"
-                                );
-                                if (firstVideo != undefined) {
-
-                                    openAskFormat({
-                                        ...firstVideo,
-                                        title: "pornCategories"
-                                    }, (result) => {
-                                        handleCatSel(result);
-                                    });
-
-
-                                }
+                                navigation.navigate("CategoryScreen", { site })
 
                             }
                         },

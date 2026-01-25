@@ -24,7 +24,8 @@ type Props = {
     onToggle?: (enabled: boolean) => void;
     videoEnded?: (endedAsScreen: boolean) => void,
     startAsScreen: boolean,
-    pageUrl?: string
+    pageUrl?: string,
+    videoHeaders?: VideoHeaders
 }
 
 export default function Player(props: Props) {
@@ -133,8 +134,6 @@ export default function Player(props: Props) {
 
     }
 
-
-
     return (
         <View>
             <View style={isFullscreen ? styles.fullScreenWrapper : styles.videoWrapper}>
@@ -142,22 +141,7 @@ export default function Player(props: Props) {
                     ref={videoRef}
                     source={{
                         uri: props.url,
-                        headers: {
-                            "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/143.0.0.0 Safari/537.36",
-                            "Origin": props.pageUrl ?? "",
-                            "Referer": props.pageUrl ?? "https://xhamster1.desi/",
-                            "Accept": "*/*",
-                            "Platform": "Windows",
-                            "Sec-CH-UA": `"Google Chrome";v="143", "Chromium";v="143", "Not A(Brand";v="24"`,
-                            "Sec-CH-UA-Mobile": "?0",
-                            "Sec-CH-UA-Platform": `"Windows"`,
-                            "Sec-CH-UA-Platform-Version": `"10.0.0"`,
-                            "Cache-Control": "no-cache",
-                            "Pragma": "no-cache",
-                            "Accept-Encoding": "gzip, deflate, br, zstd",
-                            "Accept-Language": "en-GB,en;q=0.9",
-                        },
-
+                        headers: props.videoHeaders ?? {},
                     }}
                     style={styles.video}
                     resizeMode="contain"

@@ -52,9 +52,9 @@ declare global {
         PlaylistScreen: { playlistlink: string },
         ChannelScreen: { channelUrl: string },
         SitesScreen: undefined,
-        CommanScreen: { link: string },
+        CommanScreen: { site: Site },
         CommanPlayerScreen: { arrivedVideo: Video },
-        CategoryScreen: { link: string },
+        CategoryScreen: { site: Site },
         CategoryItemsScreen: { link: string }
     };
 
@@ -90,6 +90,23 @@ declare global {
         name: string,
         categories: CategoryType[]
     }
+    type VideoHeaders = {
+        [key: string]: string;
+    };
+
+    export type StreamVariant = {
+        ref: string;
+        type: "hls" | "mp4"
+        resolution?: string;
+    };
+
+    type Site = {
+        id: string
+        name: string
+        url: string
+        route?: string
+    }
+
 
 
 

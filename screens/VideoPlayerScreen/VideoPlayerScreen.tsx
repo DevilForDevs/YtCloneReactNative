@@ -299,7 +299,9 @@ export default function VideoPlayerScreen() {
 
 
     const handleThreeDotClick = async (item: Video) => {
-        openAskFormat(item); // 
+        openAskFormat(item, () => {
+            s
+        }); // 
     };
 
     const toggleFlatList = () => {

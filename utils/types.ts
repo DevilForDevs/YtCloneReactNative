@@ -26,7 +26,10 @@ export interface VideoDescription {
   channelName: string,
   video: Video,
   hlsUrl?: string
-  channelId?: string
+  channelId?: string,
+  streamingSources?: StreamVariant[],
+  suggestedVideos?: Video[],
+  streamingRefrer?: VideoHeaders
 }
 
 export interface ShortVideo {

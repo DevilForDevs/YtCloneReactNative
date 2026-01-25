@@ -1,17 +1,18 @@
 package com.myapp.extractors.metaporn
 
-import android.net.Uri
 import okhttp3.OkHttpClient
 import okhttp3.Request
 import org.json.JSONArray
 import org.json.JSONObject
 import org.jsoup.Jsoup
+import org.jsoup.nodes.Element
 import java.net.URI
-import java.util.Base64
 import java.util.regex.Pattern
 
 object JsonHtmlBridge {
-    private val client by lazy { OkHttpClient() }
+    private val client = OkHttpClient()
+
+    // ================= PUBLIC API =================
 
     fun fetch(
         pageUrl: String,
@@ -22,129 +23,159 @@ object JsonHtmlBridge {
             if (html.startsWith("http error")) {
                 html
             } else {
-                val result = extractGeneric(html, pageUrl, schema)
-                result.toString()
+                extract(html, pageUrl, schema).toString()
             }
         } catch (e: Exception) {
             "error: ${e.message ?: "unknown error"}"
         }
+
+    // ================= NETWORK =================
 
     private fun fetchHtml(url: String): String {
         val request =
             Request
                 .Builder()
                 .url(url)
-                .get()
-                .header("User-Agent", "Mozilla/5.0 (Windows NT 10.0; Win64; x64)")
+                .header("User-Agent", "Mozilla/5.0")
                 .header("Accept", "text/html")
                 .build()
 
-        client.newCall(request).execute().use { response ->
-            if (!response.isSuccessful) {
-                return "http error: ${response.code}"
-            }
-            return response.body?.string() ?: "empty response body"
+        client.newCall(request).execute().use { res ->
+            if (!res.isSuccessful) return "http error: ${res.code}"
+            return res.body?.string() ?: "empty response body"
         }
     }
 
-    // -------------------- extraction --------------------
+    // ================= CORE =================
 
-    private fun extractGeneric(
+    private fun extract(
         html: String,
         baseUrl: String,
         schema: JSONObject,
     ): JSONObject {
         val doc = Jsoup.parse(html, baseUrl)
         val items = JSONArray()
+        val globals = JSONObject()
 
-        val containerSelector = schema.optString("container", "")
         val containers =
-            if (containerSelector.isNotEmpty()) {
-                doc.select(containerSelector)
-            } else {
-                listOf(doc)
-            }
+            schema
+                .optString("container", "")
+                .takeIf { it.isNotBlank() }
+                ?.let { doc.select(it) }
+                ?: listOf(doc)
 
+        // -------- container scoped --------
         for (el in containers) {
-            val obj = JSONObject()
+            val item = JSONObject()
 
-            for (key in schema.keys()) {
-                if (key == "container" || key == "videoUrl") continue
+            schema.keys().forEach { key ->
+                val conf = schema.optJSONObject(key) ?: return@forEach
+                if (key == "container" || conf.optString("scope") == "global") return@forEach
 
-                val conf = schema.optJSONObject(key) ?: continue
+                val node = selectNode(el, conf)
+                val value = node?.let { extractValue(it, conf) }
 
-                val tag = conf.optString("tag", "")
-                val selector = conf.optString("selector", "")
-                val attr = conf.optString("attr", "text")
-
-                val cssSelector =
-                    when {
-                        tag.isNotEmpty() && selector.isNotEmpty() -> "$tag$selector"
-                        tag.isNotEmpty() -> tag
-                        selector.isNotEmpty() -> selector
-                        else -> ""
-                    }
-
-                var value: String? = null
-                if (cssSelector.isNotEmpty()) {
-                    try {
-                        val node = el.selectFirst(cssSelector)
-                        if (node != null) {
-                            value =
-                                if (attr == "text") {
-                                    node.text().trim()
-                                } else {
-                                    node.attr(attr)
-                                }
-                        }
-                    } catch (_: Exception) {
-                    }
-                }
-
-                // resolve URLs
-                if (key == "outUrl" && value != null) {
-                    value = URI(baseUrl).resolve(value).toString()
-                }
-
-                obj.put(key, value)
+                item.put(key, resolveUrl(key, value, baseUrl))
             }
 
-            items.put(obj)
+            items.put(item)
         }
 
-        // -------- video urls --------
-        val videoUrls =
-            if (schema.has("videoUrl")) {
-                findVideoUrls(html, schema.getJSONObject("videoUrl"))
+        // -------- globals --------
+        schema.keys().forEach { key ->
+            val conf = schema.optJSONObject(key) ?: return@forEach
+            if (conf.optString("scope") != "global") return@forEach
+
+            val selector = conf.optString("selector")
+            if (selector.isBlank()) return@forEach
+
+            if (conf.optBoolean("multiple")) {
+                val arr = JSONArray()
+                for (el in doc.select(selector)) {
+                    arr.put(extractValue(el, conf))
+                }
+                globals.put(key, arr)
             } else {
-                JSONArray()
+                doc
+                    .selectFirst(selector)
+                    ?.let { globals.put(key, extractValue(it, conf)) }
             }
+        }
+
+        // -------- regex video urls --------
+        val videoUrls =
+            schema
+                .optJSONObject("videoUrl")
+                ?.let { findVideoUrls(html, it) }
+                ?: JSONArray()
 
         return JSONObject()
             .put("items", items)
             .put("videoUrls", videoUrls)
+            .apply {
+                if (globals.length() > 0) put("globals", globals)
+            }
     }
 
-    // -------------------- video finder --------------------
+    // ================= HELPERS =================
+
+    private fun selectNode(
+        container: Element,
+        conf: JSONObject,
+    ): Element? {
+        val selector = conf.optString("selector")
+        return if (selector.isBlank()) container else container.selectFirst(selector)
+    }
+
+    private fun extractValue(
+        node: Element,
+        conf: JSONObject,
+    ): Any? {
+        val attr = conf.opt("attr")
+
+        if (attr == "text") return node.text().trim()
+
+        if (attr is JSONArray) {
+            for (i in 0 until attr.length()) {
+                val v = node.attr(attr.optString(i))
+                if (v.isNotBlank()) return v
+            }
+            return null
+        }
+
+        val a = conf.optString("attr")
+        return if (a.isNotBlank()) node.attr(a) else null
+    }
+
+    private fun resolveUrl(
+        key: String,
+        value: Any?,
+        baseUrl: String,
+    ): Any? {
+        if (value !is String) return value
+        if ((key == "url" || key.endsWith("Url")) && value.startsWith("/")) {
+            return URI(baseUrl).resolve(value).toString()
+        }
+        return value
+    }
+
+    // ================= REGEX =================
 
     private fun findVideoUrls(
         html: String,
         conf: JSONObject,
     ): JSONArray {
-        val results = JSONArray()
-        val patternStr = conf.optString("pattern", "")
-        if (patternStr.isEmpty()) return results
-
-        val pattern = Pattern.compile(patternStr, Pattern.CASE_INSENSITIVE)
-        val matcher = pattern.matcher(html)
+        val arr = JSONArray()
+        val patternStr = conf.optString("pattern")
+        if (patternStr.isBlank()) return arr
 
         val seen = HashSet<String>()
+        val matcher = Pattern.compile(patternStr, Pattern.CASE_INSENSITIVE).matcher(html)
+
         while (matcher.find()) {
             val url = matcher.group()
-            if (seen.add(url)) {
-                results.put(url)
-            }
+            if (seen.add(url)) arr.put(url)
         }
-        return results
+        return arr
     }
 }
