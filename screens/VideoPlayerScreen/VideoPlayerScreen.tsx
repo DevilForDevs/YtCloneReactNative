@@ -1,5 +1,4 @@
 import React, { useEffect, useRef, useState } from "react";
-import RNFS from 'react-native-fs';
 import {
     StyleSheet,
     View,
@@ -8,7 +7,7 @@ import {
     Text, Pressable
 } from "react-native";
 import { BackHandler, Platform } from "react-native";
-import Player from "./widgets/Player";
+
 import VideoItemView from "../HomeScreen/widgets/VideoItemView/VideoItemView";
 import ShortsHeader from "../HomeScreen/widgets/ShortsHeader/ShortsHeader";
 import ShortsItemView from "../HomeScreen/widgets/ShortsItemView/ShortsItemView";
@@ -17,7 +16,6 @@ import { parseWatchHtml } from "../../utils/watchHtmlParser";
 import { getIosPlayerResponse } from "../../utils/EndPoints";
 import VideoDetails from "./widgets/VideoDetails";
 import { Video, VideoDescription } from "../../utils/types";
-import { createResolutionPlaylistsRN } from "../../utils/createResolutionPlaylists";
 import ResolutionBottomSheet from "./widgets/ResolutionBottomSheet";
 import { useAskFormat } from "../AskFormatContext";
 import { useVideoStoreForWatch } from "../../utils/Store";
@@ -25,6 +23,7 @@ import { extractPlaylistData } from "../../utils/playlistParser";
 import { addHistory } from "../SavedScreen/backend/dbo";
 import { SQLiteDatabase } from 'react-native-sqlite-storage';
 import { initDB } from "../../utils/dbfunctions";
+import Player from "./widgets/Player";
 
 
 
@@ -57,8 +56,6 @@ export default function VideoPlayerScreen() {
     const { MyNativeModule } = NativeModules;
     const [currentVideo, setCurrentVideo] = useState<VideoDescription>();
     const [mediaUrl, setMediaUrl] = useState("")
-    const [resolutions, setResolutions] = useState<string[]>([]);
-    const [selectedResolution, setSelectedResolution] = useState<string | null>(null);
     const [showBottomSheet, setShowBottomSheet] = useState(false);
     const [showFlatList, setFlatList] = useState(true);
     const [savedPositions, setSavedPositions] = useState<Record<string, number>>({});
@@ -72,22 +69,12 @@ export default function VideoPlayerScreen() {
     const listRef = useRef<FlatList>(null);
     const [endedAsScreen, setEndedAsScreen] = useState(false);
     const [db, setDb] = useState<SQLiteDatabase | null>(null);
+    const [tracks, setTracks] = useState<VideoTrack[]>([]);
+    const [selectedTrack, setSelectedTrack] = useState<number | "auto">("auto");
 
 
 
-    function scrollToVideo(videoId: string) {
-        const index = totalVideos.findIndex(
-            item => item.type === "video" && item.videoId === videoId
-        );
 
-        if (index !== -1) {
-            listRef.current?.scrollToIndex({
-                index,
-                animated: true,
-                viewPosition: 0.3,
-            });
-        }
-    }
 
     useEffect(() => {
         const onBackPress = () => {
@@ -166,59 +153,7 @@ export default function VideoPlayerScreen() {
             const playerResponse = await getIosPlayerResponse(mvideo.videoId);
             const streamingData = playerResponse.streamingData
             const videoDetails = playerResponse.videoDetails
-
-
-            const resolutions = await createResolutionPlaylistsRN(
-                streamingData.hlsManifestUrl,
-                RNFS.DocumentDirectoryPath,
-                mvideo.videoId
-            );
-
-            if (resolutions.length > 0) {
-                let selectedResolution: string | undefined;
-                let selectedIndex = -1;
-
-                // find 480p
-                for (let i = 0; i < resolutions.length; i++) {
-                    const res = resolutions[i];
-
-
-                    const [a, b] = res.split("x").map(Number);
-                    const quality = Math.min(a, b); // orientation-safe
-
-                    if (quality === 480) {
-                        selectedResolution = res;
-                        selectedIndex = i;
-                        break;
-                    }
-                }
-
-                // fallback to 3rd resolution (index 2)
-                if (!selectedResolution && resolutions.length >= 3) {
-                    selectedIndex = 2;
-                    selectedResolution = resolutions[2];
-                }
-
-                // final safety fallback
-                if (!selectedResolution) {
-                    selectedIndex = 0;
-                    selectedResolution = resolutions[0];
-                }
-
-                const localM3u8Path =
-                    `${RNFS.DocumentDirectoryPath}/${mvideo.videoId}(${selectedResolution}).m3u8`;
-
-                setMediaUrl(`file://${localM3u8Path}`);
-                setResolutions(resolutions);
-                setSelectedResolution(selectedResolution);
-
-
-            } else {
-                console.log("fallbackHappened");
-                // fallback to original manifest
-                setMediaUrl(streamingData.hlsManifestUrl);
-            }
-
+            setMediaUrl(streamingData.hlsManifestUrl);
 
             try {
 
@@ -284,23 +219,33 @@ export default function VideoPlayerScreen() {
         nextBrowse();
     }
 
-    function changeResolution(res: string) {
-        setSelectedResolution(res);
-        const localM3u8Path = `${RNFS.DocumentDirectoryPath}/${currentVideo?.video.videoId}(${res}).m3u8`;
-        setMediaUrl(`file://${localM3u8Path}`);
-        console.log(localM3u8Path);
+    function changeResolution(res: VideoTrack) {
+        const index = res.trakIndex ?? 0;
+
+        // native player
+        setSelectedTrack(index);
+
+        // update local track state
+        setTracks(prev =>
+            prev.map(t => ({
+                ...t,
+                selected: t.trakIndex === index,
+            }))
+        );
+
         setShowBottomSheet(false);
     }
 
+
     function handleMoreVert() {
-        if (resolutions.length === 0) return;
+        if (tracks.length === 0) return;
         setShowBottomSheet(true);
     }
 
 
     const handleThreeDotClick = async (item: Video) => {
         openAskFormat(item, () => {
-            s
+
         }); // 
     };
 
@@ -418,6 +363,8 @@ export default function VideoPlayerScreen() {
                     setEndedAsScreen(endedAsScreen);
                     playBackfinished();
                 }}
+                onTracks={setTracks}
+                selectedTrack={selectedTrack}
             />
 
             {
@@ -434,7 +381,9 @@ export default function VideoPlayerScreen() {
                                             item={item}
                                             progress={0}
                                             onItemPress={() => loadData(item)}
-                                            onDownload={() => openAskFormat(item)}
+                                            onDownload={() => openAskFormat(item, () => {
+
+                                            })}
                                             onChannelClick={() => navigation.navigate("ChannelScreen", { channelUrl: item.channelUrl })}
                                         />
                                     );
@@ -498,8 +447,7 @@ export default function VideoPlayerScreen() {
                     </View>
                     <ResolutionBottomSheet
                         visible={showBottomSheet}
-                        resolutions={resolutions}
-                        selectedResolution={selectedResolution}
+                        resolutions={tracks}
                         onSelect={changeResolution}
                         onClose={() => setShowBottomSheet(false)}
                     />

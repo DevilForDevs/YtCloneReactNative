@@ -42,7 +42,7 @@ object JsonHtmlBridge {
 
         client.newCall(request).execute().use { res ->
             if (!res.isSuccessful) return "http error: ${res.code}"
-            return res.body?.string() ?: "empty response body"
+            return res.body?.string() ?: ""
         }
     }
 
@@ -54,34 +54,12 @@ object JsonHtmlBridge {
         schema: JSONObject,
     ): JSONObject {
         val doc = Jsoup.parse(html, baseUrl)
+
+        val result = JSONObject()
         val items = JSONArray()
         val globals = JSONObject()
 
-        val containers =
-            schema
-                .optString("container", "")
-                .takeIf { it.isNotBlank() }
-                ?.let { doc.select(it) }
-                ?: listOf(doc)
-
-        // -------- container scoped --------
-        for (el in containers) {
-            val item = JSONObject()
-
-            schema.keys().forEach { key ->
-                val conf = schema.optJSONObject(key) ?: return@forEach
-                if (key == "container" || conf.optString("scope") == "global") return@forEach
-
-                val node = selectNode(el, conf)
-                val value = node?.let { extractValue(it, conf) }
-
-                item.put(key, resolveUrl(key, value, baseUrl))
-            }
-
-            items.put(item)
-        }
-
-        // -------- globals --------
+        // ---------- GLOBAL FIELDS ----------
         schema.keys().forEach { key ->
             val conf = schema.optJSONObject(key) ?: return@forEach
             if (conf.optString("scope") != "global") return@forEach
@@ -92,40 +70,89 @@ object JsonHtmlBridge {
             if (conf.optBoolean("multiple")) {
                 val arr = JSONArray()
                 for (el in doc.select(selector)) {
-                    arr.put(extractValue(el, conf))
+                    extractValue(el, conf)?.let { arr.put(it) }
                 }
                 globals.put(key, arr)
             } else {
                 doc
                     .selectFirst(selector)
-                    ?.let { globals.put(key, extractValue(it, conf)) }
+                    ?.let { extractValue(it, conf) }
+                    ?.let { globals.put(key, it) }
             }
         }
 
-        // -------- regex video urls --------
+        // ---------- MULTIPLE CONTAINERS ($containers) ----------
+        schema.optJSONObject("\$containers")?.let { containersObj ->
+            val names = containersObj.keys()
+            while (names.hasNext()) {
+                val name = names.next()
+                val cfg = containersObj.optJSONObject(name) ?: continue
+
+                val selector = cfg.optString("selector")
+                if (selector.isBlank()) continue
+
+                val subSchema = cfg.optJSONObject("schema") ?: JSONObject()
+                val arr = JSONArray()
+
+                for (el in doc.select(selector)) {
+                    arr.put(extractFromElement(el, subSchema, baseUrl))
+                }
+
+                globals.put(name, arr)
+            }
+        }
+
+        // ---------- LEGACY SINGLE CONTAINER (container → items) ----------
+        val legacySelector = schema.optString("container")
+        if (legacySelector.isNotBlank()) {
+            for (el in doc.select(legacySelector)) {
+                items.put(extractFromElement(el, schema, baseUrl))
+            }
+        }
+
+        // ---------- REGEX VIDEO URLS ----------
         val videoUrls =
             schema
                 .optJSONObject("videoUrl")
                 ?.let { findVideoUrls(html, it) }
                 ?: JSONArray()
 
-        return JSONObject()
-            .put("items", items)
-            .put("videoUrls", videoUrls)
-            .apply {
-                if (globals.length() > 0) put("globals", globals)
+        // ---------- FINAL OBJECT ----------
+        result.put("items", items)
+        result.put("videoUrls", videoUrls)
+        if (globals.length() > 0) result.put("globals", globals)
+
+        return result
+    }
+
+    // ================= ELEMENT EXTRACTION =================
+
+    private fun extractFromElement(
+        root: Element,
+        schema: JSONObject,
+        baseUrl: String,
+    ): JSONObject {
+        val obj = JSONObject()
+
+        schema.keys().forEach { key ->
+            if (key.startsWith("$") || key == "container") return@forEach
+
+            val conf = schema.optJSONObject(key) ?: return@forEach
+            if (conf.optString("scope") == "global") return@forEach
+
+            val selector = conf.optString("selector")
+            val node = if (selector.isBlank()) root else root.selectFirst(selector)
+
+            val value = node?.let { extractValue(it, conf) }
+            if (value != null) {
+                obj.put(key, resolveUrl(key, value, baseUrl))
             }
+        }
+
+        return obj
     }
 
     // ================= HELPERS =================
-
-    private fun selectNode(
-        container: Element,
-        conf: JSONObject,
-    ): Element? {
-        val selector = conf.optString("selector")
-        return if (selector.isBlank()) container else container.selectFirst(selector)
-    }
 
     private fun extractValue(
         node: Element,
@@ -133,25 +160,40 @@ object JsonHtmlBridge {
     ): Any? {
         val attr = conf.opt("attr")
 
-        if (attr == "text") return node.text().trim()
-
-        if (attr is JSONArray) {
-            for (i in 0 until attr.length()) {
-                val v = node.attr(attr.optString(i))
-                if (v.isNotBlank()) return v
+        return when (attr) {
+            "text" -> {
+                node.text().trim()
             }
-            return null
-        }
 
-        val a = conf.optString("attr")
-        return if (a.isNotBlank()) node.attr(a) else null
+            "html" -> {
+                node.html()
+            }
+
+            is JSONArray -> {
+                for (i in 0 until attr.length()) {
+                    val a = attr.optString(i)
+                    val v = node.attr(a)
+                    if (v.isNotBlank()) return v
+                }
+                null
+            }
+
+            is String -> {
+                val v = node.attr(attr)
+                if (v.isBlank()) null else v
+            }
+
+            else -> {
+                null
+            }
+        }
     }
 
     private fun resolveUrl(
         key: String,
-        value: Any?,
+        value: Any,
         baseUrl: String,
-    ): Any? {
+    ): Any {
         if (value !is String) return value
         if ((key == "url" || key.endsWith("Url")) && value.startsWith("/")) {
             return URI(baseUrl).resolve(value).toString()
@@ -170,7 +212,8 @@ object JsonHtmlBridge {
         if (patternStr.isBlank()) return arr
 
         val seen = HashSet<String>()
-        val matcher = Pattern.compile(patternStr, Pattern.CASE_INSENSITIVE).matcher(html)
+        val matcher =
+            Pattern.compile(patternStr, Pattern.CASE_INSENSITIVE).matcher(html)
 
         while (matcher.find()) {
             val url = matcher.group()

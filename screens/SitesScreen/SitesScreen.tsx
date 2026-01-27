@@ -1,4 +1,4 @@
-import React from 'react'
+import React, { useRef, useState } from 'react'
 import {
     StyleSheet,
     Text,
@@ -9,52 +9,58 @@ import {
 import { SafeAreaView } from 'react-native-safe-area-context'
 import { useNavigation } from '@react-navigation/native'
 
-/* ------------------ Types ------------------ */
-
-
+/* ------------------ Data ------------------ */
 
 /* ------------------ Data ------------------ */
 
 const SITES: Site[] = [
-    {
-        id: 'yt',
-        name: 'YouTube',
-        url: 'https://www.youtube.com',
-        route: 'BrowserScreen',
-    },
-    {
-        id: 'xh',
-        name: 'xHamster',
-        url: 'https://xhamster1.desi/',
-        route: 'BrowserScreen',
-    },
-    {
-        id: 'mp',
-        name: 'MetaPorn',
-        url: 'https://metaporn.com',
-        route: 'BrowserScreen',
-    },
-    {
-        id: 'um',
-        name: 'Uncutmaza',
-        url: 'https://uncutmaza.com.co/',
-        route: 'BrowserScreen',
-    }
+    { id: 'yt', name: 'YouTube', url: 'https://www.youtube.com', route: 'BrowserScreen' },
+    { id: 'ig', name: 'Easy Links', url: 'Easy links', route: 'BrowserScreen' }, // new default
+    { id: 'xh', name: 'xHamster', url: 'https://xhamster1.desi/', route: 'BrowserScreen' },
+    { id: 'mp', name: 'MetaPorn', url: 'https://metaporn.com', route: 'BrowserScreen' },
+    { id: 'um', name: 'Uncutmaza', url: 'https://uncutmaza.com.co/', route: 'BrowserScreen' },
+    { id: 'xmz', name: 'xmaza.tv', url: 'https://xmaza.tv/', route: 'BrowserScreen' },
 ]
+
 
 /* ------------------ Screen ------------------ */
 
 export default function SitesScreen() {
     const navigation = useNavigation<navStack>()
 
-    function onSelectSite(site: Site) {
-        if (site.name == "YouTube") {
-            navigation.navigate("BrowserScreen", { name: "Youtube" });
-        } else {
-            navigation.navigate("CommanScreen", { site });
-        }
+    const [showAll, setShowAll] = useState(false)
+    const tapCount = useRef(0)
 
+    function onHeaderPress() {
+        if (!showAll) {
+            tapCount.current += 1
+
+            if (tapCount.current === 3) {
+                setShowAll(true)
+                tapCount.current = 0
+            }
+        } else {
+            // one tap hides again
+            setShowAll(false)
+        }
     }
+
+    function onSelectSite(site: Site) {
+        if (site.name === 'YouTube') {
+            navigation.navigate('BrowserScreen', { name: 'Youtube' })
+        } else {
+            if (site.id == "ig") {
+                navigation.navigate("SarkariResult");
+            } else {
+                navigation.navigate('CommanScreen', { site })
+            }
+
+        }
+    }
+
+    const visibleSites = showAll
+        ? SITES
+        : SITES.filter(site => site.id === 'yt' || site.id === 'ig') // show YouTube & Instagram by default
 
     const renderItem = ({ item }: { item: Site }) => (
         <Pressable style={styles.card} onPress={() => onSelectSite(item)}>
@@ -65,10 +71,14 @@ export default function SitesScreen() {
 
     return (
         <SafeAreaView style={styles.container}>
-            <Text style={styles.screenTitle}>Platforms</Text>
+            <Pressable onPress={onHeaderPress}>
+                <Text style={styles.screenTitle}>
+                    {showAll ? 'Sites' : 'Platforms'}
+                </Text>
+            </Pressable>
 
             <FlatList
-                data={SITES}
+                data={visibleSites}
                 keyExtractor={(item) => item.id}
                 renderItem={renderItem}
                 contentContainerStyle={styles.list}
@@ -109,4 +119,3 @@ const styles = StyleSheet.create({
         marginTop: 4,
     },
 })
-

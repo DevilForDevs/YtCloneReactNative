@@ -55,7 +55,8 @@ declare global {
         CommanScreen: { site: Site },
         CommanPlayerScreen: { arrivedVideo: Video },
         CategoryScreen: { site: Site },
-        CategoryItemsScreen: { link: string }
+        CategoryItemsScreen: { link: string },
+        SarkariResult: undefined
     };
 
     type navStack = NativeStackNavigationProp<
@@ -84,7 +85,8 @@ declare global {
     export interface CategoryType {
         name: string,
         pageUrl: string,
-        thumbnail?: string
+        thumbnail?: string,
+        videoCount?: string
     }
     type CategoryGroup = {
         name: string,
@@ -107,15 +109,18 @@ declare global {
         route?: string
     }
 
+    type VideoTrack = {
+        width?: number;
+        height?: number;
+        bitrate?: number;
+        trakIndex?: number,
+        selected?: boolean;
+    };
 
-
-
-
-
-
-
-
-
+    type pageItem = {
+        title: string,
+        link: string
+    }
 
 
 

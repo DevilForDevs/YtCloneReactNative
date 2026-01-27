@@ -8,6 +8,7 @@ type Props = {
 }
 
 export default function GridItem({ video, onItemClick }: Props) {
+
     return (
         <View style={styles.card}>
 
@@ -46,7 +47,7 @@ export default function GridItem({ video, onItemClick }: Props) {
 
 const styles = StyleSheet.create({
     card: {
-        width: 150
+        width: 180
     },
 
     /* Thumbnail */

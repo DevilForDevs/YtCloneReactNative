@@ -210,7 +210,7 @@ export default function CommanScreen() {
                 ref={listRef}
                 data={totalVideos}
                 numColumns={2}
-                keyExtractor={item => item.videoId}
+                keyExtractor={(item, index) => index.toString() + item.videoId}
                 renderItem={renderItem}
                 columnWrapperStyle={styles.columnWrapper}
                 contentContainerStyle={styles.contentContainer}

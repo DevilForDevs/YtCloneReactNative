@@ -5,13 +5,14 @@ import Icon from 'react-native-vector-icons/Ionicons';
 type Props = {
     onDownload: () => void,
     likes: string,
-    commentCount: string
+    commentCount: string,
+    onMenuPress?: () => void
 }
 
 export default function RightControls(props: Props) {
     return (
         <View style={styles.rightControls}>
-            <TouchableOpacity style={styles.button}>
+            <TouchableOpacity style={styles.button} onPress={props.onMenuPress}>
                 <Icon name="ellipsis-horizontal" size={28} color="white" />
             </TouchableOpacity>
 

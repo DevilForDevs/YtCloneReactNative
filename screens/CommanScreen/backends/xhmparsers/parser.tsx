@@ -108,21 +108,22 @@ export function metaPornCatSimplifiers(jsonString: string): Video[] {
         parsed.forEach(el => console.log(el));
     } else if (Array.isArray(parsed.items)) {
         parsed.items.forEach((el: any) => {
-            videos.push(
-                {
-                    type: "video",
-                    videoId: String(el.title),
-                    title: String(el.title),
-                    duration: el.duration,
-                    views: "",
-                    channel: "",
-                    channelName: el.host,
-                    channelUrl: "",
-                    thumbnail: el.thumbnail,
-                    pageUrl: el.outUrl,
-                }
-            )
+            if (el.host?.toLowerCase() === "faphouse") return;
+
+            videos.push({
+                type: "video",
+                videoId: String(el.title),
+                title: String(el.title),
+                duration: el.duration,
+                views: "",
+                channel: "",
+                channelName: el.host,
+                channelUrl: "",
+                thumbnail: el.thumbnail,
+                pageUrl: el.outUrl,
+            });
         });
+
         return videos;
     } else {
         console.log("No iterable items found");

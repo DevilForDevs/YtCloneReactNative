@@ -10,7 +10,9 @@ import TopConrols from './TopConrols';
 import { formatSeconds } from '../../../utils/misfunction';
 import throttle from "lodash.throttle";
 import Orientation from "react-native-orientation-locker"
-
+import {
+    SelectedVideoTrackType,
+} from "react-native-video";
 
 
 type Props = {
@@ -25,7 +27,9 @@ type Props = {
     videoEnded?: (endedAsScreen: boolean) => void,
     startAsScreen: boolean,
     pageUrl?: string,
-    videoHeaders?: VideoHeaders
+    videoHeaders?: VideoHeaders,
+    onTracks?: (tracks: VideoTrack[]) => void;
+    selectedTrack?: number | "auto";
 }
 
 export default function Player(props: Props) {
@@ -90,32 +94,64 @@ export default function Player(props: Props) {
     }, [isFullscreen]);
 
 
+
+
     function onLoad(data: OnLoadData) {
-        if (props.startAsScreen) {
-            toggleFullscreen();
-        }
+        if (props.startAsScreen) toggleFullscreen();
         setDuration(data.duration);
         setIsBuffering(false);
 
+        if (!data.videoTracks?.length) return;
 
-        // 👇 restore seek
+        const naturalHeight = data.naturalSize?.height;
+        const naturalWidth = data.naturalSize?.width;
+
+        const unique = new Map<number, VideoTrack>();
+
+        data.videoTracks.forEach((t) => {
+            if (!t.height) return;
+
+            const existing = unique.get(t.height);
+
+            // mark as active if this track matches naturalSize
+            const isActive =
+                t.height === naturalHeight && t.width === naturalWidth;
+
+            const isBetterBitrate =
+                !existing || (t.bitrate ?? 0) > (existing.bitrate ?? 0);
+
+            if (isBetterBitrate) {
+                unique.set(t.height, {
+                    width: t.width,
+                    height: t.height,
+                    bitrate: t.bitrate,
+                    trakIndex: t.index,
+                    selected: isActive,
+                });
+            } else if (isActive && existing) {
+                existing.selected = true;
+            }
+        });
+
+        const tracks: VideoTrack[] = Array.from(unique.values()).sort(
+            (a, b) => (a.height ?? 0) - (b.height ?? 0)
+        );
+
+        props.onTracks?.(tracks);
+
         if (props.seekTo && props.seekTo > 3) {
             videoRef.current?.seek(props.seekTo);
         }
     }
-
 
     function onProgress(data: OnProgressData) {
         setCurrentTime(data.currentTime);
         reportProgress(data.currentTime);
     }
 
-
     function onBuffer({ isBuffering }: { isBuffering: boolean }) {
         setIsBuffering(isBuffering);
     }
-
-
     function onEnd() {
         if (isFullscreen) {
             toggleFullscreen();
@@ -164,6 +200,14 @@ export default function Player(props: Props) {
 
                         ToastAndroid.show(errorMessage, ToastAndroid.SHORT);
                     }}
+                    selectedVideoTrack={
+                        props.selectedTrack === "auto" || props.selectedTrack == null
+                            ? { type: SelectedVideoTrackType.AUTO }
+                            : {
+                                type: SelectedVideoTrackType.INDEX,
+                                value: props.selectedTrack,
+                            }
+                    }
 
 
                 />
@@ -276,7 +320,7 @@ const styles = StyleSheet.create({
     ,
     bottomControls: {
         position: "absolute",
-        bottom: 5,
+        bottom: 15,
         right: 10,
         flexDirection: "row",
         gap: 10,
@@ -285,7 +329,7 @@ const styles = StyleSheet.create({
     ,
     fullScrren: {
         position: "absolute",
-        bottom: 20,
+        bottom: 30,
         right: 10,
         flexDirection: "row",
         gap: 10

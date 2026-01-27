@@ -49,4 +49,43 @@ export const uncutmazaVideoSchema = {
     },
 };
 
+export const xmazaSchema = {
+    container: "article.loop-video",
+
+    title: {
+        selector: "header.entry-header span",
+        attr: "text",
+    },
+
+    url: {
+        selector: "a",
+        attr: "href",
+    },
+
+    thumbnail: {
+        selector: "img",
+        attr: ["data-src", "src"],
+    },
+
+    duration: {
+        selector: ".duration",
+        attr: "text",
+    },
+
+    quality: {
+        selector: ".hd-video",
+        attr: "text",
+    },
+
+    postId: {
+        selector: "article",
+        attr: "data-post-id",
+    },
+
+    videoUid: {
+        selector: "article",
+        attr: "data-video-uid",
+    },
+}
+
 

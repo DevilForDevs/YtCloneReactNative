@@ -34,6 +34,7 @@ import CommanScreen from './screens/CommanScreen/CommanScreen';
 import CommanPlayerScreen from './screens/CommanPlayerScreen/CommanPlayerScreen';
 import CategoryScreen from './screens/CategoryScreen/CategoryScreen';
 import CategoryItemsScreen from './screens/CategoryItemsScreen/CategoryItemsScreen';
+import SarkariResult from './screens/SarkariResult/SarkariResult';
 
 const Stack = createNativeStackNavigator<RootStackParamList>();
 const eventEmitter = new NativeEventEmitter();
@@ -143,6 +144,7 @@ export default function App() {
             <Stack.Screen name="CommanPlayerScreen" component={CommanPlayerScreen} />
             <Stack.Screen name="CategoryScreen" component={CategoryScreen} />
             <Stack.Screen name="CategoryItemsScreen" component={CategoryItemsScreen} />
+            <Stack.Screen name="SarkariResult" component={SarkariResult} />
           </Stack.Navigator>
         </NavigationContainer>
       </AskFormatProvider>

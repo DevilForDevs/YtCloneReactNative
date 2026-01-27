@@ -2,7 +2,7 @@ import { decode as atob } from "base-64"; // install: npm install base-64
 import { Video, VideoDescription } from "../../../utils/types";
 import { NativeModules } from 'react-native'
 import { extractItems } from "../../CommanScreen/backends/xhmparsers/parser";
-import { uncutmazaVideoSchema } from "../../CommanScreen/backends/schemas";
+import { uncutmazaVideoSchema, xmazaSchema } from "../../CommanScreen/backends/schemas";
 
 
 export function decodeLParam(url: string): string | null {
@@ -89,7 +89,7 @@ async function xhamsterPlayerPage(
         channelId: "",
         video: mvideo,
         hashTags: "",
-        hlsUrl: "",
+        hlsUrl: undefined,
         views: 0,
         uploaded: "scrapper failed",
         subscriber: "",
@@ -135,7 +135,7 @@ async function xhamsterPlayerPage(
             mvideo.channel ??
             "",
         channelId: jsoboject?.videoEntity?.authorId ?? "",
-        hlsUrl: jsoboject?.hlsUrl ?? "",
+        hlsUrl: jsoboject?.hlsUrl ?? undefined,
         views: jsoboject?.videoEntity?.views ?? 0,
         uploaded: jsoboject?.videoEntity?.dateAgo ?? "",
         commentsCount: jsoboject?.videoEntity?.commentsCount ?? 0,
@@ -156,7 +156,7 @@ async function handleUncustMaza(mvideo: Video, link: string): Promise<VideoDescr
         channelId: "",
         video: mvideo,
         hashTags: "",
-        hlsUrl: "",
+        hlsUrl: undefined,
         views: 0,
         uploaded: "scrapper failed",
         subscriber: "",
@@ -172,24 +172,55 @@ async function handleUncustMaza(mvideo: Video, link: string): Promise<VideoDescr
             link,
             JSON.stringify({
                 ...uncutmazaVideoSchema,
+
+                /* =========================
+                   MULTIPLE CONTAINERS
+                   ========================= */
+                $containers: {
+                    // Episodes list page
+                    episodes: {
+                        selector: "article.episode-item",
+                        schema: {
+                            title: {
+                                selector: "h3.episode-title",
+                                attr: "text",
+                            },
+
+                            url: {
+                                selector: "a",
+                                attr: "href",
+                            },
+
+                            thumbnail: {
+                                selector: "img",
+                                attr: "src",
+                            },
+                        },
+                    },
+                },
+
+                /* =========================
+                   GLOBAL FIELDS (unchanged)
+                   ========================= */
                 video: {
                     selector: "video#my-video",
                     attr: "src",
-                    scope: "global"
+                    scope: "global",
                 },
+
                 series: {
                     selector: ".series-list a",
                     scope: "global",
                     multiple: true,
-                    attr: "text"        // ✅ FIX
+                    attr: "text",
                 },
 
                 models: {
                     selector: ".model-list a",
                     scope: "global",
                     multiple: true,
-                    attr: "text"        // ✅ FIX
-                }
+                    attr: "text",
+                },
             })
         );
     } catch (e) {
@@ -219,10 +250,6 @@ async function handleUncustMaza(mvideo: Video, link: string): Promise<VideoDescr
         return baseVideoDetails;
     }
 
-    console.log(data);
-
-
-
 
     // 3️⃣ Validate structure
     if (!data || !Array.isArray(data.items)) {
@@ -232,6 +259,26 @@ async function handleUncustMaza(mvideo: Video, link: string): Promise<VideoDescr
 
     // 4️⃣ Map items → Video[]
     const videos: Video[] = [];
+
+    try {
+        for (const item of data.globals.episodes) {
+            if (!item?.title || !item?.thumbnail) continue;
+            videos.push({
+                title: String(item.title),
+                thumbnail: String(item.thumbnail),
+                duration: item.duration ?? "",
+                publishedOn: item.uploaded ?? "",
+                views: "Views Not found",
+                type: "video",
+                pageUrl: item.url,
+                videoId: String(item.url ?? item.title),
+            });
+        }
+    } catch (error) {
+        console.log(error)
+    }
+
+
 
     for (const item of data.items) {
         if (!item?.title || !item?.thumbnail) continue;
@@ -247,6 +294,8 @@ async function handleUncustMaza(mvideo: Video, link: string): Promise<VideoDescr
             videoId: String(item.url ?? item.title),
         });
     }
+
+
 
     const homepage = getDomainUrl(mvideo.pageUrl ?? "") + "/";
 
@@ -272,7 +321,7 @@ async function handleUncustMaza(mvideo: Video, link: string): Promise<VideoDescr
         ...baseVideoDetails,
         channelPhoto: "https://uncutmaza.com.co/wp-content/uploads/2024/11/cropped-UncutMaza-32x32.png",
         channelId: "Uncutmaza",
-        hlsUrl: "",
+        hlsUrl: undefined,
         views: 0,
         channelName: "Uncutmaza",
         uploaded: mvideo.publishedOn ?? "",
@@ -281,6 +330,134 @@ async function handleUncustMaza(mvideo: Video, link: string): Promise<VideoDescr
         streamingRefrer: videoHeaders,
         streamingSources: streamingVariants,
         hashTags: tags
+
+    };
+}
+
+
+async function handlexmaaza(mvideo: Video): Promise<VideoDescription> {
+    const { MyNativeModule } = NativeModules;
+    const videos: Video[] = [];
+    const baseVideoDetails: VideoDescription = {
+        title: mvideo.title,
+        channelName: mvideo.channelName ?? "",
+        channelPhoto: "",
+        channelId: "",
+        video: mvideo,
+        hashTags: "",
+        hlsUrl: undefined,
+        views: 0,
+        uploaded: "scrapper failed",
+        subscriber: "",
+        likes: "",
+        dislikes: "",
+        commentsCount: "00k",
+        suggestedVideos: [],
+    };
+
+    let jsonString: string;
+
+    try {
+        jsonString = await MyNativeModule.htmlJsonBridge(
+            mvideo.pageUrl,
+            JSON.stringify({
+                ...xmazaSchema,
+                video: {
+                    selector: 'meta[itemprop="contentURL"]',
+                    attr: "content",
+                    scope: "global",
+                },
+                tagNames: {
+                    selector: '.tags-list a.label',
+                    scope: "global",
+                    multiple: true,
+                    attr: "text",
+                },
+            })
+        );
+    } catch (e) {
+        console.error("Native call failed", e);
+        return baseVideoDetails;
+    }
+
+    let data: any;
+
+    // 2️⃣ Safe JSON parse
+    try {
+        data = JSON.parse(jsonString);
+    } catch (e) {
+        console.error("JSON parse failed", jsonString);
+
+    }
+
+    // 3️⃣ Validate structure
+    if (!data || !Array.isArray(data.items)) {
+        console.warn("Invalid JSON structure:", data);
+
+    }
+
+    for (const item of data.items) {
+        if (!item?.title || !item?.thumbnail) continue;
+
+        videos.push({
+            title: String(item.title),
+            thumbnail: String(item.thumbnail),
+            duration: item.duration ?? "",
+            publishedOn: "",
+            views: item.quality ?? "",
+            type: "video",
+            pageUrl: item.url,
+            videoId: item.postId,
+        });
+    }
+
+
+    const streamingVariants: StreamVariant[] = []
+    streamingVariants.push(
+        {
+            type: "mp4",
+            ref: data.globals.video,
+            resolution: "HD"
+        }
+    )
+    const variant = streamingVariants[0];
+    const domain = getDomainUrl(variant.ref)
+    const videoHeaders: VideoHeaders = {
+        Referer: variant.ref,
+        Origin: domain,
+        "User-Agent":
+            "Mozilla/5.0 (Windows NT 10.0; Win64; x64) " +
+            "AppleWebKit/537.36 (KHTML, like Gecko) " +
+            "Chrome/144.0.0.0 Safari/537.36",
+        Accept: "*/*",
+        "Accept-Language": "en-GB,en-US;q=0.9,en;q=0.8,hi;q=0.7",
+        Connection: "keep-alive",
+        "Cache-Control": "no-cache",
+        Pragma: "no-cache",
+        "Sec-CH-UA": `"Not(A:Brand";v="8", "Chromium";v="144", "Google Chrome";v="144"`,
+        "Sec-CH-UA-Mobile": "?0",
+        "Sec-CH-UA-Platform": `"Windows"`,
+        "Sec-Fetch-Dest": "video",
+        "Sec-Fetch-Mode": "no-cors",
+        "Sec-Fetch-Site": "same-origin",
+    };
+
+    const tagsArray = data.globals.tagNames;
+    const tagsString = Array.isArray(tagsArray) ? tagsArray.join(' ') : '';
+
+    return {
+        ...baseVideoDetails,
+        channelPhoto: "https://uncutmaza.com.co/wp-content/uploads/2024/11/cropped-UncutMaza-32x32.png",
+        channelId: "Uncutmaza",
+        hlsUrl: undefined,
+        views: 0,
+        channelName: "Uncutmaza",
+        uploaded: mvideo.publishedOn ?? "",
+        commentsCount: "0",
+        suggestedVideos: videos,
+        streamingRefrer: videoHeaders,
+        streamingSources: streamingVariants,
+        hashTags: tagsString
 
     };
 }
@@ -298,7 +475,7 @@ export async function getVideoFileUrlAndDetails(video: Video): Promise<VideoDesc
         channelId: "",
         video: video,
         hashTags: "",
-        hlsUrl: "",
+        hlsUrl: undefined,
         views: 0,
         uploaded: "scrapper failed",
         subscriber: "",
@@ -317,6 +494,10 @@ export async function getVideoFileUrlAndDetails(video: Video): Promise<VideoDesc
 
     if (video.pageUrl?.includes("uncutmaza")) {
         return await handleUncustMaza(video, video.pageUrl);
+    }
+
+    if (video.pageUrl?.includes("xmaza")) {
+        return await handlexmaaza(video);
     }
 
     return videoDetails

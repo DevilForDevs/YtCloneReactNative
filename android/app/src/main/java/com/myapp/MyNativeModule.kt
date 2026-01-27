@@ -8,6 +8,7 @@ import com.facebook.react.bridge.ReactMethod
 import com.facebook.react.bridge.WritableMap
 import com.facebook.react.module.annotations.ReactModule
 import com.facebook.react.modules.core.DeviceEventManagerModule
+import com.myapp.extractors.HtmlExtractor
 import com.myapp.extractors.metaporn.JsonHtmlBridge
 import com.myapp.extractors.xhamster.XhInitialsFetcher
 import com.myapp.extractors.xhamster.XhRelatedFetcher
@@ -22,8 +23,28 @@ import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.Job
 import kotlinx.coroutines.launch
+import org.json.JSONArray
 import org.json.JSONObject
 import java.util.concurrent.ConcurrentHashMap
+
+fun JSONObject.toMap(): Map<String, Any> =
+    keys().asSequence().associateWith { key ->
+        when (val value = this.get(key)) {
+            is JSONObject -> value.toMap()
+            is JSONArray -> value.toList()
+            else -> value
+        }
+    }
+
+// Convert JSONArray to List<Any>
+fun JSONArray.toList(): List<Any> =
+    (0 until length()).map { i ->
+        when (val value = get(i)) {
+            is JSONObject -> value.toMap()
+            is JSONArray -> value.toList()
+            else -> value
+        }
+    }
 
 @ReactModule(name = MyNativeModule.NAME)
 class MyNativeModule(
@@ -116,6 +137,34 @@ class MyNativeModule(
                 promise.reject(
                     "META_PORN_SCHEMA_ERROR",
                     e.message ?: "invalid schema",
+                )
+            }
+        }
+    }
+
+    @ReactMethod
+    fun htmlExtractor(
+        pageUrl: String,
+        schemaJson: String,
+        headersJson: String?, // <-- optional headers JSON
+        promise: Promise,
+    ) {
+        backThread.launch(Dispatchers.IO) {
+            try {
+                val schema = JSONObject(schemaJson)
+                val schemaMap = schema.toMap().filterValues { it != null } as Map<String, Any>
+
+                val headers: Map<String, String> =
+                    headersJson?.let { JSONObject(it).toMap().mapValues { entry -> entry.value.toString() } }
+                        ?: emptyMap()
+
+                val extractor = HtmlExtractor()
+                val result = extractor.extract(pageUrl, schemaMap, headers)
+                promise.resolve(result)
+            } catch (e: Exception) {
+                promise.reject(
+                    "Extract_ERROR",
+                    e.message ?: "Invalid schema or extraction failed",
                 )
             }
         }

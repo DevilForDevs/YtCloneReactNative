@@ -8,7 +8,7 @@ import { RouteProp, useNavigation, useRoute } from '@react-navigation/native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import Icon from 'react-native-vector-icons/Ionicons';
 import IconMat from 'react-native-vector-icons/MaterialCommunityIcons';
-import Video from "react-native-video";
+import Video, { OnLoadData, OnProgressData } from "react-native-video";
 import RightControls from './RightControls';
 import BottomControls from './BottomControls';
 import { NativeStackNavigationProp } from "@react-navigation/native-stack";
@@ -24,6 +24,10 @@ import { parseShortMeta } from '../../utils/shortsMetaParser';
 import { SQLiteDatabase } from 'react-native-sqlite-storage';
 import { initDB } from "../../utils/dbfunctions";
 import { addHistory } from '../SavedScreen/backend/dbo';
+import ResolutionBottomSheet from '../VideoPlayerScreen/widgets/ResolutionBottomSheet';
+import {
+    SelectedVideoTrackType,
+} from "react-native-video";
 
 export default function ShortsPlayer() {
     const route = useRoute<NavigationProp>();
@@ -43,6 +47,9 @@ export default function ShortsPlayer() {
     const [prevStack, setPrevStack] = useState<VideoDescription[]>([]);
     const { openAskFormat } = useAskFormat();
     const [db, setDb] = useState<SQLiteDatabase | null>(null);
+    const [showBottomSheet, setShowBottomSheet] = useState(false);
+    const [tracks, setTracks] = useState<VideoTrack[]>([]);
+    const [selectedTrack, setSelectedTrack] = useState<number | "auto">("auto");
 
 
 
@@ -82,7 +89,8 @@ export default function ShortsPlayer() {
                 `${RNFS.DocumentDirectoryPath}/${videoId}(${appropriateResolution}).m3u8`;
 
             setCurrentResolutionIndex(selectedIndex);
-            setMediaUrl(`file://${localM3u8Path}`);
+            setMediaUrl(hlsUrl);
+            // setMediaUrl(`file://${localM3u8Path}`);
             setResolutions(resolutions);
             setCurrentVideoId(videoId);
 
@@ -338,6 +346,74 @@ export default function ShortsPlayer() {
         setTimeout(() => setShowPlayIcon(false), 800);
     }
 
+    function changeResolution(res: VideoTrack) {
+        const index = res.trakIndex ?? 0;
+
+        // native player
+        setSelectedTrack(index);
+
+        // update local track state
+        setTracks(prev =>
+            prev.map(t => ({
+                ...t,
+                selected: t.trakIndex === index,
+            }))
+        );
+
+        setShowBottomSheet(false);
+    }
+
+
+    function handleMoreVert() {
+        if (tracks.length === 0) return;
+        setShowBottomSheet(true);
+    }
+
+
+    function onLoad(data: OnLoadData) {
+
+        if (!data.videoTracks?.length) return;
+
+        const naturalHeight = data.naturalSize?.height;
+        const naturalWidth = data.naturalSize?.width;
+
+        const unique = new Map<number, VideoTrack>();
+
+        data.videoTracks.forEach((t) => {
+            if (!t.height) return;
+
+            const existing = unique.get(t.height);
+
+            // mark as active if this track matches naturalSize
+            const isActive =
+                t.height === naturalHeight && t.width === naturalWidth;
+
+            const isBetterBitrate =
+                !existing || (t.bitrate ?? 0) > (existing.bitrate ?? 0);
+
+            if (isBetterBitrate) {
+                unique.set(t.height, {
+                    width: t.width,
+                    height: t.height,
+                    bitrate: t.bitrate,
+                    trakIndex: t.index,
+                    selected: isActive,
+                });
+            } else if (isActive && existing) {
+                existing.selected = true;
+            }
+        });
+
+        const tracks: VideoTrack[] = Array.from(unique.values()).sort(
+            (a, b) => (a.height ?? 0) - (b.height ?? 0)
+        );
+        setTracks(tracks);
+    }
+
+
+
+
+
     return (
         <SafeAreaView style={styles.root}>
             <View style={styles.topBar}>
@@ -359,7 +435,7 @@ export default function ShortsPlayer() {
                         repeat={true}
                         onBuffer={({ isBuffering }) => setBuffering(isBuffering)}
                         onLoadStart={() => setBuffering(true)}
-                        onLoad={() => setBuffering(false)}
+                        onLoad={onLoad}
                         onError={(e) => {
                             const error = e?.error;
                             console.log(error);
@@ -373,6 +449,14 @@ export default function ShortsPlayer() {
                                 playNextVideo()
                             }
                         }}
+                        selectedVideoTrack={
+                            selectedTrack === "auto" || selectedTrack == null
+                                ? { type: SelectedVideoTrackType.AUTO }
+                                : {
+                                    type: SelectedVideoTrackType.INDEX,
+                                    value: selectedTrack,
+                                }
+                        }
                     />
 
                     <Pressable
@@ -399,7 +483,10 @@ export default function ShortsPlayer() {
                     <RightControls
                         likes={currentVideoInfo?.likes ?? "No likes"}
                         commentCount={currentVideoInfo?.commentsCount ?? ""}
-                        onDownload={() => openAskFormat(currentVideoInfo?.video!!)}
+                        onDownload={() => openAskFormat(currentVideoInfo?.video!!, () => {
+
+                        })}
+                        onMenuPress={handleMoreVert}
                     />
 
                     <BottomControls
@@ -411,6 +498,13 @@ export default function ShortsPlayer() {
 
                 </View>
             </GestureDetector>
+
+            <ResolutionBottomSheet
+                visible={showBottomSheet}
+                resolutions={tracks}
+                onSelect={changeResolution}
+                onClose={() => setShowBottomSheet(false)}
+            />
         </SafeAreaView>
     )
 }

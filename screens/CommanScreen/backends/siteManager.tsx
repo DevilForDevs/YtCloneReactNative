@@ -3,7 +3,7 @@ import {
     NativeModules
 } from 'react-native'
 import { extractItems, metaPornCatSimplifiers, metaPornSimplifiers } from "./xhmparsers/parser";
-import { metaPornVideoSchema, uncutmazaVideoSchema } from "./schemas";
+import { metaPornVideoSchema, uncutmazaVideoSchema, xmazaSchema } from "./schemas";
 
 
 async function handleMetaPornFeeds(link: string): Promise<Video[]> {
@@ -31,7 +31,7 @@ async function handleMetaPornFeeds(link: string): Promise<Video[]> {
 }
 
 async function handleUncustMaza(link: string): Promise<Video[]> {
-    console.log(link);
+
 
     const { MyNativeModule } = NativeModules;
 
@@ -43,7 +43,7 @@ async function handleUncustMaza(link: string): Promise<Video[]> {
             JSON.stringify(uncutmazaVideoSchema)
         );
     } catch (e) {
-        console.error("Native call failed", e);
+        console.log("Native call failed", e);
         return [];
     }
 
@@ -65,7 +65,7 @@ async function handleUncustMaza(link: string): Promise<Video[]> {
     try {
         data = JSON.parse(jsonString);
     } catch (e) {
-        console.error("JSON parse failed", jsonString);
+        console.log("JSON parse failed", jsonString);
         return [];
     }
 
@@ -97,6 +97,56 @@ async function handleUncustMaza(link: string): Promise<Video[]> {
 }
 
 
+async function handleXmaaza(url: string) {
+    const { MyNativeModule } = NativeModules;
+    const videos: Video[] = [];
+    let jsonString: string;
+
+    try {
+        jsonString = await MyNativeModule.htmlJsonBridge(
+            url,
+            JSON.stringify(xmazaSchema)
+        );
+    } catch (e) {
+        console.log("Native call failed", e);
+        return [];
+    }
+
+    let data: any;
+
+    // 2️⃣ Safe JSON parse
+    try {
+        data = JSON.parse(jsonString);
+    } catch (e) {
+        console.log("JSON parse failed", jsonString);
+        return [];
+    }
+
+    // 3️⃣ Validate structure
+    if (!data || !Array.isArray(data.items)) {
+        console.warn("Invalid JSON structure:", data);
+        return [];
+    }
+
+    for (const item of data.items) {
+        if (!item?.title || !item?.thumbnail) continue;
+
+        videos.push({
+            title: String(item.title),
+            thumbnail: String(item.thumbnail),
+            duration: item.duration ?? "",
+            publishedOn: "",
+            views: item.quality ?? "",
+            type: "video",
+            pageUrl: item.url,
+            videoId: item.postId,
+        });
+    }
+
+    return videos;
+}
+
+
 
 export async function feeds(params: string): Promise<Video[]> {
     const videos: Video[] = [];
@@ -115,6 +165,10 @@ export async function feeds(params: string): Promise<Video[]> {
 
     if (params.includes("uncutmaza")) {
         return await handleUncustMaza(params);
+    }
+
+    if (params.includes("xmaza")) {
+        return await handleXmaaza(params);
     }
 
     return videos;
@@ -150,6 +204,11 @@ export async function nextBrowseContinuation(baseUrl: string, currentPage: numbe
         return await handleUncustMaza(baseUrl + `${currentPage}/`);
     }
 
+    if (baseUrl.includes("xmaza")) {
+        console.log(currentPage);
+        return await handleXmaaza(baseUrl + `page/${currentPage}/`);
+    }
+
     return videos;
 }
 
@@ -173,10 +232,30 @@ export async function searchApi(baseUrl: string, trimmed: string) {
 }
 
 
-export async function categoryItems(baseUrl: string, pageNo: number) {
+
+export async function categoryItems(baseUrl: string, pageNo: number): Promise<Video[]> {
+    console.log(baseUrl + `page/${pageNo}/`);
     const { MyNativeModule } = NativeModules;
     const videos: Video[] = [];
     if (baseUrl.includes("xhamster1")) {
+
+    }
+
+    if (baseUrl.includes("uncutmaza")) {
+        if (pageNo == 1) {
+            return await handleUncustMaza(baseUrl)
+        } else {
+            return await handleUncustMaza(baseUrl + `page/${pageNo}/`)
+        }
+    }
+
+    if (baseUrl.includes("xmaza")) {
+        console.log(pageNo);
+        if (pageNo == 1) {
+            return await handleXmaaza(baseUrl)
+        } else {
+            return await handleXmaaza(baseUrl + `page/${pageNo}/`)
+        }
 
     }
 
@@ -208,8 +287,6 @@ export async function categoryItems(baseUrl: string, pageNo: number) {
                 attr: "href",
             },
         };
-
-        console.log(pageNo);
         if (pageNo == 1) {
             const jsonString = await MyNativeModule.htmlJsonBridge(
                 baseUrl,

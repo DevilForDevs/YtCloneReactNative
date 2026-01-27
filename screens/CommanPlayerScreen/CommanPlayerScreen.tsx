@@ -1,9 +1,13 @@
-import { StyleSheet, Text, View, NativeModules, FlatList, ActivityIndicator, Pressable } from 'react-native'
+import {
+    StyleSheet, Text, View, NativeModules, FlatList, ActivityIndicator,
+    Pressable, StatusBar, Platform
+} from 'react-native'
 import React, { useCallback, useEffect, useRef, useState } from 'react'
 import { SafeAreaView } from 'react-native-safe-area-context'
+import { useSafeAreaInsets } from "react-native-safe-area-context";
 
 import { RouteProp, useNavigation, useRoute } from "@react-navigation/native";
-import Player from '../VideoPlayerScreen/widgets/Player';
+
 import { useVideoStoreForSearch } from '../../utils/Store';
 import { Video, ShortVideo } from '../../utils/types';
 import GridItem from '../CommanScreen/widgets/GridItem';
@@ -11,6 +15,8 @@ import { ListRenderItem } from 'react-native';
 import { VideoDescription } from '../../utils/types';
 import VideoDetails from '../VideoPlayerScreen/widgets/VideoDetails';
 import { getVideoFileUrlAndDetails } from './backends/utils';
+import Player from '../VideoPlayerScreen/widgets/Player';
+import ResolutionBottomSheet from '../VideoPlayerScreen/widgets/ResolutionBottomSheet';
 
 
 type NavigationProp = RouteProp<
@@ -19,6 +25,8 @@ type NavigationProp = RouteProp<
 >;
 
 export default function CommanPlayerScreen() {
+    const insets = useSafeAreaInsets();
+
     const route = useRoute<NavigationProp>();
     const { arrivedVideo } = route.params;
     const { MyNativeModule } = NativeModules;
@@ -35,6 +43,12 @@ export default function CommanPlayerScreen() {
     const [isSearch, setIsSearch] = useState(false);
     const [currentVideo, setCurrentVideo] = useState<VideoDescription>();
     const [pagingParams, setPagingParams] = useState<any>(null);
+    const [tracks, setTracks] = useState<VideoTrack[]>([]);
+    const [selectedTrack, setSelectedTrack] = useState<number | "auto">("auto");
+    const [resolutions, setResolutions] = useState<string[]>([]);
+    const [selectedResolution, setSelectedResolution] = useState<string | null>(null);
+    const [showBottomSheet, setShowBottomSheet] = useState(false);
+
 
     const {
         totalVideos,
@@ -49,14 +63,14 @@ export default function CommanPlayerScreen() {
         clearVideos()
         const vid = await getVideoFileUrlAndDetails(mvideo);
         setCurrentVideo(vid);
-
-
-        const source =
-            vid.streamingSources?.find(s => s.type === "mp4") ??
-            vid.streamingSources?.[0];
-
-        if (source) {
-            setMediaUrl(source.ref);
+        if (vid.hlsUrl == undefined) {
+            vid.streamingSources?.forEach(element => {
+                if (element.type = "mp4") {
+                    setMediaUrl(element.ref)
+                }
+            });
+        } else {
+            setMediaUrl(vid.hlsUrl ?? "")
         }
 
         vid.suggestedVideos?.forEach(element => {
@@ -120,18 +134,48 @@ export default function CommanPlayerScreen() {
 
     }
 
+    function changeResolution(res: VideoTrack) {
+        const index = res.trakIndex ?? 0;
+
+        // native player
+        setSelectedTrack(index);
+
+        // update local track state
+        setTracks(prev =>
+            prev.map(t => ({
+                ...t,
+                selected: t.trakIndex === index,
+            }))
+        );
+
+        setShowBottomSheet(false);
+    }
+
+    function handleMoreVert() {
+        if (tracks.length === 0) return;
+        setShowBottomSheet(true);
+    }
+
 
 
     return (
-        <SafeAreaView style={styles.root}>
+        <View style={{
+            flex: 1,
+            paddingTop: showFlatList
+                ? Platform.OS === 'android'
+                    ? StatusBar.currentHeight
+                    : 0
+                : 0,
+        }}>
+            <StatusBar hidden={!showFlatList} />
             <Player
                 startAsScreen={endedAsScreen}
                 url={mediaUrl}
                 videoId={""}
                 toggleFlatList={toggleFlatList}
-                showMenu={() => console.log("more")}
+                showMenu={handleMoreVert}
                 onProgressSave={handleProgress}
-                key={"player"}   // ✅ stable
+                key={"Player"}   // ✅ stable
                 distroyScreen={() => console.log("progressasve")}
                 onToggle={(val) => console.log("progressasve")}
                 videoEnded={(endedAsScreen) => {
@@ -140,46 +184,61 @@ export default function CommanPlayerScreen() {
                 }}
                 pageUrl={arrivedVideo.pageUrl}
                 videoHeaders={currentVideo?.streamingRefrer}
+                onTracks={setTracks}
+                selectedTrack={selectedTrack}
             />
             {
-                showFlatList ? <FlatList
-                    ref={listRef}
-                    data={totalVideos}
-                    numColumns={2}
-                    keyExtractor={(_, index) => index.toString()}
-                    renderItem={renderItem}
-                    columnWrapperStyle={styles.columnWrapper}
-                    contentContainerStyle={styles.contentContainer}
-                    removeClippedSubviews
-                    initialNumToRender={6}
-                    maxToRenderPerBatch={6}
-                    windowSize={7}
-                    onEndReached={() => {
-                        if (!onEndReachedCalledDuringMomentum.current) {
-                            onEndReachedCalledDuringMomentum.current = true;
+                showFlatList ? <View style={styles.secondroot}>
+                    <FlatList
+                        ref={listRef}
+                        data={totalVideos}
+                        numColumns={2}
+                        keyExtractor={(_, index) => index.toString()}
+                        renderItem={renderItem}
+                        columnWrapperStyle={styles.columnWrapper}
+                        contentContainerStyle={[
+                            styles.contentContainer,
+                            { paddingBottom: insets.bottom + 80 }, // ✅ nav buttons + gesture bar
+                        ]}
+                        removeClippedSubviews
+                        initialNumToRender={6}
+                        maxToRenderPerBatch={6}
+                        windowSize={7}
+                        onEndReached={() => {
+                            if (!onEndReachedCalledDuringMomentum.current) {
+                                onEndReachedCalledDuringMomentum.current = true;
+                            }
+                        }}
+                        onMomentumScrollBegin={() => {
+                            onEndReachedCalledDuringMomentum.current = false;
+                        }}
+                        onEndReachedThreshold={0.5}
+                        ListFooterComponent={renderFooter}
+                        ListHeaderComponent={
+                            currentVideo ? (
+                                <VideoDetails
+                                    videoDes={currentVideo}
+                                    onDownloadPress={() =>
+                                        console.log("ranjan")
+                                    }
+                                    onChannelClick={() => console.log("channel click")}
+                                />
+                            ) : (
+                                <ActivityIndicator size="large" color="red" style={{ margin: 20 }} />
+                            )
                         }
-                    }}
-                    onMomentumScrollBegin={() => {
-                        onEndReachedCalledDuringMomentum.current = false;
-                    }}
-                    onEndReachedThreshold={0.5}
-                    ListFooterComponent={renderFooter}
-                    ListHeaderComponent={
-                        currentVideo ? (
-                            <VideoDetails
-                                videoDes={currentVideo}
-                                onDownloadPress={() =>
-                                    console.log("ranjan")
-                                }
-                                onChannelClick={() => console.log("channel click")}
-                            />
-                        ) : (
-                            <ActivityIndicator size="large" color="red" style={{ margin: 20 }} />
-                        )
-                    }
-                /> : <></>
+                    />
+                    <ResolutionBottomSheet
+                        visible={showBottomSheet}
+                        resolutions={tracks}
+                        onSelect={changeResolution}
+                        onClose={() => setShowBottomSheet(false)}
+                    />
+                </View>
+
+                    : <></>
             }
-        </SafeAreaView>
+        </View>
     )
 }
 
@@ -188,7 +247,7 @@ const styles = StyleSheet.create({
         flex: 1,
         alignItems: "center",
         justifyContent: "center",
-        paddingVertical: 40,
+        paddingVertical: 40
     },
 
     retryText: {
@@ -217,6 +276,9 @@ const styles = StyleSheet.create({
     },
 
     root: {
-        paddingBottom: 10
+    }
+    ,
+    secondroot: {
+        alignItems: "center"
     }
 })

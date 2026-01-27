@@ -14,7 +14,7 @@ import { categoryItems } from '../CommanScreen/backends/siteManager';
 
 type NavigationProp = RouteProp<
     RootStackParamList,
-    "CommanScreen"
+    "CategoryItemsScreen"
 >;
 
 function getTitleFromLink(link: string): string {
@@ -141,10 +141,15 @@ export default function CategoryItemsScreen() {
                 </Text>
             </View>
             <FlatList
+                ListHeaderComponent={
+                    <View>
+                        <Text>Total Videos {totalVideos.length}</Text>
+                    </View>
+                }
                 ref={listRef}
                 data={totalVideos}
                 numColumns={2}
-                keyExtractor={item => item.videoId}
+                keyExtractor={item => item.videoId + totalVideos.indexOf(item)}
                 renderItem={renderItem}
                 columnWrapperStyle={styles.columnWrapper}
                 contentContainerStyle={styles.contentContainer}

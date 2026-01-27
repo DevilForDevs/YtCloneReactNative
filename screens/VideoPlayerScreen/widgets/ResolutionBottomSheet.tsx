@@ -9,9 +9,8 @@ import {
 
 type Props = {
     visible: boolean;
-    resolutions: string[];
-    selectedResolution: string | null;
-    onSelect: (res: string) => void;
+    resolutions: VideoTrack[];
+    onSelect: (res: VideoTrack) => void;
     onClose: () => void;
 };
 
@@ -33,19 +32,20 @@ export default function ResolutionBottomSheet(props: Props) {
 
                     {props.resolutions.map(res => (
                         <TouchableOpacity
-                            key={res}
+                            key={res.trakIndex ?? res.bitrate}
                             onPress={() => props.onSelect(res)}
                             style={styles.item}
                         >
                             <Text style={styles.text}>
-                                {res.split("x")[1] + "p"}
+                                {res.height}p
                             </Text>
 
-                            {props.selectedResolution === res && (
+                            {res.selected && (
                                 <Text style={styles.check}>✓</Text>
                             )}
                         </TouchableOpacity>
                     ))}
+
                 </View>
             </TouchableOpacity>
         </Modal>

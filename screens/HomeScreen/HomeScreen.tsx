@@ -83,6 +83,7 @@ export default function HomeScreen() {
         continuation,
         visitorData
       );
+
       const videoGroup = parseYTInitialData(JSON.parse(raw));
       processVideoGroup(videoGroup);
     } catch (e) {
@@ -125,7 +126,9 @@ export default function HomeScreen() {
               onItemPress={() =>
                 navigation.navigate("VideoPlayerScreen", { arrivedVideo: item, playlistId: undefined })
               }
-              onDownload={() => openAskFormat(item)}
+              onDownload={() => openAskFormat(item, () => {
+
+              })}
             />
           ) : (
             <View style={styles.shortParentContainer}>
