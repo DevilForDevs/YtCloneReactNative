@@ -56,10 +56,87 @@ object JsonHtmlBridge {
         val doc = Jsoup.parse(html, baseUrl)
 
         val result = JSONObject()
-        val items = JSONArray()
         val globals = JSONObject()
+        val legacyItems = JSONArray()
 
-        // ---------- GLOBAL FIELDS ----------
+        // ---------- GLOBAL (document-level) ----------
+        extractDocumentGlobals(doc, schema, globals)
+
+        // ---------- $containers ----------
+        schema.optJSONObject("\$containers")?.let { containersObj ->
+            containersObj.keys().forEach { containerName ->
+
+                val cfg = containersObj.optJSONObject(containerName) ?: return@forEach
+                val selector = cfg.optString("selector")
+                if (selector.isBlank()) return@forEach
+
+                val subSchema = cfg.optJSONObject("schema") ?: JSONObject()
+                val arr = JSONArray()
+
+                var containerGlobalsExtracted = false
+                val containerGlobals = JSONObject()
+
+                for (el in doc.select(selector)) {
+                    // extract container-globals ONCE
+                    if (!containerGlobalsExtracted) {
+                        extractContainerGlobals(el, subSchema, containerGlobals)
+                        containerGlobalsExtracted = true
+                    }
+
+                    arr.put(extractFromElement(el, subSchema, baseUrl))
+                }
+
+                result.put(containerName, arr)
+
+                if (containerGlobals.length() > 0) {
+                    globals.put(containerName, containerGlobals)
+                }
+            }
+        }
+
+        // ---------- LEGACY container → items ----------
+        schema.optString("container").takeIf { it.isNotBlank() }?.let { selector ->
+
+            var legacyGlobalsExtracted = false
+            val legacyGlobals = JSONObject()
+
+            for (el in doc.select(selector)) {
+                if (!legacyGlobalsExtracted) {
+                    extractContainerGlobals(el, schema, legacyGlobals)
+                    legacyGlobalsExtracted = true
+                }
+
+                legacyItems.put(extractFromElement(el, schema, baseUrl))
+            }
+
+            if (legacyItems.length() > 0) {
+                result.put("items", legacyItems)
+            }
+
+            if (legacyGlobals.length() > 0) {
+                globals.put("items", legacyGlobals)
+            }
+        }
+
+        // ---------- REGEX VIDEO URLS ----------
+        schema.optJSONObject("videoUrl")?.let {
+            result.put("videoUrls", findVideoUrls(html, it))
+        }
+
+        if (globals.length() > 0) {
+            result.put("globals", globals)
+        }
+
+        return result
+    }
+
+    // ================= GLOBAL HELPERS =================
+
+    private fun extractDocumentGlobals(
+        doc: org.jsoup.nodes.Document,
+        schema: JSONObject,
+        globals: JSONObject,
+    ) {
         schema.keys().forEach { key ->
             val conf = schema.optJSONObject(key) ?: return@forEach
             if (conf.optString("scope") != "global") return@forEach
@@ -80,52 +157,29 @@ object JsonHtmlBridge {
                     ?.let { globals.put(key, it) }
             }
         }
-
-        // ---------- MULTIPLE CONTAINERS ($containers) ----------
-        schema.optJSONObject("\$containers")?.let { containersObj ->
-            val names = containersObj.keys()
-            while (names.hasNext()) {
-                val name = names.next()
-                val cfg = containersObj.optJSONObject(name) ?: continue
-
-                val selector = cfg.optString("selector")
-                if (selector.isBlank()) continue
-
-                val subSchema = cfg.optJSONObject("schema") ?: JSONObject()
-                val arr = JSONArray()
-
-                for (el in doc.select(selector)) {
-                    arr.put(extractFromElement(el, subSchema, baseUrl))
-                }
-
-                globals.put(name, arr)
-            }
-        }
-
-        // ---------- LEGACY SINGLE CONTAINER (container → items) ----------
-        val legacySelector = schema.optString("container")
-        if (legacySelector.isNotBlank()) {
-            for (el in doc.select(legacySelector)) {
-                items.put(extractFromElement(el, schema, baseUrl))
-            }
-        }
-
-        // ---------- REGEX VIDEO URLS ----------
-        val videoUrls =
-            schema
-                .optJSONObject("videoUrl")
-                ?.let { findVideoUrls(html, it) }
-                ?: JSONArray()
-
-        // ---------- FINAL OBJECT ----------
-        result.put("items", items)
-        result.put("videoUrls", videoUrls)
-        if (globals.length() > 0) result.put("globals", globals)
-
-        return result
     }
 
-    // ================= ELEMENT EXTRACTION =================
+    private fun extractContainerGlobals(
+        root: Element,
+        schema: JSONObject,
+        globals: JSONObject,
+    ) {
+        schema.keys().forEach { key ->
+            val conf = schema.optJSONObject(key) ?: return@forEach
+            if (conf.optString("scope") != "container-global") return@forEach
+
+            val selector = conf.optString("selector")
+            val node = if (selector.isBlank()) root else root.selectFirst(selector)
+
+            node?.let {
+                extractValue(it, conf)?.let { value ->
+                    globals.put(key, value)
+                }
+            }
+        }
+    }
+
+    // ================= ITEM EXTRACTION =================
 
     private fun extractFromElement(
         root: Element,
@@ -138,21 +192,36 @@ object JsonHtmlBridge {
             if (key.startsWith("$") || key == "container") return@forEach
 
             val conf = schema.optJSONObject(key) ?: return@forEach
-            if (conf.optString("scope") == "global") return@forEach
 
+            // ---------- NESTED CONTAINER ----------
+            // NEW: nested container support
+            if (conf.has("container") && conf.has("schema")) {
+                val arr = JSONArray()
+                val sel = conf.optString("container")
+                if (sel.isNotBlank()) {
+                    for (child in root.select(sel)) {
+                        arr.put(extractFromElement(child, conf.getJSONObject("schema"), baseUrl))
+                    }
+                }
+                obj.put(key, arr)
+                return@forEach
+            }
+
+            // ---------- SIMPLE FIELD ----------
             val selector = conf.optString("selector")
             val node = if (selector.isBlank()) root else root.selectFirst(selector)
 
-            val value = node?.let { extractValue(it, conf) }
-            if (value != null) {
-                obj.put(key, resolveUrl(key, value, baseUrl))
+            node?.let {
+                extractValue(it, conf)?.let { value ->
+                    obj.put(key, resolveUrl(key, value, baseUrl))
+                }
             }
         }
 
         return obj
     }
 
-    // ================= HELPERS =================
+    // ================= VALUE =================
 
     private fun extractValue(
         node: Element,
@@ -179,8 +248,7 @@ object JsonHtmlBridge {
             }
 
             is String -> {
-                val v = node.attr(attr)
-                if (v.isBlank()) null else v
+                node.attr(attr).takeIf { it.isNotBlank() }
             }
 
             else -> {
@@ -212,13 +280,34 @@ object JsonHtmlBridge {
         if (patternStr.isBlank()) return arr
 
         val seen = HashSet<String>()
-        val matcher =
-            Pattern.compile(patternStr, Pattern.CASE_INSENSITIVE).matcher(html)
+        val matcher = Pattern.compile(patternStr, Pattern.CASE_INSENSITIVE).matcher(html)
 
         while (matcher.find()) {
             val url = matcher.group()
             if (seen.add(url)) arr.put(url)
         }
         return arr
+    }
+
+    private fun extractFields(
+        root: Element,
+        fields: JSONObject,
+        baseUrl: String,
+    ): JSONObject {
+        val obj = JSONObject()
+
+        fields.keys().forEach { key ->
+            val conf = fields.optJSONObject(key) ?: return@forEach
+            val selector = conf.optString("selector")
+            val node = if (selector.isBlank()) root else root.selectFirst(selector)
+
+            node?.let {
+                extractValue(it, conf)?.let { value ->
+                    obj.put(key, resolveUrl(key, value, baseUrl))
+                }
+            }
+        }
+
+        return obj
     }
 }

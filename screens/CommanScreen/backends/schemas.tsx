@@ -88,4 +88,30 @@ export const xmazaSchema = {
     },
 }
 
+export const schemaSarkariResultFeeds = {
+    "$containers": {
+        "hotjobs": {
+            "selector": "p.gb-headline a:matchesOwn(.+)",
+            "schema": {
+                "title": { "attr": "text" },
+                "url": { "attr": "href" }
+            }
+        },
+        "cards": {
+            "selector": "div.gb-container",
+            "schema": {
+                "title": { "selector": "p.gb-headline", "attr": "text" },
+                "items": {
+                    "container": "ul.wp-block-latest-posts__list li",
+                    "schema": {
+                        "title": { "selector": "a.wp-block-latest-posts__post-title", "attr": "text" },
+                        "url": { "selector": "a.wp-block-latest-posts__post-title", "attr": "href" }
+                    }
+                },
+                "viewMore": { "selector": "a.wp-block-button__link", "attr": "href" }
+            }
+        }
+    }
+}
+
 

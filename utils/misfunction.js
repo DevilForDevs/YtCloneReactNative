@@ -1,17 +1,22 @@
 import { getRandomBytes } from "./randomStringGenerator";
 import 'react-native-get-random-values';
 
-export function formatSeconds(time) {
-    if (!time || isNaN(time)) return "00:00";
-    const t = Math.floor(time);
-    const mm = Math.floor(t / 60)
-        .toString()
-        .padStart(2, "0");
-    const ss = Math.floor(t % 60)
-        .toString()
-        .padStart(2, "0");
-    return `${mm}:${ss}`;
+export function formatSeconds(time: number) {
+  if (time == null || isNaN(time)) return "00:00";
+
+  const t = Math.floor(time);
+
+  const hrs = Math.floor(t / 3600);
+  const mins = Math.floor((t % 3600) / 60);
+  const secs = t % 60;
+
+  const hh = hrs > 0 ? String(hrs).padStart(2, "0") + ":" : "";
+  const mm = String(mins).padStart(2, "0");
+  const ss = String(secs).padStart(2, "0");
+
+  return `${hh}${mm}:${ss}`;
 }
+
 
 
 const ALPHABET = "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789-_";

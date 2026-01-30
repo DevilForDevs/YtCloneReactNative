@@ -148,18 +148,15 @@ export default function VideoPlayerScreen() {
             clearVideos()
         }
         try {
-
-
             const playerResponse = await getIosPlayerResponse(mvideo.videoId);
             const streamingData = playerResponse.streamingData
             const videoDetails = playerResponse.videoDetails
             setMediaUrl(streamingData.hlsManifestUrl);
-
             try {
 
                 const jsonString = await MyNativeModule.getYtInitialData(
                     'https://www.youtube.com/watch?v=' + mvideo.videoId
-                );
+                )
                 const ytInitialData = JSON.parse(jsonString);
                 const parseResult = parseWatchHtml(ytInitialData)
 
@@ -170,6 +167,7 @@ export default function VideoPlayerScreen() {
                         addVideo(element)
                     });
                 }
+
                 const videoDes2: VideoDescription = {
                     title: videoDetails.title,
                     uploaded: mvideo.publishedOn ? mvideo.publishedOn : "",
@@ -186,6 +184,7 @@ export default function VideoPlayerScreen() {
                     video: mvideo,
                     channelId: videoDetails.channelId
                 }
+
                 setCurrentVideo(videoDes2);
                 currentVideoRef.current = mvideo;
 

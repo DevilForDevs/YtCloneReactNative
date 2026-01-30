@@ -39,7 +39,7 @@ declare global {
         views: string | null;
     };
 
-    export type RootStackParamList = {
+    type RootStackParamList = {
         SplashScreen: undefined,
         LoginScreen: undefined,
         BrowserScreen: { name: string },
@@ -56,7 +56,8 @@ declare global {
         CommanPlayerScreen: { arrivedVideo: Video },
         CategoryScreen: { site: Site },
         CategoryItemsScreen: { link: string },
-        SarkariResult: undefined
+        SarkariResult: undefined,
+        PageDetailsSr: { link: string }
     };
 
     type navStack = NativeStackNavigationProp<
@@ -121,6 +122,16 @@ declare global {
         title: string,
         link: string
     }
+
+    type SharedFile = {
+        filePath?: string;
+        originalFileName?: string;
+        extension?: string;
+        type?: string;
+        text?: string;
+        contentUri?: string;
+        weblink?: string;
+    };
 
 
 

@@ -24,7 +24,10 @@ export async function handleFormatSelect(
     if (!currentVideo) return;
 
     const { MyNativeModule } = NativeModules;
-    const { addDownloadItem, totalDownloads } = DownloadsStore();
+
+    // ✅ CORRECT way to access Zustand outside React
+    const { addDownloadItem, totalDownloads } =
+        DownloadsStore.getState();
 
     const { selectedVideoFmt, selectedAudioFmt } =
         getSelectedFormats(itag, requiredFmts);

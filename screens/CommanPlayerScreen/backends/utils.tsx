@@ -3,6 +3,76 @@ import { Video, VideoDescription } from "../../../utils/types";
 import { NativeModules } from 'react-native'
 import { extractItems } from "../../CommanScreen/backends/xhmparsers/parser";
 import { uncutmazaVideoSchema, xmazaSchema } from "../../CommanScreen/backends/schemas";
+import { formatViews, handleDesiPornTube } from "../../CommanScreen/backends/siteManager";
+
+
+
+
+function normalizeUrl(url: string): string {
+    // replace wrong delimiter
+    url = url.replace(/>/g, "?");
+
+    // remove trailing ?
+    if (url.endsWith("?")) {
+        url = url.slice(0, -1);
+    }
+
+    // ensure only one ?
+    const firstQ = url.indexOf("?");
+    if (firstQ !== -1) {
+        const before = url.slice(0, firstQ + 1);
+        const after = url
+            .slice(firstQ + 1)
+            .replace(/\?/g, "");
+        url = before + after;
+    }
+
+    return url;
+}
+function decodeVideoUrl(obf: string): string {
+    let s = obf;
+
+    // 1️⃣ JSON-unescape (\u041c etc.)
+    if (s.includes("\\u")) {
+        try {
+            s = JSON.parse(`"${s}"`);
+        } catch { }
+    }
+
+    // 2️⃣ Fix Cyrillic homoglyphs
+    const cyr: Record<string, string> = {
+        "А": "A", "В": "B", "С": "C", "Е": "E",
+        "М": "M", "Н": "H", "О": "O", "Р": "P",
+        "Т": "T", "Х": "X", "К": "K", "Л": "L",
+        "И": "I", "Д": "D", "Ф": "F", "Г": "G",
+    };
+
+    Object.entries(cyr).forEach(([k, v]) => {
+        s = s.split(k).join(v);
+    });
+
+    // 3️⃣ Restore Base64 separators
+    s = s.replace(/,/g, "+").replace(/~/g, "/");
+
+    // 4️⃣ Fix Base64 padding
+    while (s.length % 4 !== 0) {
+        s += "=";
+    }
+
+    // 5️⃣ Base64 decode (latin-1 safe)
+    let decoded = atob(s);
+
+    // 6️⃣ Reverse d(t)
+    decoded = decoded.replace(/\+/g, "%20");
+    decoded = decodeURIComponent(decoded);
+
+    // 7️⃣ Prepend domain if needed
+    if (decoded.startsWith("/")) {
+        decoded = "https://desi-porn.tube" + decoded;
+    }
+
+    return normalizeUrl(decoded);
+}
 
 
 export function decodeLParam(url: string): string | null {
@@ -463,6 +533,98 @@ async function handlexmaaza(mvideo: Video): Promise<VideoDescription> {
 }
 
 
+
+
+
+async function handleDesiTube(mvideo: Video): Promise<VideoDescription> {
+    const videoId = Number(mvideo.videoId);
+    const bucket = Math.floor(videoId / 1000) * 1000;
+    const headers: HeadersInit_ = {
+        "User-Agent":
+            "Mozilla/5.0 (Windows NT 10.0; Win64; x64) " +
+            "AppleWebKit/537.36 (KHTML, like Gecko) " +
+            "Chrome/122.0.0.0 Safari/537.36",
+        Accept:
+            "text/html,application/xhtml+xml,application/xml;q=0.9,image/webp,*/*;q=0.8",
+        "Accept-Language": "en-US,en;q=0.9",
+        "Accept-Encoding": "gzip, deflate, br",
+        Connection: "keep-alive",
+        "Upgrade-Insecure-Requests": "1",
+        Referer: mvideo.pageUrl ?? "https://desi-porn.tube/",
+    };
+
+    const url = `https://desi-porn.tube/api/json/video/86400/0/${bucket}/${videoId}.json`;
+
+    const response = await fetch(url, {
+        method: "GET",
+        headers,
+    });
+    const text = await response.text(); // ✅ function call
+    const jsonObject = JSON.parse(text);
+
+
+    const baseVideoDetails: VideoDescription = {
+        title: mvideo.title,
+        channelName: mvideo.channelName ?? "",
+        channelPhoto: "",
+        channelId: "",
+        video: mvideo,
+        hashTags: "",
+        hlsUrl: undefined,
+        views: 0,
+        uploaded: "scrapper failed",
+        subscriber: "",
+        likes: "",
+        dislikes: "",
+        commentsCount: "00k",
+        suggestedVideos: [],
+    };
+
+    const tags = Object.values(jsonObject.video.tags)
+        .map((item: any) => item.title)
+        .join(" ");
+
+
+    const mvideos = await handleDesiPornTube(`https://desi-porn.tube/api/json/videos_related2/432000/20/0/${bucket}/${videoId}.all.1.json`)
+
+    const responseVideoFiles = await fetch(`https://desi-porn.tube/api/videofile.php?video_id=${videoId}&lifetime=8640000`, {
+        method: "GET",
+        headers,
+    });
+
+    const text2 = await responseVideoFiles.text(); // ✅ function call
+    const jsonObject2 = JSON.parse(text2);
+    const streamingVariants: StreamVariant[] = []
+    if (jsonObject2.length) {
+        const firstUrlVariant = jsonObject2[0].video_url
+        const realUrl = decodeVideoUrl(firstUrlVariant);
+        streamingVariants.push(
+            {
+                type: "mp4",
+                ref: realUrl,
+                resolution: "HD"
+            }
+        )
+    }
+    return {
+        ...baseVideoDetails,
+        channelPhoto: "https://desi-porn.tube/favicon.ico",
+        channelId: "",
+        hlsUrl: undefined,
+        views: Number(jsonObject.video.statistics.viewed),
+        channelName: "desi-porn",
+        uploaded: mvideo.publishedOn ?? "",
+        commentsCount: jsonObject.video.statistics.comments,
+        suggestedVideos: mvideos,
+        streamingRefrer: {},
+        streamingSources: streamingVariants,
+        hashTags: tags,
+        likes: formatViews(jsonObject.video.statistics.likes),
+        dislikes: formatViews(jsonObject.video.statistics.dislikes)
+    };
+}
+
+
 export async function getVideoFileUrlAndDetails(video: Video): Promise<VideoDescription> {
     console.log(video);
 
@@ -498,6 +660,10 @@ export async function getVideoFileUrlAndDetails(video: Video): Promise<VideoDesc
 
     if (video.pageUrl?.includes("xmaza")) {
         return await handlexmaaza(video);
+    }
+
+    if (video.pageUrl?.includes("desi-porn")) {
+        return await handleDesiTube(video);
     }
 
     return videoDetails

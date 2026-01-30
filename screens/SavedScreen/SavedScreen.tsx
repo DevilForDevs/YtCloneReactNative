@@ -10,6 +10,7 @@ import { DownloadsStore } from '../../utils/Store'
 import { loadHistory } from './backend/dbo'
 import { initDB } from '../../utils/dbfunctions'
 import { ytThumbs } from '../../utils/downloadFunctions'
+import { Video } from '../../utils/types'
 
 export default function SavedScreen() {
 
@@ -37,6 +38,17 @@ export default function SavedScreen() {
     };
   }, []);
 
+  async function handleItemClick(item: any) {
+    console.log(item);
+    const requiredVideo: Video = {
+      type: "video",
+      videoId: item.videoId,
+      title: "",
+      views: "NO views"
+    };
+    navigation.navigate("VideoPlayerScreen", { arrivedVideo: requiredVideo, playlistId: undefined });
+  }
+
   return (
     <SafeAreaView style={styles.root}>
       <TopBar onLensPress={() => console.log("lens clicked")} />
@@ -53,9 +65,7 @@ export default function SavedScreen() {
             duration={item.duration}
             watchedAt={item.watchedAt}
             thumbnail={ytThumbs(item.videoId).mq}
-            onPress={() => {
-              console.log("Open video:", item.videoId);
-            }}
+            onPress={() => handleItemClick(item)}
           />
         )}
         ListEmptyComponent={

@@ -11,7 +11,7 @@ import { formatSeconds } from '../../../utils/misfunction';
 import throttle from "lodash.throttle";
 import Orientation from "react-native-orientation-locker"
 import {
-    SelectedVideoTrackType,
+    SelectedVideoTrackType, SelectedTrackType
 } from "react-native-video";
 
 
@@ -43,6 +43,7 @@ export default function Player(props: Props) {
     const [paused, setPaused] = useState(false);
     const lastTap = useRef<number>(0);
     const singleTapTimeout = useRef<ReturnType<typeof setTimeout> | null>(null);
+    const [ati, setAti] = useState(0);
 
     const DOUBLE_TAP_DELAY = 300;
 
@@ -100,6 +101,7 @@ export default function Player(props: Props) {
         if (props.startAsScreen) toggleFullscreen();
         setDuration(data.duration);
         setIsBuffering(false);
+        console.log(data);
 
         if (!data.videoTracks?.length) return;
 
@@ -141,6 +143,17 @@ export default function Player(props: Props) {
 
         if (props.seekTo && props.seekTo > 3) {
             videoRef.current?.seek(props.seekTo);
+        }
+
+        if (data.audioTracks.length > 1) {
+            data.audioTracks.forEach((t) => {
+                if (t.language) {
+                    if (t.language == "hi") {
+                        setAti(data.audioTracks.indexOf(t))
+                    }
+                }
+
+            })
         }
     }
 
@@ -208,6 +221,13 @@ export default function Player(props: Props) {
                                 value: props.selectedTrack,
                             }
                     }
+                    selectedAudioTrack={
+                        {
+                            type: SelectedTrackType.INDEX,
+                            value: ati,
+                        }
+                    }
+
 
 
                 />

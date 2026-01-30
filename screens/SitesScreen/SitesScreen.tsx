@@ -1,4 +1,4 @@
-import React, { useRef, useState } from 'react'
+import React, { useEffect, useRef, useState } from 'react'
 import {
     StyleSheet,
     Text,
@@ -8,6 +8,9 @@ import {
 } from 'react-native'
 import { SafeAreaView } from 'react-native-safe-area-context'
 import { useNavigation } from '@react-navigation/native'
+import { useSharedFilesStore } from '../../utils/Store'
+import { videoId } from '../../utils/Interact'
+import { Video } from '../../utils/types'
 
 /* ------------------ Data ------------------ */
 
@@ -20,6 +23,7 @@ const SITES: Site[] = [
     { id: 'mp', name: 'MetaPorn', url: 'https://metaporn.com', route: 'BrowserScreen' },
     { id: 'um', name: 'Uncutmaza', url: 'https://uncutmaza.com.co/', route: 'BrowserScreen' },
     { id: 'xmz', name: 'xmaza.tv', url: 'https://xmaza.tv/', route: 'BrowserScreen' },
+    { id: 'dpt', name: 'desi-porn', url: 'https://desi-porn.tube/', route: 'BrowserScreen' },
 ]
 
 
@@ -27,6 +31,7 @@ const SITES: Site[] = [
 
 export default function SitesScreen() {
     const navigation = useNavigation<navStack>()
+    const { files, addFile, setFiles, clearFiles } = useSharedFilesStore();
 
     const [showAll, setShowAll] = useState(false)
     const tapCount = useRef(0)
@@ -44,6 +49,23 @@ export default function SitesScreen() {
             setShowAll(false)
         }
     }
+
+    useEffect(() => {
+        for (const item of files as SharedFile[]) {
+            if (item.weblink) {
+                const ytVideoId = videoId(item.weblink)
+
+                const requiredVideo: Video = {
+                    type: 'video',
+                    videoId: ytVideoId,
+                    title: '',
+                    views: 'NO views',
+                };
+                navigation.navigate("VideoPlayerScreen", { arrivedVideo: requiredVideo, playlistId: undefined })
+                break;
+            }
+        }
+    }, [files])
 
     function onSelectSite(site: Site) {
         if (site.name === 'YouTube') {

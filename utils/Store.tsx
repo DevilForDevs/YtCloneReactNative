@@ -382,7 +382,26 @@ type TabKey = "videos" | "shorts" | "playlists"
 export const useChannelTab = (tab: TabKey) =>
   useChannelStore((state) => state.tabs[tab])
 
+type SharedFilesStore = {
+  files: SharedFile[];
 
+  setFiles: (files: SharedFile[]) => void;
+  addFile: (file: SharedFile) => void;
+  clearFiles: () => void;
+};
+
+export const useSharedFilesStore = create<SharedFilesStore>((set) => ({
+  files: [],
+
+  setFiles: (files) => set({ files }),
+
+  addFile: (file) =>
+    set((state) => ({
+      files: [...state.files, file],
+    })),
+
+  clearFiles: () => set({ files: [] }),
+}));
 
 
 

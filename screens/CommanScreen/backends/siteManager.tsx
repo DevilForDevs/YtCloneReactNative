@@ -146,6 +146,106 @@ async function handleXmaaza(url: string) {
     return videos;
 }
 
+export function formatViews(value: number | string): string {
+    const num = Number(value);
+    if (isNaN(num)) return "0";
+
+    if (num >= 1_000_000_000)
+        return (num / 1_000_000_000).toFixed(1).replace(/\.0$/, "") + "B";
+
+    if (num >= 1_000_000)
+        return (num / 1_000_000).toFixed(1).replace(/\.0$/, "") + "M";
+
+    if (num >= 1_000)
+        return (num / 1_000).toFixed(1).replace(/\.0$/, "") + "K";
+
+    return num.toString();
+}
+
+function timeAgo(dateString: string): string {
+    const date = new Date(dateString);
+    const now = new Date();
+    const diff = now.getTime() - date.getTime(); // ms difference
+
+    const seconds = Math.floor(diff / 1000);
+    const minutes = Math.floor(seconds / 60);
+    const hours = Math.floor(minutes / 60);
+    const days = Math.floor(hours / 24);
+    const months = Math.floor(days / 30);
+    const years = Math.floor(days / 365);
+
+    if (seconds < 60) return "just now";
+    if (minutes < 60) return `${minutes} minute${minutes !== 1 ? "s" : ""} ago`;
+    if (hours < 24) return `${hours} hour${hours !== 1 ? "s" : ""} ago`;
+    if (days < 30) return `${days} day${days !== 1 ? "s" : ""} ago`;
+    if (months < 12) return `${months} month${months !== 1 ? "s" : ""} ago`;
+    return `${years} year${years !== 1 ? "s" : ""} ago`;
+}
+
+
+
+export async function handleDesiPornTube(url: string): Promise<Video[]> {
+    const videos: Video[] = [];
+
+
+    const headers: HeadersInit_ = {
+        "User-Agent":
+            "Mozilla/5.0 (Windows NT 10.0; Win64; x64) " +
+            "AppleWebKit/537.36 (KHTML, like Gecko) " +
+            "Chrome/122.0.0.0 Safari/537.36",
+        Accept:
+            "text/html,application/xhtml+xml,application/xml;q=0.9,image/webp,*/*;q=0.8",
+        "Accept-Language": "en-US,en;q=0.9",
+        "Accept-Encoding": "gzip, deflate, br",
+        Connection: "keep-alive",
+        "Upgrade-Insecure-Requests": "1",
+        Referer: "https://desi-porn.tube/",
+    };
+
+    const response = await fetch(url, {
+        method: "GET",
+        headers,
+    });
+
+    if (!response.ok) {
+        throw new Error(`HTTP error! Status: ${response.status}`);
+    }
+
+    const text = await response.text(); // same as response.text in Python
+    const jsonObject = JSON.parse(text);
+
+
+    /*
+  [
+    "time.sphinx",
+    "time.sql",
+    "time.api",
+    "params",
+    "total_count",
+    "sphinx",
+    "pages",
+    "videos"
+
+    console.log(Object.keys(jsonObject));
+]
+*/
+
+    for (const item of jsonObject.videos) {
+        videos.push({
+            title: String(item.title),
+            thumbnail: item.scr, // ✅ correct
+            duration: item.duration ?? "",
+            publishedOn: timeAgo(item.post_date),
+            views: formatViews(item.video_viewed) ?? "0",
+            type: "video",
+            pageUrl: `https://desi-porn.tube/video/${item.video_id}/${item.dir}/`,
+            videoId: item.video_id,
+        });
+    }
+    return videos
+
+}
+
 
 
 export async function feeds(params: string): Promise<Video[]> {
@@ -169,6 +269,10 @@ export async function feeds(params: string): Promise<Video[]> {
 
     if (params.includes("xmaza")) {
         return await handleXmaaza(params);
+    }
+
+    if (params.includes("desi-porn")) {
+        return await handleDesiPornTube("https://desi-porn.tube/api/json/videos2/14400/str/latest-updates/20/top-country.in.1.all...json");
     }
 
     return videos;
@@ -205,9 +309,13 @@ export async function nextBrowseContinuation(baseUrl: string, currentPage: numbe
     }
 
     if (baseUrl.includes("xmaza")) {
-        console.log(currentPage);
         return await handleXmaaza(baseUrl + `page/${currentPage}/`);
     }
+
+    if (baseUrl.includes("desi-porn")) {
+        return await handleDesiPornTube(`https://desi-porn.tube/api/json/videos2/86400/str/latest-updates/60/..${currentPage}.all...json`);
+    }
+
 
     return videos;
 }

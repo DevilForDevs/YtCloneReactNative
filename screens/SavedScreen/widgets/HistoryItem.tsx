@@ -16,7 +16,9 @@ type Props = {
 export default function HistoryItem(props: Props) {
     return (
         <View style={styles.root}>
-            <Image source={{ uri: props.thumbnail }} style={styles.img} />
+            <TouchableOpacity onPress={props.onPress}>
+                <Image source={{ uri: props.thumbnail }} style={styles.img} />
+            </TouchableOpacity>
             <Text style={styles.floatingDuration}>{props.duration}</Text>
             <View>
 

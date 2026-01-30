@@ -1,12 +1,10 @@
 import React, { useEffect, useState } from 'react';
-import { StyleSheet, NativeEventEmitter } from 'react-native';
+import { NativeEventEmitter, Platform } from 'react-native';
 import { NavigationContainer } from '@react-navigation/native';
 import { createNativeStackNavigator } from '@react-navigation/native-stack';
 import { GestureHandlerRootView } from 'react-native-gesture-handler';
-
 import RNFS from 'react-native-fs';
 import { SQLiteDatabase } from 'react-native-sqlite-storage';
-
 import SplashScreen from './screens/SplashScreen/SplashScreen';
 import LoginScreen from './screens/LoginScreen/LoginScreen';
 import BrowserScreen from './screens/BrowserScreen/BrowserScreen';
@@ -20,10 +18,9 @@ import {
   createDownloadsTable,
   loadDownloads,
 } from './utils/dbfunctions';
-
 import { DownloadsStore } from './utils/Store';
 import { Video, DownloadItem } from './utils/types';
-import { convertBytes } from './utils/Interact';
+import { convertBytes, videoId } from './utils/Interact';
 import SearchScreen from './screens/SearchScreen/SearchScreen';
 import OfflinePlayer from './screens/OfflinePlayer/OfflinePlayer';
 import PlaylistScreen from './screens/PlaylistScreen/PlaylistScreen';
@@ -35,11 +32,17 @@ import CommanPlayerScreen from './screens/CommanPlayerScreen/CommanPlayerScreen'
 import CategoryScreen from './screens/CategoryScreen/CategoryScreen';
 import CategoryItemsScreen from './screens/CategoryItemsScreen/CategoryItemsScreen';
 import SarkariResult from './screens/SarkariResult/SarkariResult';
+import PageDetailsSr from './screens/PageDetailsSr/PageDetailsSr';
+import { navigationRef } from './ApplevelBackends/NavigationRef';
+import { useShareIntent } from './ApplevelBackends/shareIntent';
 
 const Stack = createNativeStackNavigator<RootStackParamList>();
 const eventEmitter = new NativeEventEmitter();
 
+
+
 export default function App() {
+  useShareIntent();
   const [db, setDb] = useState<SQLiteDatabase | null>(null);
   const { addDownloadItem, updateItem, totalDownloads } = DownloadsStore();
 
@@ -63,6 +66,7 @@ export default function App() {
   useEffect(() => {
     restoreDownloads();
   }, []);
+
 
   async function restoreDownloads() {
     if (db || totalDownloads.length > 0) return;
@@ -123,7 +127,7 @@ export default function App() {
   return (
     <GestureHandlerRootView style={{ flex: 1 }}>
       <AskFormatProvider>
-        <NavigationContainer>
+        <NavigationContainer ref={navigationRef}>
           <Stack.Navigator
             initialRouteName="SplashScreen"
             screenOptions={{ headerShown: false }}
@@ -145,6 +149,7 @@ export default function App() {
             <Stack.Screen name="CategoryScreen" component={CategoryScreen} />
             <Stack.Screen name="CategoryItemsScreen" component={CategoryItemsScreen} />
             <Stack.Screen name="SarkariResult" component={SarkariResult} />
+            <Stack.Screen name="PageDetailsSr" component={PageDetailsSr} />
           </Stack.Navigator>
         </NavigationContainer>
       </AskFormatProvider>
@@ -152,4 +157,3 @@ export default function App() {
   );
 }
 
-const styles = StyleSheet.create({});
