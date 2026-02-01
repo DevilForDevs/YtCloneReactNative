@@ -1,11 +1,10 @@
-package com.myapp.extractors.youtube
+package com.jsranjan.ivideodownloader.extractors.youtube
 
 import okhttp3.OkHttpClient
 import okhttp3.Request
 import org.json.JSONArray
 
 object RelatedShortsFetcher {
-
     private val client by lazy { OkHttpClient() }
 
     @Throws(Exception::class)
@@ -13,7 +12,8 @@ object RelatedShortsFetcher {
         val url = "https://www.youtube.com/shorts/$videoId"
 
         val request =
-            Request.Builder()
+            Request
+                .Builder()
                 .url(url)
                 .get()
                 .header("User-Agent", "Mozilla/5.0")

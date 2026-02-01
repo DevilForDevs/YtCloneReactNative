@@ -1,4 +1,4 @@
-package com.myapp
+package com.jsranjan.ivideodownloader
 
 import android.content.Intent
 import com.facebook.react.ReactActivity

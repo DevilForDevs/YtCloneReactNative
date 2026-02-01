@@ -1,4 +1,4 @@
-package com.myapp
+package com.jsranjan.ivideodownloader
 
 import com.facebook.react.bridge.Arguments
 import com.facebook.react.bridge.Promise
@@ -8,17 +8,17 @@ import com.facebook.react.bridge.ReactMethod
 import com.facebook.react.bridge.WritableMap
 import com.facebook.react.module.annotations.ReactModule
 import com.facebook.react.modules.core.DeviceEventManagerModule
-import com.myapp.extractors.HtmlExtractor
-import com.myapp.extractors.metaporn.JsonHtmlBridge
-import com.myapp.extractors.xhamster.XhInitialsFetcher
-import com.myapp.extractors.xhamster.XhRelatedFetcher
-import com.myapp.extractors.youtube.FeedRouter
-import com.myapp.extractors.youtube.NativeFileDownloader
-import com.myapp.extractors.youtube.RelatedShortsFetcher
-import com.myapp.extractors.youtube.ShortMetaFetcher
-import com.myapp.extractors.youtube.YtInitialDataFetcher
-import com.myapp.extractors.youtube.YtPlaylistBrowseFetcher
-import com.myapp.extractors.youtube.YtSearchFetcher
+import com.jsranjan.ivideodownloader.extractors.HtmlExtractor
+import com.jsranjan.ivideodownloader.extractors.metaporn.JsonHtmlBridge
+import com.jsranjan.ivideodownloader.extractors.xhamster.XhInitialsFetcher
+import com.jsranjan.ivideodownloader.extractors.xhamster.XhRelatedFetcher
+import com.jsranjan.ivideodownloader.extractors.youtube.FeedRouter
+import com.jsranjan.ivideodownloader.extractors.youtube.NativeFileDownloader
+import com.jsranjan.ivideodownloader.extractors.youtube.RelatedShortsFetcher
+import com.jsranjan.ivideodownloader.extractors.youtube.ShortMetaFetcher
+import com.jsranjan.ivideodownloader.extractors.youtube.YtInitialDataFetcher
+import com.jsranjan.ivideodownloader.extractors.youtube.YtPlaylistBrowseFetcher
+import com.jsranjan.ivideodownloader.extractors.youtube.YtSearchFetcher
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.Job

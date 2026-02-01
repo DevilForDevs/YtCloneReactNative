@@ -33,6 +33,23 @@ type NavigationProp = RouteProp<
     "VideoPlayerScreen"
 >;
 
+const formatHMS = (seconds?: string | number): string => {
+    const s = Number(seconds) || 0;
+
+    const hrs = Math.floor(s / 3600);
+    const mins = Math.floor((s % 3600) / 60)
+        .toString()
+        .padStart(2, "0");
+    const secs = Math.floor(s % 60)
+        .toString()
+        .padStart(2, "0");
+
+    return hrs > 0
+        ? `${hrs}:${mins}:${secs}`
+        : `${mins}:${secs}`;
+};
+
+
 
 export default function VideoPlayerScreen() {
 
@@ -188,18 +205,18 @@ export default function VideoPlayerScreen() {
                 setCurrentVideo(videoDes2);
                 currentVideoRef.current = mvideo;
 
+                await addHistory(
+                    database,
+                    mvideo.videoId,
+                    videoDetails.title,
+                    parseResult.channelinfo.channelName ?? "",
+                    formatHMS(videoDetails.lengthSeconds)
+                )
+
 
             } catch (e) {
                 console.log(e);
             }
-
-            await addHistory(
-                database,
-                mvideo.videoId,
-                mvideo.title,
-                currentVideo?.channelName ?? "",
-                mvideo.duration ?? ""
-            )
 
         } catch (e) {
             console.error(e);

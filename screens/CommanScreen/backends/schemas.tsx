@@ -114,4 +114,103 @@ export const schemaSarkariResultFeeds = {
     }
 }
 
+// ================= COMMON SCHEMAS =================
+
+const KV_LIST_SCHEMA = {
+    schema: {
+        label: {
+            selector: "",
+            attr: "text",
+        },
+        value: {
+            selector: "strong, b",
+            attr: "text",
+        },
+    },
+} as const;
+
+const CELL_SCHEMA = {
+    text: {
+        selector: "",
+        attr: "text",
+    },
+    url: {
+        selector: "a",
+        attr: "href",
+    },
+    list: {
+        container: "li",
+        schema: {
+            text: {
+                selector: "",
+                attr: "text",
+            },
+        },
+    },
+} as const;
+
+// ================= PAGE SCHEMA =================
+
+export const sarkariresultDetailsPageSchema = {
+    $containers: {
+
+        // -------- KEY–VALUE LIST SECTIONS --------
+
+        important_dates: {
+            ...KV_LIST_SCHEMA,
+            selector: "div.gb-container-16a90584 ul li",
+        },
+
+        application_fees: {
+            ...KV_LIST_SCHEMA,
+            selector: "div.gb-container-fcbb81ff ul li",
+        },
+
+        applicable_ages: {
+            ...KV_LIST_SCHEMA,
+            selector: "div.gb-container-0f18d865 ul li",
+        },
+
+        // -------- TOTAL POST --------
+
+        total_post: {
+            selector: "div.gb-container-860b2712",
+            schema: {
+                label: {
+                    selector: "h5",
+                    attr: "text",
+                },
+                value: {
+                    selector: "div.gb-headline",
+                    attr: "text",
+                },
+            },
+        },
+
+        // -------- TABLES --------
+
+        tables: {
+            selector: "table",
+            schema: {
+                headers: {
+                    container: "tr:first-child th, tr:first-child td",
+                    schema: CELL_SCHEMA,
+                },
+                rows: {
+                    container: "tr:not(:first-child)",
+                    schema: {
+                        cells: {
+                            container: "th, td",
+                            schema: CELL_SCHEMA,
+                        },
+                    },
+                },
+            },
+        },
+
+    },
+} as const;
+
+
+
 

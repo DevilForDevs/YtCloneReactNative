@@ -1,10 +1,10 @@
-package com.myapp
+package com.jsranjan.ivideodownloader
 
 import com.facebook.react.ReactPackage
 import com.facebook.react.bridge.NativeModule
 import com.facebook.react.bridge.ReactApplicationContext
 import com.facebook.react.uimanager.ViewManager
-import com.myapp.MyNativeModule
+import com.jsranjan.ivideodownloader.MyNativeModule
 
 class MyAppPackage : ReactPackage {
     // Register native modules (like your MyNativeModule)

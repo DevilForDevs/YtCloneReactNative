@@ -1,4 +1,4 @@
-package com.myapp.extractors.youtube
+package com.jsranjan.ivideodownloader.extractors.youtube
 import android.content.Context
 import android.media.MediaScannerConnection
 import android.os.Environment

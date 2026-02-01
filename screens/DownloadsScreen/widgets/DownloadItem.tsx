@@ -122,7 +122,7 @@ const styles = StyleSheet.create({
     title: {
         fontFamily: 'Roboto-Regular',
         fontSize: 16,
-        width: 130
+        width: 190
     }
     ,
     info: {

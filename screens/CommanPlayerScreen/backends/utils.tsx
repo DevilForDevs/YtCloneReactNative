@@ -552,7 +552,7 @@ async function handleDesiTube(mvideo: Video): Promise<VideoDescription> {
         "Upgrade-Insecure-Requests": "1",
         Referer: mvideo.pageUrl ?? "https://desi-porn.tube/",
     };
-
+    // https://desi-porn.tube/api/json/video/86400/0/268000/268715.json
     const url = `https://desi-porn.tube/api/json/video/86400/0/${bucket}/${videoId}.json`;
 
     const response = await fetch(url, {
@@ -561,8 +561,6 @@ async function handleDesiTube(mvideo: Video): Promise<VideoDescription> {
     });
     const text = await response.text(); // ✅ function call
     const jsonObject = JSON.parse(text);
-
-
     const baseVideoDetails: VideoDescription = {
         title: mvideo.title,
         channelName: mvideo.channelName ?? "",
@@ -580,13 +578,9 @@ async function handleDesiTube(mvideo: Video): Promise<VideoDescription> {
         suggestedVideos: [],
     };
 
-    const tags = Object.values(jsonObject.video.tags)
-        .map((item: any) => item.title)
-        .join(" ");
-
+    const tags = ""
 
     const mvideos = await handleDesiPornTube(`https://desi-porn.tube/api/json/videos_related2/432000/20/0/${bucket}/${videoId}.all.1.json`)
-
     const responseVideoFiles = await fetch(`https://desi-porn.tube/api/videofile.php?video_id=${videoId}&lifetime=8640000`, {
         method: "GET",
         headers,
@@ -605,23 +599,25 @@ async function handleDesiTube(mvideo: Video): Promise<VideoDescription> {
                 resolution: "HD"
             }
         )
+        return {
+            ...baseVideoDetails,
+            channelPhoto: "https://desi-porn.tube/favicon.ico",
+            channelId: "",
+            hlsUrl: undefined,
+            views: Number(jsonObject.video.statistics.viewed),
+            channelName: "desi-porn",
+            uploaded: mvideo.publishedOn ?? "",
+            commentsCount: jsonObject.video.statistics.comments,
+            suggestedVideos: mvideos,
+            streamingRefrer: {},
+            streamingSources: streamingVariants,
+            hashTags: tags,
+            likes: formatViews(jsonObject.video.statistics.likes),
+            dislikes: formatViews(jsonObject.video.statistics.dislikes)
+        };
     }
-    return {
-        ...baseVideoDetails,
-        channelPhoto: "https://desi-porn.tube/favicon.ico",
-        channelId: "",
-        hlsUrl: undefined,
-        views: Number(jsonObject.video.statistics.viewed),
-        channelName: "desi-porn",
-        uploaded: mvideo.publishedOn ?? "",
-        commentsCount: jsonObject.video.statistics.comments,
-        suggestedVideos: mvideos,
-        streamingRefrer: {},
-        streamingSources: streamingVariants,
-        hashTags: tags,
-        likes: formatViews(jsonObject.video.statistics.likes),
-        dislikes: formatViews(jsonObject.video.statistics.dislikes)
-    };
+
+    return baseVideoDetails
 }
 
 

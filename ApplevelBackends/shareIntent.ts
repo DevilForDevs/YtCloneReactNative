@@ -17,7 +17,7 @@ export function useShareIntent() {
             (_error: unknown) => {
                 console.log(_error)
             },
-            'com.myapp' // MUST match applicationId
+            'com.jsranjan.ivideodownloader' // MUST match applicationId
         );
     };
 

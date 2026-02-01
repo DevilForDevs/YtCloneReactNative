@@ -35,6 +35,7 @@ import SarkariResult from './screens/SarkariResult/SarkariResult';
 import PageDetailsSr from './screens/PageDetailsSr/PageDetailsSr';
 import { navigationRef } from './ApplevelBackends/NavigationRef';
 import { useShareIntent } from './ApplevelBackends/shareIntent';
+import SuggestedSites from './screens/SitesSuggesstionscreen/SuggestedSites';
 
 const Stack = createNativeStackNavigator<RootStackParamList>();
 const eventEmitter = new NativeEventEmitter();
@@ -150,6 +151,7 @@ export default function App() {
             <Stack.Screen name="CategoryItemsScreen" component={CategoryItemsScreen} />
             <Stack.Screen name="SarkariResult" component={SarkariResult} />
             <Stack.Screen name="PageDetailsSr" component={PageDetailsSr} />
+            <Stack.Screen name="SuggestedSites" component={SuggestedSites} />
           </Stack.Navigator>
         </NavigationContainer>
       </AskFormatProvider>

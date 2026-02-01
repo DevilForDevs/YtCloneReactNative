@@ -1,4 +1,4 @@
-package com.myapp.extractors.xhamster
+package com.jsranjan.ivideodownloader.extractors.xhamster
 
 import okhttp3.HttpUrl.Companion.toHttpUrlOrNull
 import okhttp3.OkHttpClient

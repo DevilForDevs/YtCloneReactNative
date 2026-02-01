@@ -10,6 +10,7 @@ import {
 import React, { useEffect, useState } from 'react';
 import { RouteProp, useRoute } from "@react-navigation/native";
 import { SafeAreaView } from 'react-native-safe-area-context';
+import { sarkariresultDetailsPageSchema } from '../CommanScreen/backends/schemas';
 
 type NavigationProp = RouteProp<
     RootStackParamList,
@@ -33,53 +34,13 @@ export default function PageDetailsSr() {
 
     const [tables, setTables] = useState<Table[]>([]);
 
-
-    const tableSchema = {
-        "$containers": {
-            "tables": {
-                "selector": "table",
-                "schema": {
-                    "headers": {
-                        "container": "tr:first-child th, tr:first-child td",
-                        "schema": {
-                            "text": { "selector": "", "attr": "text" },
-                            "url": { "selector": "a", "attr": "href" }
-                        }
-                    },
-                    "rows": {
-                        "container": "tr:not(:first-child)",
-                        "schema": {
-                            "cells": {
-                                "container": "th, td",
-                                "schema": {
-                                    "text": { "selector": "", "attr": "text" },
-                                    "url": { "selector": "a", "attr": "href" },
-
-                                    "list": {
-                                        "container": "li",
-                                        "schema": {
-                                            "text": {
-                                                "selector": "",
-                                                "attr": "text"
-                                            }
-                                        }
-                                    }
-                                }
-                            }
-                        }
-                    }
-                }
-            }
-        }
-    };
-
     async function loadData() {
         let jsonString: string;
 
         try {
             jsonString = await MyNativeModule.htmlJsonBridge(
                 link,
-                JSON.stringify(tableSchema)
+                JSON.stringify(sarkariresultDetailsPageSchema)
             );
         } catch (e) {
             console.error("Native call failed", e);
@@ -88,7 +49,6 @@ export default function PageDetailsSr() {
 
         try {
             const data = JSON.parse(jsonString);
-            console.log(data);
             setTables(data.tables || []);
         } catch (e) {
             console.error("JSON parse failed", jsonString);
@@ -154,6 +114,7 @@ export default function PageDetailsSr() {
                 data={tables}
                 keyExtractor={(_, i) => `table-${i}`}
                 contentContainerStyle={styles.container}
+
                 renderItem={({ item }) => (
                     <View style={styles.table}>
 

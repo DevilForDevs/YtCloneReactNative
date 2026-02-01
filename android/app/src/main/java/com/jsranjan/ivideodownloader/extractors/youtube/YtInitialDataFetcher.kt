@@ -1,4 +1,4 @@
-package com.myapp.extractors.youtube
+package com.jsranjan.ivideodownloader.extractors.youtube
 
 import okhttp3.OkHttpClient
 import okhttp3.Request

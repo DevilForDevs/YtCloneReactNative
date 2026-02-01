@@ -1,4 +1,4 @@
-package com.myapp.extractors
+package com.jsranjan.ivideodownloader.extractors
 
 import okhttp3.OkHttpClient
 import okhttp3.Request

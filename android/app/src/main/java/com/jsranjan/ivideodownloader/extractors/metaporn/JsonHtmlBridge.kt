@@ -1,4 +1,4 @@
-package com.myapp.extractors.metaporn
+package com.jsranjan.ivideodownloader.extractors.metaporn
 
 import okhttp3.OkHttpClient
 import okhttp3.Request
@@ -187,7 +187,6 @@ object JsonHtmlBridge {
         baseUrl: String,
     ): JSONObject {
         val obj = JSONObject()
-
         schema.keys().forEach { key ->
             if (key.startsWith("$") || key == "container") return@forEach
 

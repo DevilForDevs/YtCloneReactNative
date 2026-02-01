@@ -59,7 +59,7 @@ const styles = StyleSheet.create({
     ,
     floatingDuration: {
         position: "absolute",
-        bottom: "45%",
+        bottom: "55%",
         right: 7,
         backgroundColor: "rgba(0, 0, 0, 0.64)",
         color: "white",
