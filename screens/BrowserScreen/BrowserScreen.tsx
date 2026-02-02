@@ -90,14 +90,12 @@ export default function BrowserScreen() {
       });
     }
     setContinuation(videoGroup.continuationTokens?.[0] ?? "");
+    console.log("browserscreen")
 
     if (totalVideos.length != 0) {
       navigation.navigate("BottomNav");
     }
 
-    // if (name == "Youtube") {
-    //   navigation.navigate("BottomNav");
-    // }
   }
 
   async function onMessage(event: any) {

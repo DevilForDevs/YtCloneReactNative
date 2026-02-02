@@ -130,7 +130,7 @@ export default function App() {
       <AskFormatProvider>
         <NavigationContainer ref={navigationRef}>
           <Stack.Navigator
-            initialRouteName="SplashScreen"
+            initialRouteName="SuggestedSites"
             screenOptions={{ headerShown: false }}
           >
             <Stack.Screen name="SplashScreen" component={SplashScreen} />

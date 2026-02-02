@@ -1,8 +1,9 @@
 export const HOME_HTML = `
 <!DOCTYPE html>
-<html>
+<html lang="en">
 <head>
-<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
 <title>Suggested Sites</title>
 
 <style>
@@ -29,10 +30,11 @@ export const HOME_HTML = `
     button {
         border: none;
         background: #4f46e5;
-        color: white;
+        color: #fff;
         padding: 8px 14px;
         border-radius: 10px;
         font-size: 14px;
+        cursor: pointer;
     }
 
     .grid {
@@ -46,9 +48,10 @@ export const HOME_HTML = `
         border-radius: 16px;
         padding: 20px;
         text-align: center;
-        text-decoration: none;
         color: #000;
         box-shadow: 0 10px 25px rgba(0,0,0,0.08);
+        cursor: pointer;
+        user-select: none;
     }
 
     .icon {
@@ -61,7 +64,6 @@ export const HOME_HTML = `
         font-size: 15px;
     }
 
-    /* Modal */
     .modal {
         position: fixed;
         inset: 0;
@@ -72,7 +74,7 @@ export const HOME_HTML = `
     }
 
     .modal-content {
-        background: white;
+        background: #fff;
         padding: 20px;
         width: 90%;
         max-width: 320px;
@@ -94,24 +96,25 @@ export const HOME_HTML = `
 
 <header>
     <h1>🌐 Suggested Sites</h1>
-    <button onclick="openModal()">➕ Add</button>
 </header>
 
 <div class="grid" id="sites"></div>
 
-<!-- Add Site Modal -->
 <div class="modal" id="modal">
     <div class="modal-content">
         <h3>Add Website</h3>
         <input id="name" placeholder="Site name" />
         <input id="url" placeholder="https://example.com" />
-        <button onclick="addSite()">Save</button>
-        <button onclick="closeModal()" style="background:#999;margin-left:8px;">Cancel</button>
+       <button type="button" onclick="addSite()">Save</button>
+<button type="button" onclick="closeModal()" style="background:#999;margin-left:8px;">
+    Cancel
+</button>
+
     </div>
 </div>
 
 <script>
-    const defaultSites = [
+    const DEFAULT_SITES = [
         { name: "YouTube", url: "https://www.youtube.com", icon: "📺" },
         { name: "Wikipedia", url: "https://www.wikipedia.org", icon: "📚" },
         { name: "Sarkari Result", url: "https://www.sarkariresult.com", icon: "📝" },
@@ -119,7 +122,16 @@ export const HOME_HTML = `
     ];
 
     function getSites() {
-        return JSON.parse(localStorage.getItem("sites")) || defaultSites;
+        try {
+            const stored = localStorage.getItem("sites");
+            if (!stored) {
+                localStorage.setItem("sites", JSON.stringify(DEFAULT_SITES));
+                return DEFAULT_SITES;
+            }
+            return JSON.parse(stored);
+        } catch {
+            return DEFAULT_SITES;
+        }
     }
 
     function saveSites(sites) {
@@ -129,15 +141,18 @@ export const HOME_HTML = `
     function renderSites() {
         const container = document.getElementById("sites");
         container.innerHTML = "";
+
         getSites().forEach(site => {
-            const a = document.createElement("a");
-            a.className = "card";
-            a.href = site.url;
-            a.innerHTML = \`
+            const card = document.createElement("div");
+            card.className = "card";
+            card.onclick = () => window.location.href = site.url;
+
+            card.innerHTML = \`
                 <div class="icon">\${site.icon || "🌍"}</div>
                 <div class="title">\${site.name}</div>
             \`;
-            container.appendChild(a);
+
+            container.appendChild(card);
         });
     }
 
@@ -153,7 +168,10 @@ export const HOME_HTML = `
         const name = document.getElementById("name").value.trim();
         let url = document.getElementById("url").value.trim();
 
-        if (!name || !url) return alert("Fill all fields");
+        if (!name || !url) {
+            alert("Fill all fields");
+            return;
+        }
 
         if (!url.startsWith("http")) {
             url = "https://" + url;
@@ -172,3 +190,4 @@ export const HOME_HTML = `
 </body>
 </html>
 `;
+

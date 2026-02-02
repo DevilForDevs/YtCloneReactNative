@@ -19,8 +19,8 @@ android {
         applicationId "com.jsranjan.ivideodownloader"
         minSdkVersion rootProject.ext.minSdkVersion
         targetSdkVersion rootProject.ext.targetSdkVersion
-        versionCode 22
-        versionName "5"
+        versionCode 23
+        versionName "6"
     }
     signingConfigs {
         debug {
@@ -50,7 +50,7 @@ android {
         }
         release {
             shrinkResources true
-            signingConfig signingConfigs.debug
+            signingConfig signingConfigs.release
             minifyEnabled true
             proguardFiles getDefaultProguardFile("proguard-android.txt"), "proguard-rules.pro"
         }

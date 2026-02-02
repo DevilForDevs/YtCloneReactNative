@@ -24,6 +24,7 @@ import { addHistory } from "../SavedScreen/backend/dbo";
 import { SQLiteDatabase } from 'react-native-sqlite-storage';
 import { initDB } from "../../utils/dbfunctions";
 import Player from "./widgets/Player";
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 
 
@@ -52,7 +53,7 @@ const formatHMS = (seconds?: string | number): string => {
 
 
 export default function VideoPlayerScreen() {
-
+    const insets = useSafeAreaInsets();
     const [isFetchingMore, setIsFetchingMore] = useState(false);
     const [retryCount, setRetryCount] = useState(0);
 
@@ -355,14 +356,17 @@ export default function VideoPlayerScreen() {
 
 
     return (
-        <View style={{
-            flex: 1,
-            paddingTop: showFlatList
-                ? Platform.OS === 'android'
-                    ? StatusBar.currentHeight
-                    : 0
-                : 0,
-        }}>
+        <View
+            style={{
+                flex: 1,
+                paddingTop: showFlatList
+                    ? Platform.OS === 'android'
+                        ? StatusBar.currentHeight
+                        : insets.top
+                    : 0,
+                paddingBottom: insets.bottom, // ✅ handles nav buttons
+            }}
+        >
             <StatusBar hidden={!showFlatList} />
             <Player
                 startAsScreen={endedAsScreen}
