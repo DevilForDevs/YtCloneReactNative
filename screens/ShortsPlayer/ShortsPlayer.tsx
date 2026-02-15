@@ -483,9 +483,7 @@ export default function ShortsPlayer() {
                     <RightControls
                         likes={currentVideoInfo?.likes ?? "No likes"}
                         commentCount={currentVideoInfo?.commentsCount ?? ""}
-                        onDownload={() => openAskFormat(currentVideoInfo?.video!!, () => {
-
-                        })}
+                        onDownload={() => console.log("not supported")}
                         onMenuPress={handleMoreVert}
                     />
 

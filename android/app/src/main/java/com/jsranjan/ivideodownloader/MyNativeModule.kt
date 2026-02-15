@@ -27,25 +27,6 @@ import org.json.JSONArray
 import org.json.JSONObject
 import java.util.concurrent.ConcurrentHashMap
 
-fun JSONObject.toMap(): Map<String, Any> =
-    keys().asSequence().associateWith { key ->
-        when (val value = this.get(key)) {
-            is JSONObject -> value.toMap()
-            is JSONArray -> value.toList()
-            else -> value
-        }
-    }
-
-// Convert JSONArray to List<Any>
-fun JSONArray.toList(): List<Any> =
-    (0 until length()).map { i ->
-        when (val value = get(i)) {
-            is JSONObject -> value.toMap()
-            is JSONArray -> value.toList()
-            else -> value
-        }
-    }
-
 @ReactModule(name = MyNativeModule.NAME)
 class MyNativeModule(
     private val reactContext: ReactApplicationContext,
@@ -144,26 +125,17 @@ class MyNativeModule(
 
     @ReactMethod
     fun htmlExtractor(
-        pageUrl: String,
         schemaJson: String,
-        headersJson: String?, // <-- optional headers JSON
         promise: Promise,
     ) {
         backThread.launch(Dispatchers.IO) {
             try {
-                val schema = JSONObject(schemaJson)
-                val schemaMap = schema.toMap().filterValues { it != null } as Map<String, Any>
-
-                val headers: Map<String, String> =
-                    headersJson?.let { JSONObject(it).toMap().mapValues { entry -> entry.value.toString() } }
-                        ?: emptyMap()
-
-                val extractor = HtmlExtractor()
-                val result = extractor.extract(pageUrl, schemaMap, headers)
-                promise.resolve(result)
+                val schemaObj = JSONObject(schemaJson)
+                val result = HtmlExtractor.fetch(schemaObj)
+                promise.resolve(result.toString())
             } catch (e: Exception) {
                 promise.reject(
-                    "Extract_ERROR",
+                    "EXTRACT_ERROR",
                     e.message ?: "Invalid schema or extraction failed",
                 )
             }

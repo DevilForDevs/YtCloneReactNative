@@ -55,12 +55,7 @@ export default function SearchScreen() {
             const vid = videoId(trimmed);
             if (vid) {
                 setLoading(false);
-                openAskFormat({
-                    videoId: vid,
-                    title: "No title",
-                    views: "No views",
-                    type: "video",
-                });
+                () => console.log("not supported")
                 return;
             }
 
@@ -173,7 +168,7 @@ export default function SearchScreen() {
                             onItemPress={() =>
                                 navigation.navigate("VideoPlayerScreen", { arrivedVideo: item, playlistId: undefined })
                             }
-                            onDownload={() => openAskFormat(item)}
+                            onDownload={() => console.log("not supported")}
 
                         />
                     ) : (

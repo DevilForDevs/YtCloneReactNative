@@ -1,180 +1,246 @@
 package com.jsranjan.ivideodownloader.extractors
 
-import okhttp3.OkHttpClient
-import okhttp3.Request
 import org.json.JSONArray
 import org.json.JSONObject
 import org.jsoup.Jsoup
 import org.jsoup.nodes.Element
 
-class HtmlExtractor(
-    private val client: OkHttpClient = OkHttpClient(),
-) {
-    // -------- Utilities --------
-    private fun select(
-        root: Element,
-        selector: Any?,
-    ): List<Element> {
-        if (selector == null) return emptyList()
-        return when (selector) {
-            is String -> {
-                root.select(selector)
-            }
-
-            is List<*> -> {
-                val results = mutableListOf<Element>()
-                val seen = mutableSetOf<Int>()
-                selector.forEach { s ->
-                    if (s is String) {
-                        root.select(s).forEach { el ->
-                            if (!seen.contains(el.hashCode())) {
-                                seen.add(el.hashCode())
-                                results.add(el)
-                            }
-                        }
-                    }
-                }
-                results
-            }
-
-            else -> {
-                emptyList()
-            }
+object HtmlExtractor {
+    fun fetch(input: JSONObject): JSONObject {
+        if (!input.has("url")) {
+            return JSONObject().put("error", "missing url")
         }
+        if (!input.has("schema")) {
+            return JSONObject().put("error", "missing schema")
+        }
+
+        val headers = input.getJSONObject("schema").optJSONObject("headers") ?: JSONObject()
+
+        var html: String
+        try {
+            val conn = Jsoup.connect(input.getString("url")).timeout(15_000)
+            headers.keys().forEach { k ->
+                conn.header(k, headers.getString(k))
+            }
+            html = conn.get().html()
+        } catch (e: Exception) {
+            return JSONObject().put("error", e.message)
+        }
+        return extract(html, input.getString("url"), input.getJSONObject("schema"))
     }
 
-    private fun getAttr(
-        el: Element?,
-        attr: Any?,
-    ): String? {
-        if (el == null) return null
-        return when (attr) {
-            "text" -> {
-                el.text().trim()
-            }
-
-            "html" -> {
-                el.html()
-            }
-
-            is String -> {
-                el.attr(attr)
-            }
-
-            is List<*> -> {
-                attr
-                    .mapNotNull { a ->
-                        if (a is String) el.attr(a).takeIf { it.isNotEmpty() } else null
-                    }.firstOrNull()
-            }
-
-            else -> {
-                null
-            }
-        }
-    }
-
-    private fun extractObject(
-        root: Element,
-        schema: Map<String, Any?>, // nullable-safe
+    private fun extract(
+        html: String,
+        baseUrl: String,
+        schema: JSONObject,
     ): JSONObject {
-        val data = JSONObject()
-
-        schema.forEach { (key, ruleAny) ->
-            if (key.startsWith("$")) return@forEach
-            val rule = ruleAny as? Map<*, *> ?: mapOf("selector" to ruleAny)
-
-            if (rule.containsKey("\$container")) {
-                val selector = rule["\$container"]
-                val elements = select(root, selector)
-                val arr = JSONArray()
-                val subSchema = rule.mapKeys { it.key.toString() } as Map<String, Any?> // nullable-safe
-                elements.forEach { el -> arr.put(extractObject(el, subSchema)) }
-                data.put(key, arr)
-            } else {
-                val selector = rule["selector"]
-                val attr = rule["attr"] ?: "text"
-                val multiple = rule["multiple"] as? Boolean ?: false
-                val elements = if (selector != null) select(root, selector) else listOf(root)
-                if (multiple) {
-                    val arr = JSONArray()
-                    elements.forEach { el -> getAttr(el, attr)?.let { arr.put(it) } }
-                    data.put(key, arr)
-                } else {
-                    getAttr(elements.firstOrNull(), attr)?.let { data.put(key, it) }
-                }
-            }
-        }
-
-        return data
-    }
-
-    private fun fetchHtml(
-        url: String,
-        headers: Map<String, String>? = null,
-    ): String {
-        val builder = Request.Builder().url(url)
-        headers?.forEach { (k, v) -> builder.addHeader(k, v) }
-        val request = builder.build()
-        client.newCall(request).execute().use { response ->
-            if (!response.isSuccessful) throw Exception("HTTP error: ${response.code}")
-            return response.body?.string() ?: ""
-        }
-    }
-
-    // -------- Public API --------
-    fun extract(
-        url: String,
-        schema: Map<String, Any?>,
-        headers: Map<String, String>? = null,
-    ): JSONObject {
-        val html = fetchHtml(url, headers)
-        val doc = Jsoup.parse(html)
+        val doc = Jsoup.parse(html, baseUrl)
         val result = JSONObject()
 
-        // ---------------- globals ----------------
-        (schema["\$globals"] as? Map<*, *>)?.let { globalsSchema ->
-            val globalsMap =
-                globalsSchema.mapKeys { it.key.toString() } as Map<String, Any?>
-            result.put("globals", extractObject(doc, globalsMap))
-        }
+        // -------- GLOBALS --------
 
-        // ---------------- multiple containers ----------------
-        (schema["\$containers"] as? Map<*, *>)?.forEach { (nameAny, cfgAny) ->
-            val name = nameAny.toString()
-            val cfg = cfgAny as? Map<*, *> ?: return@forEach
+        if (schema.has("globals")) {
+            val globalsConf = schema.getJSONObject("globals")
+            val globals = JSONObject()
 
-            val selector = cfg["selector"]
-            val subSchema =
-                (cfg["schema"] as? Map<*, *>)?.mapKeys { it.key.toString() }
-                    as Map<String, Any?>? ?: emptyMap()
-
-            result.put(name, extractContainer(doc, selector, subSchema))
-        }
-
-        // ---------------- legacy single container ----------------
-        schema["\$container"]?.let { container ->
-            // IMPORTANT: only run legacy if "items" not already produced
-            if (!result.has("items")) {
-                val cleanSchema =
-                    schema.filterKeys { !it.startsWith("$") } // avoid recursion
-                result.put("items", extractContainer(doc, container, cleanSchema))
+            for (key in globalsConf.keys()) {
+                val value = extractField(doc, globalsConf.getJSONObject(key))
+                globals.put(key, value)
             }
+
+            result.put("globals", globals)
+        }
+
+        // -------- SECTIONS --------
+
+        if (schema.has("sections")) {
+            val sectionSchemas = schema.getJSONArray("sections")
+            val sectionsResult = JSONObject()
+
+            for (i in 0 until sectionSchemas.length()) {
+                val sectionConf = sectionSchemas.getJSONObject(i)
+
+                val sectionKey = sectionConf.getString("key")
+                val sectionResult = extractSections(doc, sectionConf, sectionKey)
+
+                sectionsResult.put(sectionKey, sectionResult)
+            }
+
+            result.put("sections", sectionsResult)
         }
 
         return result
     }
 
-    private fun extractContainer(
-        root: Element,
-        selector: Any?,
-        schema: Map<String, Any?>,
-    ): JSONArray {
-        val arr = JSONArray()
-        val elements = select(root, selector)
-        elements.forEach { el ->
-            arr.put(extractObject(el, schema))
+    private fun extractField(
+        parent: Element,
+        conf: JSONObject,
+    ): String {
+        val selector = conf.optString("selector", "")
+        val attr = conf.getString("attr")
+
+        val target =
+            if (selector.isBlank()) {
+                parent
+            } else {
+                parent.selectFirst(selector)
+                    ?: return ""
+            }
+
+        return when (attr) {
+            "text" -> {
+                target.text().trim()
+            }
+
+            "html" -> {
+                target.html().trim()
+            }
+
+            else -> {
+                // Try absolute URL first
+                val abs = target.absUrl(attr)
+                if (abs.isNotBlank()) abs else target.attr(attr)
+            }
         }
-        return arr
+    }
+
+    private fun extractSections(
+        parent: Element,
+        conf: JSONObject,
+        sectionKey: String,
+    ): JSONObject {
+        val debug = JSONArray()
+        val result = JSONObject()
+
+        val sectionElement =
+            findSection(parent, conf, sectionKey, debug)
+                ?: return JSONObject().put("_debug", debug)
+
+        extractSectionFields(sectionElement, conf, sectionKey, result, debug)
+        extractItemList(sectionElement, conf, sectionKey, result, debug)
+
+        if (debug.length() > 0) result.put("_debug", debug)
+        return result
+    }
+
+    private fun findSection(
+        parent: Element,
+        conf: JSONObject,
+        sectionKey: String,
+        debug: JSONArray,
+    ): Element? {
+        val selector = conf.getString("selector")
+        val section = parent.selectFirst(selector)
+
+        if (section == null) {
+            recordError(debug, sectionKey, selector, "section not found")
+        }
+
+        return section
+    }
+
+    private fun extractSectionFields(
+        section: Element,
+        conf: JSONObject,
+        sectionKey: String,
+        result: JSONObject,
+        debug: JSONArray,
+    ) {
+        if (!conf.has("fields")) return
+
+        val fields = conf.getJSONObject("fields")
+
+        for (key in fields.keys()) {
+            val fieldConf = fields.getJSONObject(key)
+            val selector = fieldConf.getString("selector")
+
+            val value = extractField(section, fieldConf)
+            if (value.isBlank()) {
+                recordError(
+                    debug,
+                    "$sectionKey.$key",
+                    selector,
+                    "field not found",
+                )
+            }
+
+            result.put(key, value)
+        }
+    }
+
+    private fun extractItemList(
+        section: Element,
+        conf: JSONObject,
+        sectionKey: String,
+        result: JSONObject,
+        debug: JSONArray,
+    ) {
+        if (!conf.has("items")) return
+
+        val itemsConf = conf.getJSONObject("items")
+        val itemSelector = itemsConf.getString("selector")
+        val fieldsConf = itemsConf.getJSONObject("fields")
+
+        val elements = section.select(itemSelector)
+        if (elements.isEmpty()) {
+            recordError(debug, "$sectionKey.items", itemSelector, "no items found")
+            return
+        }
+
+        val itemsArray = JSONArray()
+        for ((index, el) in elements.withIndex()) {
+            itemsArray.put(
+                extractItemFields(
+                    el,
+                    fieldsConf,
+                    "$sectionKey.items[$index]",
+                    debug,
+                ),
+            )
+        }
+
+        result.put("items", itemsArray)
+    }
+
+    private fun extractItemFields(
+        itemElement: Element,
+        fieldsConf: JSONObject,
+        path: String,
+        debug: JSONArray,
+    ): JSONObject {
+        val itemObj = JSONObject()
+
+        for (key in fieldsConf.keys()) {
+            val fieldConf = fieldsConf.getJSONObject(key)
+            val selector = fieldConf.getString("selector")
+
+            val value = extractField(itemElement, fieldConf)
+            if (value.isBlank()) {
+                recordError(
+                    debug,
+                    "$path.$key",
+                    selector,
+                    "field not found",
+                )
+            }
+
+            itemObj.put(key, value)
+        }
+
+        return itemObj
+    }
+
+    private fun recordError(
+        debug: JSONArray,
+        path: String,
+        selector: String,
+        reason: String,
+    ) {
+        debug.put(
+            JSONObject()
+                .put("path", path)
+                .put("selector", selector)
+                .put("reason", reason),
+        )
     }
 }

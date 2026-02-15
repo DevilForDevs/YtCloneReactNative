@@ -58,7 +58,8 @@ declare global {
         CategoryItemsScreen: { link: string },
         SarkariResult: undefined,
         PageDetailsSr: { link: string },
-        SuggestedSites: undefined
+        SuggestedSites: undefined,
+        TOI: undefined
     };
 
     type navStack = NativeStackNavigationProp<

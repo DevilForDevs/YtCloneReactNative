@@ -261,9 +261,10 @@ export default function VideoPlayerScreen() {
 
 
     const handleThreeDotClick = async (item: Video) => {
-        openAskFormat(item, () => {
+        // openAskFormat(item, () => {
 
-        }); // 
+        // }); // 
+        console.log("not supported")
     };
 
     const toggleFlatList = () => {
@@ -401,9 +402,7 @@ export default function VideoPlayerScreen() {
                                             item={item}
                                             progress={0}
                                             onItemPress={() => loadData(item)}
-                                            onDownload={() => openAskFormat(item, () => {
-
-                                            })}
+                                            onDownload={() => console.log("not supported")}
                                             onChannelClick={() => navigation.navigate("ChannelScreen", { channelUrl: item.channelUrl })}
                                         />
                                     );
@@ -513,5 +512,11 @@ const styles = StyleSheet.create({
         fontWeight: "600",
     },
 });
+
+
+
+// onDownload={() => openAskFormat(item, () => {
+
+// })}
 
 

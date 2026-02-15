@@ -127,9 +127,7 @@ export default function HomeScreen() {
               onItemPress={() =>
                 navigation.navigate("VideoPlayerScreen", { arrivedVideo: item, playlistId: undefined })
               }
-              onDownload={() => openAskFormat(item, () => {
-
-              })}
+              onDownload={() => console.log("not supported")}
             />
           ) : (
             <View style={styles.shortParentContainer}>

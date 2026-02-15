@@ -118,7 +118,8 @@ export const HOME_HTML = `
         { name: "YouTube", url: "https://www.youtube.com", icon: "📺" },
         { name: "Wikipedia", url: "https://www.wikipedia.org", icon: "📚" },
         { name: "Sarkari Result", url: "https://www.sarkariresult.com", icon: "📝" },
-        { name: "Google", url: "https://www.google.com", icon: "🔍" }
+        { name: "Google", url: "https://www.google.com", icon: "🔍" },
+        { name: "TOI", url: "https://timesofindia.indiatimes.com", icon: "📰" }
     ];
 
     function getSites() {

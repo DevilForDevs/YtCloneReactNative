@@ -42,25 +42,10 @@ export default function SuggestedSites() {
         if ("https://www.sarkariresult.com/" == currentUrl) {
             navigation.navigate("SarkariResult")
         }
-
-        if (currentUrl?.includes("xhamster")) {
-            navigation.navigate("CommanScreen", { site: { id: 'xh', name: 'xHamster', url: 'https://xhamster1.desi/', route: 'BrowserScreen' } })
+        console.log(currentUrl);
+        if (currentUrl?.includes("https://epaper.indiatimes.com/timesepaper")) {
+            navigation.navigate("TOI");
         }
-
-        if (currentUrl?.includes("uncutmaza")) {
-            navigation.navigate("CommanScreen", { site: { id: 'xh', name: 'uncutmaza', url: 'https://uncutmaza.com.co/', route: 'BrowserScreen' } })
-        }
-
-        if (currentUrl?.includes("xmaza.tv")) {
-            navigation.navigate("CommanScreen", { site: { id: 'xh', name: 'xmaza.tv', url: 'https://xmaza.tv/', route: 'BrowserScreen' } })
-        }
-
-        if (currentUrl?.includes("desiporn.tube")) {
-            navigation.navigate("CommanScreen", { site: { id: 'xh', name: 'desi-porn', url: 'https://desi-porn.tube/', route: 'BrowserScreen' } })
-        }
-
-
-
 
 
     }, [currentUrl])
@@ -77,7 +62,11 @@ export default function SuggestedSites() {
                     title: '',
                     views: 'NO views',
                 };
-                navigation.navigate("VideoPlayerScreen", { arrivedVideo: requiredVideo, playlistId: undefined })
+                if (item.weblink.includes("shorts")) {
+                    navigation.navigate("ShortsPlayerScreen", { arrivedVideo: requiredVideo })
+                } else {
+                    navigation.navigate("VideoPlayerScreen", { arrivedVideo: requiredVideo, playlistId: undefined })
+                }
                 break;
             }
         }
