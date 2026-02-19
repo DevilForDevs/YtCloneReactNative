@@ -37,6 +37,8 @@ import { navigationRef } from './ApplevelBackends/NavigationRef';
 import { useShareIntent } from './ApplevelBackends/shareIntent';
 import SuggestedSites from './screens/SitesSuggesstionscreen/SuggestedSites';
 import TOI from './screens/TOI/TOI';
+import ViewerScreen from './screens/EpaperViewerscreen/ViewerScreen';
+import FetchImagesForPdf from './screens/FetchImagesForPdf/FetchImagesForPdf';
 
 const Stack = createNativeStackNavigator<RootStackParamList>();
 const eventEmitter = new NativeEventEmitter();
@@ -154,6 +156,8 @@ export default function App() {
             <Stack.Screen name="PageDetailsSr" component={PageDetailsSr} />
             <Stack.Screen name="SuggestedSites" component={SuggestedSites} />
             <Stack.Screen name="TOI" component={TOI} />
+            <Stack.Screen name="ViewerScreen" component={ViewerScreen} />
+            <Stack.Screen name="FetchImagesForPdf" component={FetchImagesForPdf} />
           </Stack.Navigator>
         </NavigationContainer>
       </AskFormatProvider>

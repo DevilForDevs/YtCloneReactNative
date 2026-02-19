@@ -39,6 +39,12 @@ declare global {
         views: string | null;
     };
 
+    type epaperItem = {
+        url: string,
+        day: "today" | "yesterday",
+        edition: string
+    }
+
     type RootStackParamList = {
         SplashScreen: undefined,
         LoginScreen: undefined,
@@ -59,7 +65,9 @@ declare global {
         SarkariResult: undefined,
         PageDetailsSr: { link: string },
         SuggestedSites: undefined,
-        TOI: undefined
+        TOI: undefined,
+        FetchImagesForPdf: { item: epaperItem },
+        ViewerScreen: undefined
     };
 
     type navStack = NativeStackNavigationProp<
@@ -134,6 +142,18 @@ declare global {
         contentUri?: string;
         weblink?: string;
     };
+
+    export type sectionItem = {
+        label: string,
+        value?: string,
+        link?: string
+    }
+
+    export type Section = {
+        title: string,
+        items: sectionItem[]
+    }
+
 
 
 
