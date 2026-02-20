@@ -31,7 +31,8 @@ export default function TOI() {
             item: {
                 url: item.value ?? "cap",
                 day: "today",
-                edition: item.value ?? "cap"
+                edition: item.value ?? "cap",
+                editionName: item.label
             }
         })
 

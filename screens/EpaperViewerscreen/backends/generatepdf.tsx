@@ -24,7 +24,8 @@ export async function makePdfFromImages(
         return result; // returns file path of generated PDF
     } catch (error) {
         console.error('PDF generation failed:', error);
-        throw error;
+        return "failure"
+
     }
 }
 
@@ -55,6 +56,7 @@ export async function downloadImage(
     if (result.statusCode === 200) {
         return filePath;
     } else {
-        throw new Error(`Image download failed: ${result.statusCode}`);
+        console.log(result.statusCode)
+        return "failure"
     }
 }

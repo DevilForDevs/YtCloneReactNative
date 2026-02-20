@@ -94,3 +94,27 @@ const styles = StyleSheet.create({
         alignItems: 'center'
     }
 });
+
+
+export const deleteAllFilesInFolder = async (folderPath: string) => {
+    try {
+        // Check if folder exists
+        const folderExists = await RNFS.exists(folderPath);
+        if (!folderExists) return;
+
+        // Read all files in the folder
+        const files = await RNFS.readDir(folderPath);
+
+        // Delete each file
+        for (const file of files) {
+            if (file.isFile()) {
+                await RNFS.unlink(file.path);
+                console.log('Deleted:', file.path);
+            }
+        }
+
+        console.log('All files deleted successfully.');
+    } catch (error) {
+        console.log('Error deleting files:', error);
+    }
+};

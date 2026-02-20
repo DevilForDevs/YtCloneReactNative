@@ -42,7 +42,8 @@ declare global {
     type epaperItem = {
         url: string,
         day: "today" | "yesterday",
-        edition: string
+        edition: string,
+        editionName?: string
     }
 
     type RootStackParamList = {
