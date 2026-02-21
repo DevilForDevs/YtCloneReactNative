@@ -115,59 +115,92 @@ export const TOI_CITY_MAP: Record<string, string> = {
     toipuc: "Pune"
 };
 
+export const editionMap: Record<string, string> = {
+
+    // National (Top Priority)
+    "262-National": "National",
+
+    // ===== BIHAR (Primary Focus State) =====
+
+    // Capital
+    "84-Patna-Nagar": "Patna Nagar",
+
+    // Major Bihar Cities
+    "203-Muzaffarpur-Nagar": "Muzaffarpur Nagar",
+    "205-Bhagalpur-City": "Bhagalpur City",
+    "92-Gaya": "Gaya",
+    "219-Darbhanga": "Darbhanga",
+    "93-Ara": "Ara",
+    "223-Purnea": "Purnea",
+
+    // Other Important Districts
+    "215-Motihari": "Motihari",
+    "230-Katihar": "Katihar",
+    "231-Khagaria": "Khagaria",
+    "274-Gopalganj": "Gopalganj",
+    "217-Samstipur": "Samstipur",
+    "206-Saharsa": "Saharsa",
+    "218-Sitamarhi": "Sitamarhi",
+    "94-Vaishali": "Vaishali",
+    "91-Begusarai": "Begusarai",
+    "85-Biharsarif": "Biharsarif",
+    "89-Sasaram": "Sasaram",
+    "90-Saran": "Saran",
+    "87-Siwan": "Siwan",
+    "216-Madhubani": "Madhubani",
+    "228-Lakhisarai": "Lakhisarai",
+    "232-Banka": "Banka",
+    "214-Betiah": "Betiah",
+    "224-Kisanganj": "Kisanganj",
+    "289-Supaul": "Supaul",
+    "297-Madhepura": "Madhepura",
+    "292-Bhabhua": "Bhabhua",
+    "225-Arraria": "Arraria",
+    "88-Jehanabad": "Jehanabad",
+    "229-Munger": "Munger",
+    "282-NAWADA": "NAWADA",
+    "86-Buxer": "Buxer",
+
+    // ===== DELHI =====
+
+    // Main Capital Edition
+    "4-Delhi-City": "Delhi City",
+
+    // Delhi Zones
+    "298-South-Delhi": "South Delhi",
+    "238-East-Delhi": "East Delhi",
+    "239-West-Delhi": "West Delhi",
+    "240-Outer-Delhi": "Outer Delhi",
+
+    // NCR
+    "241-Noida": "Noida"
+};
+
 export async function getNewsPapers(): Promise<Section[]> {
     const scrappedSections: Section[] = []
-
-
-
-    const citiesTheHindu: string[] = [
-        "International", "Bengaluru", "Chennai", "Coimbatore",
-        "Cuttack", "Delhi", "Erode", "Hubli", "Hyderabad",
-        "Kochi", "Kolkata", "Kozhikode", "Lucknow",
-        "Madurai", "Mangaluru", "Mohali", "Mumbai",
-        "Patna", "Thiruvananthapuram", "Tiruchirapalli",
-        "Vijayawada", "Visakhapatnam"
-    ];
 
     //toi section
     scrappedSections.push({
         title: "Times of India",
         items: Object.entries(TOI_CITY_MAP).map(([code, city]) => ({
             label: city,   // "Delhi"
-            value: code    // "cap"
+            value: code,    // "cap"
+            link: "https://epaper.indiatimes.com/"
         }))
     });
 
-    // 📰 The Hindu Section
-    scrappedSections.push({
-        title: "The Hindu",
-        items: citiesTheHindu.map(city => ({
-            label: city,
-            value: `https://www.thehindu.com/news/cities/${city.toLowerCase()}`
-        }))
-    });
 
     // 📰 Dainik Jagran Section
     scrappedSections.push({
         title: "Dainik Jagran",
-        items: [
-            {
-                label: "National",
-                value: "https://www.jagran.com/"
-            }
-        ]
+        items: Object.entries(editionMap).map(([key, name]) => ({
+            label: name,
+            value: key,
+            link: "https://epaper.jagran.com/"
+        }))
     });
 
-    // 📰 Dainik Bhaskar Section
-    scrappedSections.push({
-        title: "Dainik Bhaskar",
-        items: [
-            {
-                label: "National",
-                value: "https://www.bhaskar.com/"
-            }
-        ]
-    });
+
 
     return scrappedSections
 }

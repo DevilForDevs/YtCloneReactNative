@@ -29,7 +29,7 @@ export default function TOI() {
     async function handleItemClickToday(item: sectionItem) {
         navigation.navigate("FetchImagesForPdf", {
             item: {
-                url: item.value ?? "cap",
+                url: item.link ?? "cap",
                 day: "today",
                 edition: item.value ?? "cap",
                 editionName: item.label
