@@ -211,3 +211,51 @@ export async function downloadPdf(
         return undefined;
     }
 }
+
+
+export async function handlePrabhatKhabar(url: string): Promise<string[]> {
+    const response = await fetch(url, {
+        method: "GET",
+        headers: {
+            "Content-Type": "application/json",
+            "Accept": "application/json",
+        },
+    });
+    const pdfUrls: string[] = [];
+    const data = await response.json();
+    const pages = data.data.pages
+    for (let i = 0; i < pages.length; i++) {
+
+        const pdfPath = pages[i]?.currentImage?.pdf;
+        if (pdfPath) {
+            const fullPdfUrl = `https://cdnimg.prabhatkhabar.com/pdf/${pdfPath}`;
+            pdfUrls.push(fullPdfUrl);
+        }
+    }
+    return pdfUrls
+
+
+}
+
+export async function clearPdfFolder() {
+    const pdfDir = `${RNFS.DocumentDirectoryPath}/pdfs`;
+    try {
+        const exists = await RNFS.exists(pdfDir);
+
+        if (!exists) {
+            console.log("PDF folder does not exist.");
+            return;
+        }
+
+        const files = await RNFS.readDir(pdfDir);
+
+        for (const file of files) {
+            await RNFS.unlink(file.path);
+        }
+
+        console.log("PDF folder cleared successfully.");
+    } catch (error) {
+        console.error("Error clearing PDF folder:", error);
+        throw error;
+    }
+}

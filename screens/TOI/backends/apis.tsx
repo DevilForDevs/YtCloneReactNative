@@ -1,103 +1,4 @@
 
-
-export async function getFeeds(url: string): Promise<Section[]> {
-    const scrappedSections: Section[] = []
-    const schema = {
-        sections: [
-            {
-                "name": "englishNewspapers",
-
-                "selector": "tbody:contains(English ePaper)",
-
-                "items": {
-                    "selector": "tr:has(a.wptb-link-target) td",
-
-                    "fields": {
-                        "title": {
-                            "selector": "div.wptb-text-container p",
-                            "attr": "text"
-                        },
-                        "url": {
-                            "selector": "a.wptb-link-target",
-                            "attr": "href"
-                        }
-                    }
-                }
-            },
-            {
-                "name": "hindinewspaper",
-
-                "selector": "tbody:contains(Hindi ePaper)",
-
-                "items": {
-                    "selector": "tr:has(a.wptb-link-target) td",
-
-                    "fields": {
-                        "title": {
-                            "selector": "div.wptb-text-container p",
-                            "attr": "text"
-                        },
-                        "url": {
-                            "selector": "a.wptb-link-target",
-                            "attr": "href"
-                        }
-                    }
-                }
-            }
-        ]
-    };
-
-    const res = await fetch("http://192.168.31.68:8080/htmlExtractor", {
-        method: "POST",
-        headers: {
-            "Content-Type": "application/json",
-        },
-        body: JSON.stringify({
-            url,
-            schema,
-        }),
-    });
-
-    const jsonString = await res.text();
-    const data = JSON.parse(jsonString);
-
-    if (data.sections.englishNewspapers) {
-        const sectionItems: sectionItem[] = []
-        for (const item of data.sections.englishNewspapers.items) {
-            sectionItems.push({
-                label: item.title,
-                value: item.url
-            })
-        }
-        scrappedSections.push({
-            title: "English ePaper in PDF",
-            items: sectionItems
-        })
-
-    }
-
-    if (data.sections.hindinewspaper) {
-        const sectionItems: sectionItem[] = []
-        for (const item of data.sections.hindinewspaper.items) {
-            sectionItems.push({
-                label: item.title,
-                value: item.url
-            })
-        }
-
-
-        scrappedSections.push({
-            title: "Hindi ePaper in PDF",
-            items: sectionItems
-        })
-
-
-    }
-
-    return scrappedSections
-
-}
-
 export const TOI_CITY_MAP: Record<string, string> = {
     cap: "Delhi",
     toigo: "Goa",
@@ -176,6 +77,81 @@ export const editionMap: Record<string, string> = {
     "241-Noida": "Noida"
 };
 
+const cityUrlMap = {
+    // ===== TIER 1 — MAJOR EDITIONS =====
+    "patna-city": "Patna",
+    "ranchi-city": "Ranchi",
+    "muzaffarpur-city": "Muzaffarpur",
+    "bhagalpur-city": "Bhagalpur",
+    "gaya-city": "Gaya",
+    "jamshedpur-city": "Jamshedpur",
+    "dhanbad-city": "Dhanbad",
+    "kolkata-city": "Kolkata",
+    "deoghar-city": "Deoghar",
+
+    // ===== TIER 2 — LARGE REGIONAL HUBS =====
+    "darbhanga": "Darbhanga",
+    "begusarai": "Begusarai",
+    "purnia": "Purnia",
+    "munger": "Munger",
+    "katihar": "Katihar",
+    "sahrsa": "Saharsa",
+    "samstipur": "Samastipur",
+    "motihari": "Motihari",
+    "arah": "Arah",
+    "biharsharif": "Biharsharif",
+    "bokaro": "Bokaro",
+    "giridih": "Giridih",
+    "hazaribagh": "Hazaribagh",
+    "rourkela": "Rourkela",
+
+    // ===== TIER 3 — MEDIUM DISTRICTS =====
+    "buxar": "Buxar",
+    "gopalganj": "Gopalganj",
+    "hajipur": "Hajipur",
+    "jehanabad": "Jehanabad",
+    "saran": "Saran",
+    "siwan": "Siwan",
+    "betiah": "Betiah",
+    "madhubani": "Madhubani",
+    "sitamarahi": "Sitamarahi",
+    "kishanganj": "Kishanganj",
+    "araria": "Araria",
+    "banka": "Banka",
+    "khagaria": "Khagaria",
+    "lakhisarai": "Lakhisarai",
+    "jamui": "Jamui",
+    "madhepura": "Madhepura",
+    "supaul": "Supaul",
+    "kaimur": "Kaimur",
+    "sasaram": "Sasaram",
+    "aurangabad": "Aurangabad",
+    "nawada": "Nawada",
+
+    // ===== TIER 4 — SMALLER / SUB-EDITIONS =====
+    "chaibasa": "Chaibasa",
+    "ghatsila": "Ghatsila",
+    "gumla": "Gumla",
+    "koderma": "Koderma",
+    "khalari": "Khalari",
+    "khunti": "Khunti",
+    "lohardaga": "Lohardaga",
+    "palamu": "Palamu",
+    "ramgarh": "Ramgarh",
+    "silli": "Silli",
+    "chatra": "Chatra",
+    "garhwa": "Garhwa",
+    "simdega": "Simdega",
+    "latehar": "Latehar",
+    "jamtara": "Jamtara",
+    "dumka": "Dumka",
+    "godda": "Godda",
+    "sahibganj": "Sahibganj",
+    "pakur": "Pakur",
+    "silpanchal": "Silpanchal"
+};
+
+
 export async function getNewsPapers(): Promise<Section[]> {
     const scrappedSections: Section[] = []
 
@@ -197,6 +173,15 @@ export async function getNewsPapers(): Promise<Section[]> {
             label: name,
             value: key,
             link: "https://epaper.jagran.com/"
+        }))
+    });
+
+    scrappedSections.push({
+        title: "प्रभात खबर",
+        items: Object.entries(cityUrlMap).map(([key, name]) => ({
+            label: name,
+            value: key,
+            link: "https://epaper.prabhatkhabar.com/"
         }))
     });
 

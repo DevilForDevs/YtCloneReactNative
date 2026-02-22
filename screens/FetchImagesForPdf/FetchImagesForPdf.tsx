@@ -4,7 +4,7 @@ import { RouteProp, useRoute } from "@react-navigation/native";
 import { SafeAreaView } from 'react-native-safe-area-context';
 import Pdf from 'react-native-pdf';
 import WebViewRnc from './widgets/WebViewRnc';
-import { downloadImageToPdf, downloadPdf, getInjectedJsForToi, getRequiredDate, handleDainikJagran } from './backends/imgDownloader';
+import { clearPdfFolder, downloadImageToPdf, downloadPdf, getInjectedJsForToi, getRequiredDate, handleDainikJagran, handlePrabhatKhabar } from './backends/imgDownloader';
 import RNFS from 'react-native-fs';
 type NavigationProp = RouteProp<RootStackParamList, "FetchImagesForPdf">;
 
@@ -20,9 +20,13 @@ export default function FetchImagesForPdf() {
     const [totalPages, setTotalPages] = useState(1);
     const [pdfUris, setPdfUris] = useState<string[]>([]);
     const [requiredUrl, setRequiredUrl] = useState("");
+    const [isPdfLoading, setIsPdfLoading] = useState(false);
 
 
     async function doOnLoadStuffs() {
+
+        await clearPdfFolder()
+
         if (item.url.includes("indiatimes")) {
             setRequiredUrl("https://bcclepaper.indiatimes.com/")
             const jsonUrl = `https://asset.harnscloud.com/PublicationData/TOI/${item.edition}/${date.year}/${date.month}/${date.day}/DayIndex/${date.day}_${date.month}_${date.year}_${item.edition}.json`;
@@ -42,6 +46,31 @@ export default function FetchImagesForPdf() {
             for (let i = 0; i < pdfsUrls.length; i++) {
                 console.log(pdfsUrls[i])
                 const newPdfUri = await downloadPdf(pdfsUrls[i], `jagranpdf${i}.pdf`)
+                if (newPdfUri) {
+                    // ✅ Verify that the PDF file actually exists
+                    const fileExists = await RNFS.exists(newPdfUri.replace('file://', '')); // remove file:// prefix for RNFS
+                    if (fileExists) {
+                        if (i === 0) setPdfUri(newPdfUri);
+                        setPdfUris(prevList => [...prevList, newPdfUri]);
+
+                    } else {
+                        console.warn('PDF file not found:', newPdfUri);
+                    }
+                }
+
+            }
+
+        }
+
+        if (item.url.includes("prabhatkhabar")) {
+            const requiredUrl = `https://epaper.prabhatkhabar.com/api/published-editions/slug/${item.edition}/${date.year}-${date.month}-${date.day}`
+            console.log(requiredUrl);
+            const pdfsUrls = await handlePrabhatKhabar(requiredUrl)
+            setData({});
+            setTotalPages(pdfsUrls.length)
+            for (let i = 0; i < pdfsUrls.length; i++) {
+                console.log(pdfsUrls[i])
+                const newPdfUri = await downloadPdf(pdfsUrls[i], `prabhatKhabar${i}.pdf`)
                 if (newPdfUri) {
                     // ✅ Verify that the PDF file actually exists
                     const fileExists = await RNFS.exists(newPdfUri.replace('file://', '')); // remove file:// prefix for RNFS
@@ -99,6 +128,7 @@ export default function FetchImagesForPdf() {
 
 
     useEffect(() => {
+
         doOnLoadStuffs();
     }, []);
 
@@ -110,30 +140,39 @@ export default function FetchImagesForPdf() {
     }, [data]);
 
 
+    async function switchPdfSafely(newPage: number) {
+        if (isPdfLoading || !pdfUris.length) return;
+
+        if (newPage < 1 || newPage > pdfUris.length) {
+            ToastAndroid.show(
+                newPage < 1 ? "Already at first page" : "Reached End",
+                ToastAndroid.SHORT
+            );
+            return;
+        }
+
+        setIsPdfLoading(true);
+
+        // Step 1: Close current PDF safely
+        try {
+            if (pdfRef.current?.reset) {
+                await pdfRef.current.reset(); // Reset/close currently opened PDF (if supported)
+            }
+        } catch (err) {
+            console.warn("Error closing current PDF safely:", err);
+        }
+
+        // Step 2: Switch URI only after previous PDF closed
+        setPdfUri(pdfUris[newPage - 1]);
+        setCurrentPage(newPage);
+    }
 
     function goNextPage() {
-        if (currentPage < pdfUris.length) {
-            const nextPage = currentPage + 1;
-            setCurrentPage(nextPage);
-            setPdfUri(pdfUris[nextPage - 1]); // arrays are 0-indexed
-        } else {
-
-            if (pdfUris.length < totalPages) {
-                ToastAndroid.show("Page not ready", ToastAndroid.SHORT);
-            } else {
-                ToastAndroid.show("Reached End", ToastAndroid.SHORT);
-            }
-        }
+        switchPdfSafely(currentPage + 1);
     }
 
     function goPrevPage() {
-        if (currentPage > 1) {
-            const prevPage = currentPage - 1;
-            setCurrentPage(prevPage);
-            setPdfUri(pdfUris[prevPage - 1]); // arrays are 0-indexed
-        } else {
-            ToastAndroid.show("Already at first page", ToastAndroid.SHORT);
-        }
+        switchPdfSafely(currentPage - 1);
     }
 
     function handleData(data: any) {
@@ -161,11 +200,13 @@ export default function FetchImagesForPdf() {
 
                     <Pdf
                         ref={pdfRef}
-                        key={pdfUri}
-                        source={{ uri: pdfUri }}
+                        key={pdfUri} // ensures remount
+                        source={{ uri: pdfUri }} // always a valid Source
                         style={{ flex: 1, width: '100%' }}
                         enablePaging
                         horizontal
+                        onLoadComplete={() => setIsPdfLoading(false)}
+                        onError={() => setIsPdfLoading(false)}
                     />
 
                     <View style={styles.controls}>
