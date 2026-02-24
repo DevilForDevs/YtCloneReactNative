@@ -55,6 +55,7 @@ const formatHMS = (seconds?: string | number): string => {
 export default function VideoPlayerScreen() {
 
     const insets = useSafeAreaInsets();
+    console.log(insets);
 
     const [isFetchingMore, setIsFetchingMore] = useState(false);
     const [retryCount, setRetryCount] = useState(0);
@@ -365,8 +366,8 @@ export default function VideoPlayerScreen() {
                 : insets.top
             : 0,
 
-        paddingBottom: showFlatList ? insets.bottom : 0,
         paddingRight: !showFlatList ? insets.right : 0,
+        paddingBottom: showFlatList ? 258 + insets.bottom : 0
 
     };
 
@@ -438,7 +439,7 @@ export default function VideoPlayerScreen() {
                                     );
                                 }
                             }}
-                            contentContainerStyle={{ gap: 10, paddingBottom: insets.bottom + 500, }}
+                            contentContainerStyle={{ gap: 10, }}
                             ListHeaderComponent={
                                 currentVideo ? (
                                     <VideoDetails
