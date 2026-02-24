@@ -103,6 +103,7 @@ export default function BrowserScreen() {
       const msg = JSON.parse(event.nativeEvent.data);
       const { type } = msg;
 
+
       // 1️⃣ Chunk handling
       if (msg.chunk !== undefined) {
         chunkBuffers.current[type] ??= [];

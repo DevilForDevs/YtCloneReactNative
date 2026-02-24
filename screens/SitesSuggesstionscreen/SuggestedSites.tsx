@@ -1,5 +1,5 @@
 import React, { useEffect, useRef, useState } from "react";
-import { StyleSheet, View, BackHandler, Platform } from "react-native";
+import { StyleSheet, View, BackHandler, Platform, Text } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
 import { WebView } from "react-native-webview";
 import { useNavigation } from "@react-navigation/native";
@@ -42,10 +42,17 @@ export default function SuggestedSites() {
         if ("https://www.sarkariresult.com/" == currentUrl) {
             navigation.navigate("SarkariResult")
         }
-        console.log(currentUrl);
         if (currentUrl?.includes("https://epaper.indiatimes.com/timesepaper")) {
             navigation.navigate("TOI");
         }
+        if (currentUrl?.includes("https://epaper.jagran.com/")) {
+            navigation.navigate("TOI");
+        }
+        if (currentUrl?.includes("https://epaper.prabhatkhabar.com/")) {
+            navigation.navigate("TOI");
+        }
+
+
 
 
     }, [currentUrl])
@@ -73,26 +80,61 @@ export default function SuggestedSites() {
     }, [files])
 
 
+    async function eventOnPageLoad() {
+
+        if (currentUrl?.includes("https://www.mcqbuddy.com/")) {
+            const jsCode = `
+        (function() {
+
+            // Remove specific Play Store link
+            const links = document.querySelectorAll(
+                "a[href='https://play.google.com/store/apps/details?id=com.mcqbuddy.grandmaaTales']"
+            );
+            links.forEach(link => link.remove());
+
+            // Remove footer element
+            const footer = document.querySelector("footer");
+            if (footer) {
+                footer.remove();
+            }
+
+        })();
+        true;
+    `;
+
+            webViewRef.current?.injectJavaScript(jsCode);
+        }
+    }
+
+
     return (
         <SafeAreaView style={styles.container}>
             <View style={{ flex: 1 }}>
+                <View style={styles.urlBar}>
+                    <Text style={styles.urlText} numberOfLines={1}>
+                        {(!currentUrl || currentUrl === "about:blank") ? "Home" : currentUrl}
+                    </Text>
+                </View>
                 <WebView
                     ref={webViewRef}
                     source={{ html: HOME_HTML }}
                     javaScriptEnabled
                     domStorageEnabled
-                    sharedCookiesEnabled
-                    thirdPartyCookiesEnabled
-                    allowsInlineMediaPlayback
-                    mediaPlaybackRequiresUserAction={false}
-                    startInLoadingState
-                    allowsFullscreenVideo
-                    scalesPageToFit
+                    setSupportMultipleWindows={false}
+                    onShouldStartLoadWithRequest={(request) => {
+                        const url = request.url;
+
+                        if (url.startsWith("http://") || url.startsWith("https://")) {
+                            return true;
+                        }
+
+                        return false;
+                    }}
                     onNavigationStateChange={(navState) => {
                         setCanGoBack(navState.canGoBack);
                         setCurrentUrl(navState.url);
                     }}
-                    style={{ flex: 1 }}
+                    onLoadEnd={eventOnPageLoad}
                 />
 
             </View>
@@ -103,5 +145,19 @@ export default function SuggestedSites() {
 const styles = StyleSheet.create({
     container: {
         flex: 1,
+    },
+    urlBar: {
+        height: 40,
+        justifyContent: "center",
+        paddingHorizontal: 10,
+        backgroundColor: "#f2f2f2",
+        borderBottomWidth: 1,
+        borderBottomColor: "#ddd",
+        marginVertical: 5
+    },
+    urlText: {
+        fontSize: 15,
+        color: "#333",
+        textAlign: "center"
     }
 });

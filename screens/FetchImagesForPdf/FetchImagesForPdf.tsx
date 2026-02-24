@@ -1,4 +1,4 @@
-import { StyleSheet, View, Text, ToastAndroid, TouchableOpacity } from 'react-native';
+import { StyleSheet, View, Text, ToastAndroid, TouchableOpacity, TextInput } from 'react-native';
 import React, { useRef, useState, useEffect } from 'react';
 import { RouteProp, useRoute } from "@react-navigation/native";
 import { SafeAreaView } from 'react-native-safe-area-context';
@@ -21,6 +21,7 @@ export default function FetchImagesForPdf() {
     const [pdfUris, setPdfUris] = useState<string[]>([]);
     const [requiredUrl, setRequiredUrl] = useState("");
     const [isPdfLoading, setIsPdfLoading] = useState(false);
+    const [pdfScale, setPdfScale] = useState(1);
 
 
     async function doOnLoadStuffs() {
@@ -141,7 +142,7 @@ export default function FetchImagesForPdf() {
 
 
     async function switchPdfSafely(newPage: number) {
-        if (isPdfLoading || !pdfUris.length) return;
+        if (isPdfLoading) return;
 
         if (newPage < 1 || newPage > pdfUris.length) {
             ToastAndroid.show(
@@ -153,18 +154,14 @@ export default function FetchImagesForPdf() {
 
         setIsPdfLoading(true);
 
-        // Step 1: Close current PDF safely
-        try {
-            if (pdfRef.current?.reset) {
-                await pdfRef.current.reset(); // Reset/close currently opened PDF (if supported)
-            }
-        } catch (err) {
-            console.warn("Error closing current PDF safely:", err);
-        }
+        // 🔒 Reset zoom FIRST
+        setPdfScale(1);
 
-        // Step 2: Switch URI only after previous PDF closed
-        setPdfUri(pdfUris[newPage - 1]);
-        setCurrentPage(newPage);
+        // Small buffer to let native reset scale
+        setTimeout(() => {
+            setCurrentPage(newPage);
+            setPdfUri(pdfUris[newPage - 1]);
+        }, 150);   // 150ms is safer than 80ms
     }
 
     function goNextPage() {
@@ -197,24 +194,37 @@ export default function FetchImagesForPdf() {
             {pdfUri && (
                 <View style={{ flex: 1 }}>
                     <Text style={styles.pdfTitle}>{item.editionName}</Text>
+                    <View>
+                        <Text style={styles.pageInfo}>{currentPage} / {totalPages}</Text>
+                    </View>
+                    <View style={{ flex: 1 }}>
+                        {pdfUri && (
+                            <Pdf
+                                ref={pdfRef}
+                                key={pdfUri}
+                                source={{ uri: pdfUri }}
+                                style={{ flex: 1 }}
+                                scale={pdfScale}
+                                minScale={1}
+                                maxScale={3}
+                                onLoadComplete={() => {
+                                    setPdfScale(1);   // reset zoom after load
+                                    setIsPdfLoading(false);
+                                }}
+                            />
+                        )}
 
-                    <Pdf
-                        ref={pdfRef}
-                        key={pdfUri} // ensures remount
-                        source={{ uri: pdfUri }} // always a valid Source
-                        style={{ flex: 1, width: '100%' }}
-                        enablePaging
-                        horizontal
-                        onLoadComplete={() => setIsPdfLoading(false)}
-                        onError={() => setIsPdfLoading(false)}
-                    />
+                        {isPdfLoading && (
+                            <View style={styles.loaderOverlay}>
+                                <Text style={styles.loaderText}>Loading PDF...</Text>
+                            </View>
+                        )}
+                    </View>
 
                     <View style={styles.controls}>
                         <TouchableOpacity style={styles.button} onPress={goPrevPage}>
                             <Text style={styles.buttonText}>Previous</Text>
                         </TouchableOpacity>
-
-                        <Text style={styles.pageInfo}>{currentPage} / {totalPages}</Text>
 
                         <TouchableOpacity style={styles.button} onPress={goNextPage}>
                             <Text style={styles.buttonText}>Next</Text>
@@ -259,5 +269,25 @@ const styles = StyleSheet.create({
     pageInfo: {
         fontSize: 16,
         fontWeight: 'bold',
+        textAlign: 'center',
+    },
+    loaderContainer: {
+        flex: 1,
+        justifyContent: 'center',
+        alignItems: 'center',
+    },
+    loaderText: {
+        fontSize: 16,
+        fontWeight: 'bold',
+    },
+    loaderOverlay: {
+        position: 'absolute',
+        top: 0,
+        left: 0,
+        right: 0,
+        bottom: 0,
+        justifyContent: 'center',
+        alignItems: 'center',
+        backgroundColor: 'rgba(255,255,255,0.8)',
     },
 });

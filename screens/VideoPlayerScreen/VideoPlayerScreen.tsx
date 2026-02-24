@@ -53,7 +53,9 @@ const formatHMS = (seconds?: string | number): string => {
 
 
 export default function VideoPlayerScreen() {
+
     const insets = useSafeAreaInsets();
+
     const [isFetchingMore, setIsFetchingMore] = useState(false);
     const [retryCount, setRetryCount] = useState(0);
 
@@ -355,18 +357,23 @@ export default function VideoPlayerScreen() {
         loadData(nextVideo);
     }
 
+    const containerStyle = {
+        flex: 1,
+        paddingTop: showFlatList
+            ? Platform.OS === 'android'
+                ? StatusBar.currentHeight
+                : insets.top
+            : 0,
+
+        paddingBottom: showFlatList ? insets.bottom : 0,
+        paddingRight: !showFlatList ? insets.right : 0,
+
+    };
+
 
     return (
         <View
-            style={{
-                flex: 1,
-                paddingTop: showFlatList
-                    ? Platform.OS === 'android'
-                        ? StatusBar.currentHeight
-                        : insets.top
-                    : 0,
-                paddingBottom: insets.bottom, // ✅ handles nav buttons
-            }}
+            style={containerStyle}
         >
             <StatusBar hidden={!showFlatList} />
             <Player
@@ -431,7 +438,7 @@ export default function VideoPlayerScreen() {
                                     );
                                 }
                             }}
-                            contentContainerStyle={{ gap: 10, paddingBottom: 250, }}
+                            contentContainerStyle={{ gap: 10, paddingBottom: insets.bottom + 500, }}
                             ListHeaderComponent={
                                 currentVideo ? (
                                     <VideoDetails

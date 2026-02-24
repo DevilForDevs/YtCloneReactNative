@@ -39,6 +39,7 @@ import SuggestedSites from './screens/SitesSuggesstionscreen/SuggestedSites';
 import TOI from './screens/TOI/TOI';
 import ViewerScreen from './screens/EpaperViewerscreen/ViewerScreen';
 import FetchImagesForPdf from './screens/FetchImagesForPdf/FetchImagesForPdf';
+import CreateQuizScreen from './screens/CreateQuizScreen/CreateQuizScreen';
 
 const Stack = createNativeStackNavigator<RootStackParamList>();
 const eventEmitter = new NativeEventEmitter();
@@ -158,6 +159,7 @@ export default function App() {
             <Stack.Screen name="TOI" component={TOI} />
             <Stack.Screen name="ViewerScreen" component={ViewerScreen} />
             <Stack.Screen name="FetchImagesForPdf" component={FetchImagesForPdf} />
+            <Stack.Screen name="CreateQuizScreen" component={CreateQuizScreen} />
           </Stack.Navigator>
         </NavigationContainer>
       </AskFormatProvider>

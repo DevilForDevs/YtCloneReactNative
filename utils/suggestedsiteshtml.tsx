@@ -115,11 +115,14 @@ export const HOME_HTML = `
 
 <script>
     const DEFAULT_SITES = [
-        { name: "YouTube", url: "https://www.youtube.com", icon: "📺" },
-        { name: "Wikipedia", url: "https://www.wikipedia.org", icon: "📚" },
-        { name: "Sarkari Result", url: "https://www.sarkariresult.com", icon: "📝" },
-        { name: "Google", url: "https://www.google.com", icon: "🔍" },
-        { name: "TOI", url: "https://timesofindia.indiatimes.com", icon: "📰" }
+    { name: "YouTube", url: "https://www.youtube.com", icon: "📺" },
+    { name: "Wikipedia", url: "https://www.wikipedia.org", icon: "📚" },
+    { name: "Sarkari Result", url: "https://www.sarkariresult.com", icon: "📝" },
+    { name: "Google", url: "https://www.google.com", icon: "🔍" },
+    { name: "TOI", url: "https://timesofindia.indiatimes.com", icon: "📰" },
+    { name: "MCQ Buddy", url: "https://www.mcqbuddy.com/", icon: "📝" },
+    { name: "Prabhat Khabar", url: "https://www.prabhatkhabar.com/", icon: "📰" },
+    { name: "Jagran", url: "https://www.jagran.com/", icon: "📰" }
     ];
 
     function getSites() {

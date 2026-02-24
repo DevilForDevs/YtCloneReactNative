@@ -68,7 +68,8 @@ declare global {
         SuggestedSites: undefined,
         TOI: undefined,
         FetchImagesForPdf: { item: epaperItem },
-        ViewerScreen: undefined
+        ViewerScreen: undefined,
+        CreateQuizScreen: undefined
     };
 
     type navStack = NativeStackNavigationProp<

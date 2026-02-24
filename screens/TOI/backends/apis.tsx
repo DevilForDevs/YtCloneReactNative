@@ -16,6 +16,19 @@ export const TOI_CITY_MAP: Record<string, string> = {
     toipuc: "Pune"
 };
 
+export const ET_CITY_MAP: Record<string, string> = {
+    etdc: "Delhi",
+    etbg: "Bangalore",
+    etmc: "Mumbai",
+    etkc: "Kolkata"
+};
+
+// export const ToiMirror_CITY_MAP: Record<string, string> = {
+//     vkbgmr: "Bangalore",
+//     vkmmir: "Mumbai",
+//     pcmir: "Pune",
+// };
+
 export const editionMap: Record<string, string> = {
 
     // National (Top Priority)
@@ -162,6 +175,15 @@ export async function getNewsPapers(): Promise<Section[]> {
             label: city,   // "Delhi"
             value: code,    // "cap"
             link: "https://epaper.indiatimes.com/"
+        }))
+    });
+
+    scrappedSections.push({
+        title: "The Economic Times",
+        items: Object.entries(TOI_CITY_MAP).map(([code, city]) => ({
+            label: city,   // "Delhi"
+            value: code,    // "cap"
+            link: "https://economictimes.indiatimes.com/"
         }))
     });
 
