@@ -522,9 +522,3 @@ const styles = StyleSheet.create({
 });
 
 
-
-// onDownload={() => openAskFormat(item, () => {
-
-// })}
-
-
