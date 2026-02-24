@@ -180,7 +180,7 @@ export async function getNewsPapers(): Promise<Section[]> {
 
     scrappedSections.push({
         title: "The Economic Times",
-        items: Object.entries(TOI_CITY_MAP).map(([code, city]) => ({
+        items: Object.entries(ET_CITY_MAP).map(([code, city]) => ({
             label: city,   // "Delhi"
             value: code,    // "cap"
             link: "https://economictimes.indiatimes.com/"

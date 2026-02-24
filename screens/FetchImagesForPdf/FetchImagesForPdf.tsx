@@ -87,6 +87,14 @@ export default function FetchImagesForPdf() {
             }
 
         }
+
+        if (item.url.includes("https://economictimes")) {
+            setRequiredUrl("https://bcclepaper.indiatimes.com/")
+            console.log(item);
+            const jsonUrl = `https://asset.harnscloud.com/PublicationData/ET/${item.edition}/${date.year}/${date.month}/${date.day}/DayIndex/${date.day}_${date.month}_${date.year}_${item.edition}.json`;
+            console.log(jsonUrl);
+            setRequiredJs(getInjectedJsForToi(jsonUrl));
+        }
     }
 
     async function doStuffs() {
@@ -102,6 +110,39 @@ export default function FetchImagesForPdf() {
             for (let i = 0; i < pages.length; i++) {
                 const page = pages[i];
                 const imageUrl = `https://asset.harnscloud.com/PublicationData/TOI/${item.edition}/${date.year}/${date.month}/${date.day}/Page/${page.PageName}.jpg`;
+
+                try {
+                    const newPdfUri = await downloadImageToPdf(imageUrl, headers, `${page.PageName}.pdf`);
+
+                    if (newPdfUri) {
+                        // ✅ Verify that the PDF file actually exists
+                        const fileExists = await RNFS.exists(newPdfUri.replace('file://', '')); // remove file:// prefix for RNFS
+                        if (fileExists) {
+                            if (i === 0) setPdfUri(newPdfUri);
+                            setPdfUris(prevList => [...prevList, newPdfUri]);
+                            console.log('PDF exists and added:', newPdfUri);
+                        } else {
+                            console.warn('PDF file not found:', newPdfUri);
+                        }
+                    }
+                } catch (err) {
+                    console.error('Error processing page:', page.PageName, err);
+                }
+            }
+        }
+
+        if (item.url.includes("https://economictimes")) {
+            console.log("et");
+            const pages = data.DayIndex;
+            const headers = {
+                Referer: "https://bcclepaper.indiatimes.com/",
+                "User-Agent": "Mozilla/5.0",
+            };
+            setTotalPages(pages.length)
+
+            for (let i = 0; i < pages.length; i++) {
+                const page = pages[i];
+                const imageUrl = `https://asset.harnscloud.com/PublicationData/ET/${item.edition}/${date.year}/${date.month}/${date.day}/Page/${page.PageName}.jpg`;
 
                 try {
                     const newPdfUri = await downloadImageToPdf(imageUrl, headers, `${page.PageName}.pdf`);
