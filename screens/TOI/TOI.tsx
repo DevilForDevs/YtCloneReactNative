@@ -3,6 +3,7 @@ import React, { useEffect, useState } from 'react'
 import { useNavigation } from "@react-navigation/native";
 import { getNewsPapers } from './backends/apis';
 import { SafeAreaView } from 'react-native-safe-area-context';
+import { initDB } from '../../utils/dbfunctions';
 
 
 export default function TOI() {
@@ -11,7 +12,8 @@ export default function TOI() {
     const navigation = useNavigation<navStack>();
 
     async function loadItems() {
-        const result = await getNewsPapers()
+        const db = await initDB()
+        const result = await getNewsPapers(db);
         setSections(result)
     }
 

@@ -7,6 +7,8 @@ import { HOME_HTML } from "../../utils/suggestedsiteshtml";
 import { useSharedFilesStore } from "../../utils/Store";
 import { videoId } from "../../utils/Interact";
 import { Video } from '../../utils/types'
+import { useAskFeatureStore } from "../AskFeatureCode/AskFeatureStore";
+import { SQLiteDatabase } from 'react-native-sqlite-storage';
 
 export default function SuggestedSites() {
     const navigation = useNavigation<navStack>();
@@ -34,23 +36,39 @@ export default function SuggestedSites() {
         return () => backHandler.remove();
     }, [canGoBack]);
 
+
+    async function getActiveFeatureIds(db: SQLiteDatabase | undefined): Promise<number[]> {
+        if (!db) return [];
+
+        const [result] = await db.executeSql("SELECT coupanItemId FROM feature_codes");
+        const ids: number[] = [];
+        for (let i = 0; i < result.rows.length; i++) {
+            ids.push(result.rows.item(i).coupanItemId);
+        }
+        return ids;
+    }
+
     useEffect(() => {
-        console.log(currentUrl);
-        if ("https://m.youtube.com/" == currentUrl) {
-            navigation.navigate("BrowserScreen", { name: "" })
+
+        async function checkFeatureNavigation() {
+            const { db } = useAskFeatureStore.getState();
+            const activeFeatures = await getActiveFeatureIds(db);
+
+            if (currentUrl?.includes("https://epaper.indiatimes.com/timesepaper") && activeFeatures.includes(1)) {
+                navigation.navigate("TOI");
+            }
+            if (currentUrl?.includes("https://epaper.jagran.com/") && activeFeatures.includes(3)) {
+                navigation.navigate("TOI");
+            }
+            if (currentUrl?.includes("https://epaper.prabhatkhabar.com/") && activeFeatures.includes(4)) {
+                navigation.navigate("TOI");
+            }
+            if (currentUrl === "https://m.youtube.com/" && activeFeatures.includes(5)) {
+                navigation.navigate("BrowserScreen", { name: "" });
+            }
         }
-        if ("https://www.sarkariresult.com/" == currentUrl) {
-            navigation.navigate("SarkariResult")
-        }
-        if (currentUrl?.includes("https://epaper.indiatimes.com/timesepaper")) {
-            navigation.navigate("TOI");
-        }
-        if (currentUrl?.includes("https://epaper.jagran.com/")) {
-            navigation.navigate("TOI");
-        }
-        if (currentUrl?.includes("https://epaper.prabhatkhabar.com/")) {
-            navigation.navigate("TOI");
-        }
+
+        checkFeatureNavigation();
 
 
 

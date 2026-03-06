@@ -1,5 +1,4 @@
 import SQLite, { SQLiteDatabase } from 'react-native-sqlite-storage';
-import RNFS from 'react-native-fs';
 SQLite.enablePromise(true);
 
 // ✅ Initialize database
@@ -74,23 +73,7 @@ export async function removeDownload(
     return rowsAffected;
 }
 
-export async function deleteOldM3U8Files() {
-    try {
-        const files = await RNFS.readDir(RNFS.DocumentDirectoryPath);
 
-        const m3u8Files = files.filter(
-            f => f.isFile() && f.name.endsWith(".m3u8")
-        );
-
-        for (const file of m3u8Files) {
-            await RNFS.unlink(file.path);
-        }
-
-        console.log("Old m3u8 files deleted:", m3u8Files.length);
-    } catch (err) {
-        console.warn("Failed to delete old m3u8 files", err);
-    }
-}
 
 
 

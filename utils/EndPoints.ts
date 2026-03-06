@@ -1,5 +1,6 @@
 import { deepGet } from "./praserHelpers";
 import { Video, ShortVideo, SearchResponse } from "./types";
+import DeviceInfo from "react-native-device-info";
 import { generateContentPlaybackNonce, generateTParameter } from "./misfunction";
 // Build a Video object from JSON
 function createVideoTree(videoRenderer: Record<string, unknown>): Video {
@@ -348,3 +349,51 @@ export function formatDurationHMS(lengthSeconds: string | number): string {
   return `${String(minutes).padStart(2, '0')}:${String(seconds).padStart(2, '0')}`
 }
 
+
+export async function verifyToken(code: string): Promise<any> {
+  try {
+    const response = await fetch("https://studyzem.com/api/verifyToken", {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+      },
+      body: JSON.stringify({
+        coupan_code: code
+      }),
+    });
+
+    const data = await response.json();
+    return data;
+
+  } catch (error) {
+    console.log("Request error:", error);
+    return null;
+  }
+}
+
+export async function updateCouponLog(couponCode: string): Promise<any> {
+  try {
+    const deviceId = DeviceInfo.getUniqueId();
+
+    // current time
+    const updatedOn = new Date().toISOString();
+
+    const response = await fetch("https://studyzem.com/api/updateCouponLog", {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+      },
+      body: JSON.stringify({
+        coupan_code: couponCode,
+        UpdatedOn: updatedOn,
+        loggedsysid: deviceId,
+      }),
+    });
+
+    const data = await response.text();
+    return data;
+  } catch (error) {
+    console.error("API Error:", error);
+    return { error: error }
+  }
+}

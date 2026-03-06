@@ -1,4 +1,4 @@
-
+import SQLite, { SQLiteDatabase } from 'react-native-sqlite-storage';
 export const TOI_CITY_MAP: Record<string, string> = {
     cap: "Delhi",
     toigo: "Goa",
@@ -165,49 +165,75 @@ const cityUrlMap = {
 };
 
 
-export async function getNewsPapers(): Promise<Section[]> {
+export async function getNewsPapers(database: SQLiteDatabase): Promise<Section[]> {
+
     const scrappedSections: Section[] = []
 
-    //toi section
-    scrappedSections.push({
-        title: "Times of India",
-        items: Object.entries(TOI_CITY_MAP).map(([code, city]) => ({
-            label: city,   // "Delhi"
-            value: code,    // "cap"
-            link: "https://epaper.indiatimes.com/"
-        }))
-    });
+    const rows = await getAllFeatureCodes(database)
 
-    scrappedSections.push({
-        title: "The Economic Times",
-        items: Object.entries(ET_CITY_MAP).map(([code, city]) => ({
-            label: city,   // "Delhi"
-            value: code,    // "cap"
-            link: "https://economictimes.indiatimes.com/"
-        }))
-    });
+    const activeFeatures = rows.map((item) => item.coupanItemId)
 
+    // Feature 1 → Times of India
+    if (activeFeatures.includes(1)) {
+        scrappedSections.push({
+            title: "Times of India",
+            items: Object.entries(TOI_CITY_MAP).map(([code, city]) => ({
+                label: city,
+                value: code,
+                link: "https://epaper.indiatimes.com/"
+            }))
+        })
+    }
 
-    // 📰 Dainik Jagran Section
-    scrappedSections.push({
-        title: "Dainik Jagran",
-        items: Object.entries(editionMap).map(([key, name]) => ({
-            label: name,
-            value: key,
-            link: "https://epaper.jagran.com/"
-        }))
-    });
+    // Feature 2 → Economic Times
+    if (activeFeatures.includes(2)) {
+        scrappedSections.push({
+            title: "The Economic Times",
+            items: Object.entries(ET_CITY_MAP).map(([code, city]) => ({
+                label: city,
+                value: code,
+                link: "https://economictimes.indiatimes.com/"
+            }))
+        })
+    }
 
-    scrappedSections.push({
-        title: "प्रभात खबर",
-        items: Object.entries(cityUrlMap).map(([key, name]) => ({
-            label: name,
-            value: key,
-            link: "https://epaper.prabhatkhabar.com/"
-        }))
-    });
+    // Feature 3 → Jagran
+    if (activeFeatures.includes(3)) {
+        scrappedSections.push({
+            title: "Dainik Jagran",
+            items: Object.entries(editionMap).map(([key, name]) => ({
+                label: name,
+                value: key,
+                link: "https://epaper.jagran.com/"
+            }))
+        })
+    }
 
-
+    // Feature 4 → Prabhat Khabar
+    if (activeFeatures.includes(4)) {
+        scrappedSections.push({
+            title: "प्रभात खबर",
+            items: Object.entries(cityUrlMap).map(([key, name]) => ({
+                label: name,
+                value: key,
+                link: "https://epaper.prabhatkhabar.com/"
+            }))
+        })
+    }
 
     return scrappedSections
+}
+
+async function getAllFeatureCodes(database: SQLiteDatabase): Promise<any[]> {
+    const [result] = await database.executeSql(
+        "SELECT * FROM feature_codes"
+    );
+
+    const items: any[] = [];
+
+    for (let i = 0; i < result.rows.length; i++) {
+        items.push(result.rows.item(i));
+    }
+
+    return items;
 }

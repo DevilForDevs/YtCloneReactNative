@@ -182,35 +182,14 @@ export default function FetchImagesForPdf() {
     }, [data]);
 
 
-    async function switchPdfSafely(newPage: number) {
-        if (isPdfLoading) return;
 
-        if (newPage < 1 || newPage > pdfUris.length) {
-            ToastAndroid.show(
-                newPage < 1 ? "Already at first page" : "Reached End",
-                ToastAndroid.SHORT
-            );
-            return;
-        }
-
-        setIsPdfLoading(true);
-
-        // 🔒 Reset zoom FIRST
-        setPdfScale(1);
-
-        // Small buffer to let native reset scale
-        setTimeout(() => {
-            setCurrentPage(newPage);
-            setPdfUri(pdfUris[newPage - 1]);
-        }, 150);   // 150ms is safer than 80ms
-    }
 
     function goNextPage() {
-        switchPdfSafely(currentPage + 1);
+
     }
 
     function goPrevPage() {
-        switchPdfSafely(currentPage - 1);
+
     }
 
     function handleData(data: any) {
