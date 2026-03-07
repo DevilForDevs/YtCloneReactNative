@@ -1,10 +1,11 @@
 import { create } from "zustand";
-import { verifyToken } from "../../utils/EndPoints";
+import { updateCouponLog, verifyToken } from "../../utils/EndPoints";
 import { ToastAndroid } from "react-native";
 import { SQLiteDatabase } from 'react-native-sqlite-storage';
 import { initDB } from "../../utils/dbfunctions";
-
-
+import DeviceInfo from "react-native-device-info";
+import { videoId } from "../../utils/Interact";
+import { Video } from '../../utils/types'
 
 async function createFeautsTable(db: SQLiteDatabase): Promise<void> {
     await db.executeSql(`
@@ -21,21 +22,29 @@ async function createFeautsTable(db: SQLiteDatabase): Promise<void> {
 
 
 async function insertCodes(data: any, database: SQLiteDatabase): Promise<number> {
-    const result = await database.executeSql(
-        `INSERT OR REPLACE INTO feature_codes
-                (id, userId, coupanItemId, code, created_on, fordays)
-                VALUES (?, ?, ?, ?, ?, ?)`,
-        [
-            data.id,
-            data.userId,
-            data.coupanItemId,
-            data.coupan_code,
-            data.created_on,
-            data.fordays
-        ]
-    );
-    const insertId = result[0].insertId ?? 0;
-    return insertId;
+    try {
+        const result = await database.executeSql(
+            `INSERT OR REPLACE INTO feature_codes
+            (id, userId, coupanItemId, code, created_on, fordays)
+            VALUES (?, ?, ?, ?, ?, ?)`,
+            [
+                data.id,
+                data.userId,
+                data.coupanItemId,
+                data.coupan_code,
+                data.created_on,
+                data.fordays
+            ]
+        );
+
+        console.log("RESULT:", result);
+
+        const insertId = result[0].insertId ?? 0;
+        return insertId;
+    } catch (err) {
+        console.log("SQL ERROR:", err);
+        return 0;
+    }
 }
 
 async function validateStoredCodes(database: SQLiteDatabase): Promise<boolean> {
@@ -55,15 +64,17 @@ async function validateStoredCodes(database: SQLiteDatabase): Promise<boolean> {
 
             const response = await verifyToken(row.code);
 
-            if (!response.success) {
+            if (response.success) {
+                const deviceId = await DeviceInfo.getUniqueId();
+                if (response.data.loggedsysid != deviceId) {
+                    // remove invalid code
+                    await database.executeSql(
+                        `DELETE FROM feature_codes WHERE id = ?`,
+                        [row.id]
+                    );
 
-                // remove invalid code
-                await database.executeSql(
-                    `DELETE FROM feature_codes WHERE id = ?`,
-                    [row.id]
-                );
-
-                console.log("Removed invalid code:", row.code);
+                    console.log("Removed invalid code:", row.code);
+                }
             }
         }
         return true
@@ -72,6 +83,17 @@ async function validateStoredCodes(database: SQLiteDatabase): Promise<boolean> {
         console.log("Validation error:", err);
         return false
     }
+}
+
+async function getActiveFeatureIds(db: SQLiteDatabase | undefined): Promise<number[]> {
+    if (!db) return [];
+
+    const [result] = await db.executeSql("SELECT coupanItemId FROM feature_codes");
+    const ids: number[] = [];
+    for (let i = 0; i < result.rows.length; i++) {
+        ids.push(result.rows.item(i).coupanItemId);
+    }
+    return ids;
 }
 
 
@@ -86,6 +108,7 @@ type AskFeatureState = {
     insertAcessCode: (taskfinished: () => void) => Promise<void>;
     initDb: () => void;
     checkValid: (checked: () => void) => void;
+    handleYtIntents: (files: SharedFile[], short: (video: Video) => void, video: (video: Video) => void) => void;
 };
 
 export const useAskFeatureStore = create<AskFeatureState>((set, get) => ({
@@ -105,7 +128,7 @@ export const useAskFeatureStore = create<AskFeatureState>((set, get) => ({
         try {
             set({ showSpinner: true });
             const { acessCodeText, db } = get()
-            const coupanData = await verifyToken(acessCodeText);
+            const coupanData = await updateCouponLog(acessCodeText);
 
             if (coupanData.success) {
                 const data = coupanData.data;
@@ -122,7 +145,7 @@ export const useAskFeatureStore = create<AskFeatureState>((set, get) => ({
                     ToastAndroid.show("Failed to insert to db", ToastAndroid.SHORT);
                 }
             } else {
-                ToastAndroid.show(coupanData.message, ToastAndroid.SHORT);
+                ToastAndroid.show(coupanData.message || coupanData.error, ToastAndroid.SHORT);
                 set({ showSpinner: false });
             }
 
@@ -132,13 +155,44 @@ export const useAskFeatureStore = create<AskFeatureState>((set, get) => ({
         }
     },
     initDb: async () => {
+
+    },
+    checkValid: async () => {
+
         const db = await initDB();
         await createFeautsTable(db);
         set({ db })
-    },
-    checkValid: async () => {
-        const { db } = get()
+
         await validateStoredCodes(db)
+    },
+    handleYtIntents: async (files, short, video) => {
+        const db = await initDB();
+        set({ db })
+        const activeFeatures = await getActiveFeatureIds(db);
+        console.log(activeFeatures);
+        if (activeFeatures.includes(1)) {
+            for (const item of files as SharedFile[]) {
+                if (item.weblink) {
+
+                    const ytVideoId = videoId(item.weblink)
+
+                    const requiredVideo: Video = {
+                        type: 'video',
+                        videoId: ytVideoId,
+                        title: '',
+                        views: 'NO views',
+                    };
+                    if (item.weblink.includes("shorts")) {
+                        short(requiredVideo);
+                        // navigation.navigate("ShortsPlayerScreen", { arrivedVideo: requiredVideo })
+                    } else {
+                        video(requiredVideo);
+                        // navigation.navigate("VideoPlayerScreen", { arrivedVideo: requiredVideo, playlistId: undefined })
+                    }
+                    break;
+                }
+            }
+        }
     }
 
 }));

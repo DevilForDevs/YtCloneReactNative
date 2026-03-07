@@ -174,7 +174,7 @@ export async function getNewsPapers(database: SQLiteDatabase): Promise<Section[]
     const activeFeatures = rows.map((item) => item.coupanItemId)
 
     // Feature 1 → Times of India
-    if (activeFeatures.includes(1)) {
+    if (activeFeatures.includes(2)) {
         scrappedSections.push({
             title: "Times of India",
             items: Object.entries(TOI_CITY_MAP).map(([code, city]) => ({

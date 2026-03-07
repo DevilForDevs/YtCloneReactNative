@@ -25,7 +25,8 @@ import { SQLiteDatabase } from 'react-native-sqlite-storage';
 import { initDB } from "../../utils/dbfunctions";
 import Player from "./widgets/Player";
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
-
+import { useSharedFilesStore } from "../../utils/Store";
+import { videoId } from "../../utils/Interact";
 
 
 
@@ -53,10 +54,8 @@ const formatHMS = (seconds?: string | number): string => {
 
 
 export default function VideoPlayerScreen() {
-
+    const { files, addFile, setFiles, clearFiles } = useSharedFilesStore();
     const insets = useSafeAreaInsets();
-    console.log(insets);
-
     const [isFetchingMore, setIsFetchingMore] = useState(false);
     const [retryCount, setRetryCount] = useState(0);
 
@@ -92,6 +91,29 @@ export default function VideoPlayerScreen() {
     const [db, setDb] = useState<SQLiteDatabase | null>(null);
     const [tracks, setTracks] = useState<VideoTrack[]>([]);
     const [selectedTrack, setSelectedTrack] = useState<number | "auto">("auto");
+
+
+    useEffect(() => {
+        for (const item of files as SharedFile[]) {
+            if (item.weblink) {
+
+                const ytVideoId = videoId(item.weblink)
+
+                const requiredVideo: Video = {
+                    type: 'video',
+                    videoId: ytVideoId,
+                    title: '',
+                    views: 'NO views',
+                };
+                if (item.weblink.includes("shorts")) {
+                    navigation.navigate("ShortsPlayerScreen", { arrivedVideo: requiredVideo })
+                } else {
+                    loadData(requiredVideo);
+                }
+                break;
+            }
+        }
+    }, [files])
 
 
 

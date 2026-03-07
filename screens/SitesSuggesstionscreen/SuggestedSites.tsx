@@ -4,9 +4,6 @@ import { SafeAreaView } from "react-native-safe-area-context";
 import { WebView } from "react-native-webview";
 import { useNavigation } from "@react-navigation/native";
 import { HOME_HTML } from "../../utils/suggestedsiteshtml";
-import { useSharedFilesStore } from "../../utils/Store";
-import { videoId } from "../../utils/Interact";
-import { Video } from '../../utils/types'
 import { useAskFeatureStore } from "../AskFeatureCode/AskFeatureStore";
 import { SQLiteDatabase } from 'react-native-sqlite-storage';
 
@@ -15,7 +12,7 @@ export default function SuggestedSites() {
     const webViewRef = useRef<WebView>(null);
     const [canGoBack, setCanGoBack] = useState(false);
     const [currentUrl, setCurrentUrl] = useState<string | null>(null);
-    const { files, addFile, setFiles, clearFiles } = useSharedFilesStore();
+
 
 
 
@@ -54,7 +51,7 @@ export default function SuggestedSites() {
             const { db } = useAskFeatureStore.getState();
             const activeFeatures = await getActiveFeatureIds(db);
 
-            if (currentUrl?.includes("https://epaper.indiatimes.com/timesepaper") && activeFeatures.includes(1)) {
+            if (currentUrl?.includes("https://epaper.indiatimes.com/timesepaper") && activeFeatures.includes(2)) {
                 navigation.navigate("TOI");
             }
             if (currentUrl?.includes("https://epaper.jagran.com/") && activeFeatures.includes(3)) {
@@ -63,7 +60,7 @@ export default function SuggestedSites() {
             if (currentUrl?.includes("https://epaper.prabhatkhabar.com/") && activeFeatures.includes(4)) {
                 navigation.navigate("TOI");
             }
-            if (currentUrl === "https://m.youtube.com/" && activeFeatures.includes(5)) {
+            if (currentUrl === "https://m.youtube.com/" && activeFeatures.includes(1)) {
                 navigation.navigate("BrowserScreen", { name: "" });
             }
         }
@@ -75,27 +72,7 @@ export default function SuggestedSites() {
 
     }, [currentUrl])
 
-    useEffect(() => {
-        for (const item of files as SharedFile[]) {
-            if (item.weblink) {
 
-                const ytVideoId = videoId(item.weblink)
-
-                const requiredVideo: Video = {
-                    type: 'video',
-                    videoId: ytVideoId,
-                    title: '',
-                    views: 'NO views',
-                };
-                if (item.weblink.includes("shorts")) {
-                    navigation.navigate("ShortsPlayerScreen", { arrivedVideo: requiredVideo })
-                } else {
-                    navigation.navigate("VideoPlayerScreen", { arrivedVideo: requiredVideo, playlistId: undefined })
-                }
-                break;
-            }
-        }
-    }, [files])
 
 
     async function eventOnPageLoad() {

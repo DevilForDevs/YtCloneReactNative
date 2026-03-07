@@ -21,7 +21,8 @@ export default function FetchImagesForPdf() {
     const [pdfUris, setPdfUris] = useState<string[]>([]);
     const [requiredUrl, setRequiredUrl] = useState("");
     const [isPdfLoading, setIsPdfLoading] = useState(false);
-    const [pdfScale, setPdfScale] = useState(1);
+    const [pdfScale, setPdfScale] = useState(1.5);
+    const [isZoomed, setIsZoomed] = useState(false);
 
 
     async function doOnLoadStuffs() {
@@ -111,6 +112,8 @@ export default function FetchImagesForPdf() {
                 const page = pages[i];
                 const imageUrl = `https://asset.harnscloud.com/PublicationData/TOI/${item.edition}/${date.year}/${date.month}/${date.day}/Page/${page.PageName}.jpg`;
 
+
+
                 try {
                     const newPdfUri = await downloadImageToPdf(imageUrl, headers, `${page.PageName}.pdf`);
 
@@ -184,12 +187,30 @@ export default function FetchImagesForPdf() {
 
 
 
-    function goNextPage() {
-
+    function sleep(ms: number) {
+        return new Promise<void>((resolve) => setTimeout(resolve, ms));
     }
 
-    function goPrevPage() {
+    async function goNextPage() {
+        if (currentPage >= pdfUris.length - 1) return; // already at last page
 
+        setPdfScale(1); // reset zoom first
+        await sleep(500); // wait 500ms before changing page
+
+        const nextPage = currentPage + 1;
+        setCurrentPage(nextPage);
+        setPdfUri(pdfUris[nextPage]);
+    }
+
+    async function goPrevPage() {
+        if (currentPage <= 0) return; // already at first page
+
+        setPdfScale(1); // reset zoom first
+        await sleep(500); // wait 500ms before changing page
+
+        const prevPage = currentPage - 1;
+        setCurrentPage(prevPage);
+        setPdfUri(pdfUris[prevPage]);
     }
 
     function handleData(data: any) {
@@ -218,21 +239,15 @@ export default function FetchImagesForPdf() {
                         <Text style={styles.pageInfo}>{currentPage} / {totalPages}</Text>
                     </View>
                     <View style={{ flex: 1 }}>
-                        {pdfUri && (
-                            <Pdf
-                                ref={pdfRef}
-                                key={pdfUri}
-                                source={{ uri: pdfUri }}
-                                style={{ flex: 1 }}
-                                scale={pdfScale}
-                                minScale={1}
-                                maxScale={3}
-                                onLoadComplete={() => {
-                                    setPdfScale(1);   // reset zoom after load
-                                    setIsPdfLoading(false);
-                                }}
-                            />
-                        )}
+
+                        <Pdf
+                            ref={pdfRef}
+                            key={pdfUri}
+                            source={{ uri: pdfUri }}
+                            style={{ flex: 1 }}
+                            scale={pdfScale}
+
+                        />
 
                         {isPdfLoading && (
                             <View style={styles.loaderOverlay}>

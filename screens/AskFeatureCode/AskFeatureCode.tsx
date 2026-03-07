@@ -3,30 +3,48 @@ import React, { useEffect, useState } from 'react'
 import { useNavigation } from "@react-navigation/native";
 import { useAskFeatureStore } from './AskFeatureStore';
 import { ToastAndroid } from "react-native";
+import { useSharedFilesStore } from "../../utils/Store";
+
 
 export default function AskFeatureCode() {
     const navigation = useNavigation<navStack>();
+    const { files, addFile, setFiles, clearFiles } = useSharedFilesStore();
     const { acessCodeText,
         setAccessCodeText,
         insertAcessCode,
         initDb,
-        checkValid
+        checkValid,
+        handleYtIntents
 
     } = useAskFeatureStore()
 
     async function handleActivate() {
         insertAcessCode(() => {
             ToastAndroid.show("Feature Activated", ToastAndroid.SHORT);
-            navigation.navigate("SuggestedSites")
+            navigation.navigate("SuggestedSites");
         })
 
     }
 
+
     useEffect(() => {
-        initDb()
+        console.log("handlingyt");
+        handleYtIntents(files, (video) => {
+            navigation.navigate("ShortsPlayerScreen", { arrivedVideo: video })
+        }, (video) => {
+            navigation.navigate("VideoPlayerScreen", { arrivedVideo: video, playlistId: undefined })
+        });
+
+    }, [files])
+
+    useEffect(() => {
+
         checkValid(() => {
         })
     }, [])
+
+
+
 
     return (
         <View style={styles.container}>

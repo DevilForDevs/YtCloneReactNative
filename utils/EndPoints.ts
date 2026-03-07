@@ -373,11 +373,7 @@ export async function verifyToken(code: string): Promise<any> {
 
 export async function updateCouponLog(couponCode: string): Promise<any> {
   try {
-    const deviceId = DeviceInfo.getUniqueId();
-
-    // current time
-    const updatedOn = new Date().toISOString();
-
+    const deviceId = await DeviceInfo.getAndroidId();
     const response = await fetch("https://studyzem.com/api/updateCouponLog", {
       method: "POST",
       headers: {
@@ -385,12 +381,11 @@ export async function updateCouponLog(couponCode: string): Promise<any> {
       },
       body: JSON.stringify({
         coupan_code: couponCode,
-        UpdatedOn: updatedOn,
         loggedsysid: deviceId,
       }),
     });
 
-    const data = await response.text();
+    const data = await response.json();
     return data;
   } catch (error) {
     console.error("API Error:", error);

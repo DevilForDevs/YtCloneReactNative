@@ -1,7 +1,7 @@
 import {
     StyleSheet, Text, View, Pressable,
     ActivityIndicator, TouchableOpacity,
-    NativeModules
+    NativeModules, Dimensions
 } from 'react-native'
 import React, { useEffect, useState } from 'react'
 import { RouteProp, useNavigation, useRoute } from '@react-navigation/native';
@@ -12,7 +12,7 @@ import Video, { OnLoadData, OnProgressData } from "react-native-video";
 import RightControls from './RightControls';
 import BottomControls from './BottomControls';
 import { NativeStackNavigationProp } from "@react-navigation/native-stack";
-import type { VideoDescription } from "../../utils/types";
+import type { VideoDescription, Video as typeV } from "../../utils/types";
 type NavigationProp = RouteProp<RootStackParamList, "ShortsPlayerScreen">;
 type Navstack = NativeStackNavigationProp<RootStackParamList, "BottomNav">;
 import { Gesture, GestureDetector } from 'react-native-gesture-handler';
@@ -28,7 +28,10 @@ import ResolutionBottomSheet from '../VideoPlayerScreen/widgets/ResolutionBottom
 import {
     SelectedVideoTrackType,
 } from "react-native-video";
+import { videoId } from '../../utils/Interact';
+import { useSharedFilesStore } from "../../utils/Store";
 
+const { height: screenHeight } = Dimensions.get("window");
 export default function ShortsPlayer() {
     const route = useRoute<NavigationProp>();
     const navigation = useNavigation<Navstack>();
@@ -50,6 +53,33 @@ export default function ShortsPlayer() {
     const [showBottomSheet, setShowBottomSheet] = useState(false);
     const [tracks, setTracks] = useState<VideoTrack[]>([]);
     const [selectedTrack, setSelectedTrack] = useState<number | "auto">("auto");
+    const { files, addFile, setFiles, clearFiles } = useSharedFilesStore();
+
+
+    useEffect(() => {
+        for (const item of files as SharedFile[]) {
+            if (item.weblink) {
+
+                const ytVideoId = videoId(item.weblink)
+
+                const requiredVideo: typeV = {
+                    type: 'video',
+                    videoId: ytVideoId,
+                    title: '',
+                    views: 'NO views',
+                };
+                if (item.weblink.includes("shorts")) {
+                    setCurrentVideoId(ytVideoId);
+                    setBuffering(true);
+                    loadInitial()
+                } else {
+                    navigation.navigate("VideoPlayerScreen", { arrivedVideo: requiredVideo, playlistId: undefined })
+                }
+                break;
+            }
+        }
+    }, [files])
+
 
 
 
@@ -165,6 +195,8 @@ export default function ShortsPlayer() {
 
 
     async function playNextVideo() {
+        console.log(nextVideoInfo);
+
         if (!nextVideoInfo || !nextVideoInfo.hlsUrl) {
             console.warn("Next video not ready yet");
             return;
@@ -231,16 +263,19 @@ export default function ShortsPlayer() {
 
 
 
+
+    const SWIPE_THRESHOLD = screenHeight * 0.15; // 15% of screen height
+
     const swipeGesture = Gesture.Pan()
         .activeOffsetY([-20, 20])
-        .failOffsetX([-20, 20])
+        .failOffsetX([-999, 999])
+        .minPointers(1)
         .onEnd((e) => {
-            if (e.translationY < -60) {
-                if (!buffering) {
-                    playNextVideo()
-                }
-            } else if (e.translationY > 60) {
-                playPrev()
+            console.log("swipe delta:", e.translationY);
+            if (e.translationY < -SWIPE_THRESHOLD && !buffering) {
+                playNextVideo();
+            } else if (e.translationY > SWIPE_THRESHOLD) {
+                playPrev();
             }
         });
 
@@ -415,16 +450,16 @@ export default function ShortsPlayer() {
 
 
     return (
-        <SafeAreaView style={styles.root}>
-            <View style={styles.topBar}>
-                <TouchableOpacity onPress={() => navigation.goBack()}>
-                    <Icon name='arrow-back' size={28} color="white" />
-                </TouchableOpacity>
-                <IconMat name='camera-outline' size={28} color="white" />
-            </View>
+        <GestureDetector gesture={swipeGesture}>
+            <SafeAreaView style={styles.root}>
 
-            <GestureDetector gesture={swipeGesture}>
-                <View style={styles.videoContainer}>
+                <View style={styles.topBar}>
+                    <TouchableOpacity onPress={() => navigation.goBack()}>
+                        <Icon name='arrow-back' size={28} color="white" />
+                    </TouchableOpacity>
+                    <IconMat name='camera-outline' size={28} color="white" />
+                </View>
+                <View style={StyleSheet.absoluteFill} pointerEvents="none">
                     <Video
                         source={{ uri: mediaUrl }}
                         poster={`https://i.ytimg.com/vi/${currentVideoId}/hqdefault.jpg`}
@@ -459,20 +494,7 @@ export default function ShortsPlayer() {
                         }
                     />
 
-                    <Pressable
-                        onPress={togglePlayPause}
-                        style={StyleSheet.absoluteFill} // covers full video
-                    >
-                        {showPlayIcon && (
-                            <View style={styles.centerIcon}>
-                                <Icon
-                                    name={paused ? "play-circle-outline" : "pause-circle-outline"}
-                                    size={80}
-                                    color="white"
-                                />
-                            </View>
-                        )}
-                    </Pressable>
+
 
                     {buffering && (
                         <View style={styles.centerIcon}>
@@ -495,15 +517,30 @@ export default function ShortsPlayer() {
                     />
 
                 </View>
-            </GestureDetector>
+                <Pressable
+                    onPress={togglePlayPause}
+                    style={StyleSheet.absoluteFill} // covers full video
+                >
+                    {showPlayIcon && (
+                        <View style={styles.centerIcon}>
+                            <Icon
+                                name={paused ? "play-circle-outline" : "pause-circle-outline"}
+                                size={80}
+                                color="white"
+                            />
+                        </View>
+                    )}
+                </Pressable>
 
-            <ResolutionBottomSheet
-                visible={showBottomSheet}
-                resolutions={tracks}
-                onSelect={changeResolution}
-                onClose={() => setShowBottomSheet(false)}
-            />
-        </SafeAreaView>
+                <ResolutionBottomSheet
+                    visible={showBottomSheet}
+                    resolutions={tracks}
+                    onSelect={changeResolution}
+                    onClose={() => setShowBottomSheet(false)}
+                />
+
+            </SafeAreaView>
+        </GestureDetector>
     )
 }
 const styles = StyleSheet.create({
