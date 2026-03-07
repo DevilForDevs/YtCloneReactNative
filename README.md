@@ -35,7 +35,7 @@
 • Nested FlatLists for fast UI rendering  
 
 ### 📰 E-Paper Viewer
-Supports viewing newspapers (subscription bypass) such as:
+Supports viewing newspaper such as:
 
 - **Times of India**
 - **Prabhat Khabar**
