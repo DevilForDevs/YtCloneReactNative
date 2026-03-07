@@ -92,7 +92,7 @@ Self contained kt Muxer & downloader | moofs (fmp4) and clusters (webm) muxer |
 # 📦 Installation
 
 ```bash
-git clone https://github.com/yourrepo/ivideo
+git clone https://github.com/DevilForDevs/YtCloneReactNative.git
 cd ivideo
 npm install
 npx react-native run-android
