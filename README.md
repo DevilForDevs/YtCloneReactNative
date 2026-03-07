@@ -27,13 +27,15 @@
 • Built-in video player  
 • Shorts-style vertical player  
 • Offline media player  
+• only playstore apks restricted, donwload can be invoked by calling openAskFormat()
+
 
 ### 🔎 Content Browsing
 • Endless browsing & search  
 • Nested FlatLists for fast UI rendering  
 
 ### 📰 E-Paper Viewer
-Supports viewing newspapers(subscription bypass) such as:
+Supports viewing newspapers (subscription bypass) such as:
 
 - **Times of India**
 - **Prabhat Khabar**
@@ -73,6 +75,7 @@ Zustand | State management |
 SQLite | Local storage |
 Kotlin | Native media utilities |
 WebView | Content rendering |
+Self contained kt Muxer & downloader | moofs (fmp4) and clusters (webm) muxer |
 
 ---
 
