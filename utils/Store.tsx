@@ -1,7 +1,28 @@
 import { create } from "zustand";
-import { DownloadStoreModel, DownloadItem } from "./types";
-import { VideoStore } from "./types";
+import { DownloadStoreModel, DownloadItem, Video, VideoStore } from "./types";
+import RNFS from 'react-native-fs';
+import { initDB, loadDownloads, createDownloadsTable } from "./dbfunctions";
+import { createHistoryTable } from "../screens/SavedScreen/backend/dbo";
+import { convertBytes } from "./Interact";
 
+async function getFileSize(folder: string, fileName: string) {
+  try {
+    const baseDir =
+      folder === 'movies'
+        ? `${RNFS.ExternalStorageDirectoryPath}/Movies`
+        : `${RNFS.ExternalStorageDirectoryPath}/Music`;
+
+    const path = `${baseDir}/${fileName}`;
+
+    if (!(await RNFS.exists(path))) return 0;
+
+    const stats = await RNFS.stat(path);
+    return Number(stats.size);
+  } catch (e) {
+    console.warn('File size error:', e);
+    return 0;
+  }
+}
 
 export const useVideoStore = create<VideoStore>((set, get) => ({
   totalVideos: [],
@@ -274,6 +295,39 @@ export const DownloadsStore = create<DownloadStoreModel>((set) => ({
         item.video.videoId === videoId ? { ...item, isStopped } : item
       ),
     })),
+  loadDownloads: async () => {
+    const dbInstance = await initDB();
+    await createDownloadsTable(dbInstance);
+    await createHistoryTable(dbInstance);
+    const items = await loadDownloads(dbInstance);
+
+    const downloads: DownloadItem[] = [];
+
+    for (const item of items) {
+      const fileSize = await getFileSize(item.folder, item.title);
+
+      const video: Video = {
+        videoId: item.videoId,
+        title: item.title,
+        views: item.folder === 'movies' ? 'Video' : 'Audio',
+        type: 'video',
+        duration: item.duration,
+      };
+
+      const downloadItem: DownloadItem = {
+        video,
+        speed: 'Finished',
+        isFinished: true,
+        isStopped: false,
+        transferInfo: convertBytes(fileSize),
+        progressPercent: 100,
+        message: 'Finished',
+      };
+      downloads.push(downloadItem);
+    }
+    set({ totalDownloads: downloads });
+
+  }
 }));
 
 

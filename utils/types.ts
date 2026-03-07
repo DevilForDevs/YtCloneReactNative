@@ -78,6 +78,7 @@ export interface DownloadStoreModel {
   ) => void;
   updateFinished: (videoId: string, isFinished: boolean) => void;
   updateStopped: (videoId: string, isStopped: boolean) => void;
+  loadDownloads: () => void
 }
 
 

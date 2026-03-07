@@ -202,20 +202,22 @@ export async function getVisitorId(): Promise<string> {
 
   const body = {
     context: {
+      client: {
+        clientName: "IOS",
+        clientVersion: "21.03.2",
+        clientScreen: "WATCH",
+        platform: "MOBILE",
+        deviceMake: "Apple",
+        deviceModel: "iPhone16,2",
+        osName: "iOS",
+        osVersion: "18.7.2.22H124",
+        hl: "en-GB",
+        gl: "GB",
+        utcOffsetMinutes: 0
+      },
       request: {
         internalExperimentFlags: [],
         useSsl: true
-      },
-      client: {
-        androidSdkVersion: null,
-        osVersion: "17.5",
-        hl: "en-GB",
-        clientName: "IOS",
-        gl: "GB",
-        clientScreen: "WATCH",
-        clientVersion: "18.15.0",
-        osName: "iOS",
-        platform: "MOBILE"
       },
       user: {
         lockedSafetyMode: false
@@ -224,10 +226,12 @@ export async function getVisitorId(): Promise<string> {
   };
 
   const headers = {
-    "User-Agent": "com.google.ios.youtube/18.15.0 (iPhone; iOS 17.5; Scale/3.00)",
-    "X-Goog-Api-Format-Version": "2",
+    "User-Agent": "com.google.ios.youtube/21.03.2(iPhone16,2; U; CPU iOS 18_7_2 like Mac OS X; GB)",
     "Content-Type": "application/json",
-    "Accept-Language": "en-GB, en;q=0.9"
+    "X-Goog-Api-Format-Version": "2",
+    "X-Youtube-Client-Name": "5",
+    "X-Youtube-Client-Version": "21.03.2",
+    "Accept-Language": "en-GB,en;q=0.9"
   };
 
   const res = await fetch(url, {
@@ -242,57 +246,58 @@ export async function getVisitorId(): Promise<string> {
 
 export async function getIosPlayerResponse(videoId: string): Promise<any> {
   const cpn = generateContentPlaybackNonce();
-  const tp = generateTParameter();
   const visitorId = await getVisitorId();
 
-  const url = `https://youtubei.googleapis.com/youtubei/v1/player?prettyPrint=false&t=${tp}&id=${videoId}`;
+  const url = "https://www.youtube.com/youtubei/v1/player?prettyPrint=false";
 
   const body = {
     context: {
       client: {
         clientName: "IOS",
-        clientVersion: "20.03.02",
+        clientVersion: "21.03.2",
         clientScreen: "WATCH",
         platform: "MOBILE",
         visitorData: visitorId,
         deviceMake: "Apple",
         deviceModel: "iPhone16,2",
         osName: "iOS",
-        osVersion: "18.2.1.22C161",
+        osVersion: "18.7.2.22H124",
         hl: "en-GB",
         gl: "GB",
-        utcOffsetMinutes: 0,
+        utcOffsetMinutes: 0
       },
       request: {
         internalExperimentFlags: [],
-        useSsl: true,
+        useSsl: true
       },
       user: {
-        lockedSafetyMode: false,
-      },
+        lockedSafetyMode: false
+      }
     },
     videoId,
     cpn,
     contentCheckOk: true,
-    racyCheckOk: true,
+    racyCheckOk: true
   };
 
   const headers = {
-    "User-Agent":
-      "com.google.ios.youtube/20.03.02(iPhone16,2; U; CPU iOS 18_2_1 like Mac OS X; GB)",
-    "X-Goog-Api-Format-Version": "2",
+    "User-Agent": "com.google.ios.youtube/21.03.2(iPhone16,2; U; CPU iOS 18_7_2 like Mac OS X; GB)",
     "Content-Type": "application/json",
-    "Accept-Language": "en-GB, en;q=0.9",
+    "X-Goog-Api-Format-Version": "2",
+    "X-Youtube-Client-Name": "5",
+    "X-Youtube-Client-Version": "21.03.2",
+    "Accept-Language": "en-GB,en;q=0.9"
   };
 
   const res = await fetch(url, {
     method: "POST",
     headers,
-    body: JSON.stringify(body),
+    body: JSON.stringify(body)
   });
 
   return res.json();
 }
+
 
 
 
