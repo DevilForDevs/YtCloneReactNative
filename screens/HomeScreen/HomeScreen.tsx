@@ -1,7 +1,7 @@
 import React, { useState } from "react";
-import { StyleSheet, Text, View, FlatList, NativeModules, Pressable } from "react-native";
+import { StyleSheet, Text, View, FlatList, NativeModules, ListRenderItem, Pressable } from "react-native";
 import { useVideoStore } from "../../utils/Store";
-import { Video, } from "../../utils/types";
+import { ShortVideo, Video, } from "../../utils/types";
 import TopBar from "./widgets/TopBar/TopBar";
 import { useNavigation } from "@react-navigation/native";
 import Menu from "./widgets/TopBar/widgets/Menu";
@@ -9,93 +9,63 @@ import ShortsHeader from "./widgets/ShortsHeader/ShortsHeader";
 import VideoItemView from "./widgets/VideoItemView/VideoItemView";
 import ShortsItemView from "./widgets/ShortsItemView/ShortsItemView";
 import { useAskFormat } from "../AskFormatContext";
-import { parseYTInitialData } from "../../utils/parseYTInitialData";
+import { useHomeScreenStore } from "./Store";
 import { ActivityIndicator } from "react-native";
 export default function HomeScreen() {
 
   const navigation = useNavigation<navStack>();
-  const { MyNativeModule } = NativeModules;
-  const {
-    totalVideos,
-    addVideo,
-    visitorData,
-    continuation,
-    setContinuation,
-  } = useVideoStore();
+  const totalVideos = useVideoStore(s => s.totalVideos);
+
   const { openAskFormat } = useAskFormat();
-  const [isFetchingMore, setIsFetchingMore] = useState(false);
-  const [retryCount, setRetryCount] = useState(0);
+  const { isFetchingMore, retryCount, nextBroswe } = useHomeScreenStore();
 
 
-  function processVideoGroup(videoGroup: any, isInitial = false) {
-    const freshShorts: Video[] = [];
+  const renderItem: ListRenderItem<Video | ShortVideo> = React.useCallback(
+    ({ item }) => {
+      if (item.type === "video") {
+        return (
+          <VideoItemView
+            onChannelClick={() =>
+              navigation.navigate("ChannelScreen", { channelUrl: item.channelUrl ?? "" })
+            }
+            item={item}
+            progress={0}
+            onItemPress={() =>
+              navigation.navigate("VideoPlayerScreen", {
+                arrivedVideo: item,
+                playlistId: undefined,
+              })
+            }
+            onDownload={() => console.log("not supported")}
+          />
+        );
+      }
 
-    videoGroup.videos.forEach((element: any) => {
-      if (!element.video_id) return;
-      addVideo({
-        type: "video",
-        videoId: element.video_id,
-        title: element.title ?? "",
-        duration: element.duration ?? "",
-        views: element.views ?? "null",
-        channel: element.channel_photo ?? "",
-        publishedOn: element.publishedOn,
-        channelUrl: element.channel_url
-      });
-    });
-
-    videoGroup.shorts.forEach((element: any) => {
-      if (!element.video_id) return;
-
-      freshShorts.push({
-        type: "video",
-        videoId: element.video_id,
-        title: element.title ?? "",
-        views: element.views ?? "null",
-      });
-    });
-
-    if (freshShorts.length > 0) {
-      addVideo({
-        type: "shorts",
-        videos: freshShorts,
-        videoId: freshShorts[0].videoId,
-      });
-    }
-    setContinuation(videoGroup.continuationTokens?.[0] ?? "");
-
-  }
-
-  function handleRetry() {
-    setRetryCount(0);
-    nextBroswe();
-  }
-
-  async function nextBroswe() {
-    console.log("fetchingnext");
-    if (retryCount >= 3) return;
-    if (isFetchingMore || !continuation) return;
-    if (continuation == "") return;
-
-    setIsFetchingMore(true);
-
-    try {
-      const raw = await MyNativeModule.fetchFeed(null,
-        continuation,
-        visitorData
+      return (
+        <View style={styles.shortParentContainer}>
+          <ShortsHeader />
+          <FlatList
+            data={item.videos}
+            horizontal
+            keyExtractor={(short) => short.videoId}
+            renderItem={({ item: short }) => (
+              <ShortsItemView
+                item={short}
+                onItemPress={() =>
+                  navigation.navigate("ShortsPlayerScreen", {
+                    arrivedVideo: short,
+                  })
+                }
+              />
+            )}
+            showsHorizontalScrollIndicator={false}
+            contentContainerStyle={styles.shortsContainer}
+          />
+        </View>
       );
-
-      const videoGroup = parseYTInitialData(JSON.parse(raw));
-      processVideoGroup(videoGroup);
-    } catch (e) {
-      console.error("Continuation fetch failed", e);
-      setRetryCount(r => r + 1);
-    } finally {
-      setIsFetchingMore(false);
-    }
-  }
-
-
+    },
+    []
+  );
 
   return (
     <View style={styles.root}>
@@ -113,45 +83,13 @@ export default function HomeScreen() {
             <View style={styles.centerState}>
               <Text style={styles.retryText}>Something went wrong</Text>
 
-              <Pressable style={styles.retryBtn} onPress={handleRetry}>
+              <Pressable style={styles.retryBtn} onPress={nextBroswe}>
                 <Text style={styles.retryBtnText}>Retry</Text>
               </Pressable>
             </View>
           ) : null
         }
-        renderItem={({ item }) =>
-          item.type === "video" ? (
-            <VideoItemView onChannelClick={() => navigation.navigate("ChannelScreen", { channelUrl: item.channelUrl ?? "" })}
-              item={item}
-              progress={0}
-              onItemPress={() =>
-                navigation.navigate("VideoPlayerScreen", { arrivedVideo: item, playlistId: undefined })
-              }
-              onDownload={() => console.log("not supported")}
-            />
-          ) : (
-            <View style={styles.shortParentContainer}>
-              <ShortsHeader />
-              <FlatList
-                data={item.videos}
-                horizontal
-                keyExtractor={(short) => short.videoId}
-                renderItem={({ item: short }) => (
-                  <ShortsItemView
-                    item={short}
-                    onItemPress={() =>
-                      navigation.navigate("ShortsPlayerScreen", {
-                        arrivedVideo: short,
-                      })
-                    }
-                  />
-                )}
-                showsHorizontalScrollIndicator={false}
-                contentContainerStyle={styles.shortsContainer}
-              />
-            </View>
-          )
-        }
+        renderItem={renderItem}
         contentContainerStyle={{ gap: 10, marginTop: 10 }}
         onEndReached={nextBroswe}
         onEndReachedThreshold={0.5}

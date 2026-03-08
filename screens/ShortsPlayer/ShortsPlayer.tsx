@@ -16,7 +16,6 @@ import type { VideoDescription, Video as typeV } from "../../utils/types";
 type NavigationProp = RouteProp<RootStackParamList, "ShortsPlayerScreen">;
 type Navstack = NativeStackNavigationProp<RootStackParamList, "BottomNav">;
 import { Gesture, GestureDetector } from 'react-native-gesture-handler';
-import { createResolutionPlaylistsRN } from '../../utils/createResolutionPlaylists';
 import RNFS from 'react-native-fs';
 import { fetchHlsUrl } from '../../utils/downloadFunctions';
 import { useAskFormat } from '../AskFormatContext';
@@ -85,64 +84,10 @@ export default function ShortsPlayer() {
 
     async function playVideo(hlsUrl: string, videoId: string) {
 
-        const resolutions = await createResolutionPlaylistsRN(
-            hlsUrl,
-            RNFS.DocumentDirectoryPath,
-            videoId
-        );
-        if (resolutions.length > 0) {
-
-            let appropriateResolution: string | undefined;
-            let selectedIndex = -1;
-
-            for (let i = 0; i < resolutions.length; i++) {
-                const res = resolutions[i];
-
-
-                const height = Number(res.split("x")[0]);
-                if (height === 480) {
-                    appropriateResolution = res;
-                    selectedIndex = i;
-                    break;
-                }
-            }
 
 
 
-            if (!appropriateResolution) {
-                // fallback (max 360/480, avoid 720+)
-                selectedIndex = Math.max(resolutions.length - 1, 0);
-                appropriateResolution = resolutions[selectedIndex];
-            }
 
-            const localM3u8Path =
-                `${RNFS.DocumentDirectoryPath}/${videoId}(${appropriateResolution}).m3u8`;
-
-            setCurrentResolutionIndex(selectedIndex);
-            setMediaUrl(hlsUrl);
-            // setMediaUrl(`file://${localM3u8Path}`);
-            setResolutions(resolutions);
-            setCurrentVideoId(videoId);
-
-        } else {
-            console.log("fallbackHappened");
-            // fallback to original manifest
-            setMediaUrl(hlsUrl);
-        }
-
-        let database = db;
-        if (!database) {
-            database = await initDB();
-            setDb(database);
-        }
-
-        await addHistory(
-            database,
-            videoId,
-            currentVideoInfo?.title ?? "",
-            currentVideoInfo?.channelName ?? "",
-            currentVideoInfo?.video.duration ?? "Short"
-        )
 
     }
 

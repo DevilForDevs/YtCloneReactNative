@@ -59,7 +59,7 @@ export default function App() {
       <AskFormatProvider>
         <NavigationContainer ref={navigationRef}>
           <Stack.Navigator
-            initialRouteName="AskFeatureCode"
+            initialRouteName="VideoPlayerScreen"
             screenOptions={{ headerShown: false }}
           >
             <Stack.Screen name="BrowserScreen" component={BrowserScreen} />

@@ -13,6 +13,7 @@ import Orientation from "react-native-orientation-locker"
 import {
     SelectedVideoTrackType, SelectedTrackType
 } from "react-native-video";
+import { freezeEnabled } from 'react-native-screens';
 
 
 type Props = {
@@ -98,6 +99,7 @@ export default function Player(props: Props) {
 
 
     function onLoad(data: OnLoadData) {
+
         if (props.startAsScreen) toggleFullscreen();
         setDuration(data.duration);
         setIsBuffering(false);
@@ -271,14 +273,27 @@ export default function Player(props: Props) {
                 }
                 {
                     showControls ? <View style={isFullscreen ? styles.fullScrren : styles.bottomControls}>
-                        <Text style={styles.durationLabel}>{formatSeconds(duration)}</Text>
-                        <TouchableOpacity onPress={toggleFullscreen}>
-                            {isFullscreen ? (
-                                <Icon name="contract" size={24} color="white" />
-                            ) : (
-                                <Icon name="expand" size={24} color="white" />
-                            )}
-                        </TouchableOpacity>
+
+                        <Text style={styles.durationLabel}>{formatSeconds(currentTime)}</Text>
+
+
+
+                        <View style={{
+                            flexDirection: "row",
+                            gap: 5
+                        }}>
+                            <Text style={styles.durationLabel}>{formatSeconds(duration)}</Text>
+                            <TouchableOpacity onPress={toggleFullscreen}>
+                                {isFullscreen ? (
+                                    <Icon name="contract" size={24} color="white" />
+                                ) : (
+                                    <Icon name="expand" size={24} color="white" />
+                                )}
+                            </TouchableOpacity>
+
+                        </View>
+
+
                     </View> : <View />
 
                 }
@@ -341,18 +356,20 @@ const styles = StyleSheet.create({
     bottomControls: {
         position: "absolute",
         bottom: 15,
-        right: 10,
+        width: "100%",
         flexDirection: "row",
-        gap: 10,
-        zIndex: 10
+        zIndex: 10,
+        justifyContent: "space-between",
+        paddingHorizontal: 10
     }
     ,
     fullScrren: {
         position: "absolute",
         bottom: 30,
-        right: 10,
         flexDirection: "row",
-        gap: 10
+        width: "100%",
+        justifyContent: "space-between",
+        paddingHorizontal: 15
     }
     ,
     fullScreenWrapper: {
