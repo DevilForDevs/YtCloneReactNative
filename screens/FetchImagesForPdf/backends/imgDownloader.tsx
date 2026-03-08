@@ -3,6 +3,10 @@ import { createPdf } from 'react-native-images-to-pdf';
 import {
     NativeModules,
 } from 'react-native'
+import ReactNativeBlobUtil from "react-native-blob-util";
+import mergePDFs from "react-native-merge-pdf";
+
+
 
 
 export async function makePdfFromImages(
@@ -319,3 +323,32 @@ export async function clearPdfFolder() {
         throw error;
     }
 }
+
+const pdfs = [
+    {
+        uri: 'file:///path/to/file1.pdf',
+        name: 'file1.pdf',
+        size: 12345,
+        type: 'application/pdf'
+    },
+    {
+        uri: 'file:///path/to/file2.pdf',
+        name: 'file2.pdf',
+        size: 67890,
+        type: 'application/pdf'
+    }
+];
+
+// Merge PDFs and get file path
+const mergeAndGetPath = async () => {
+    try {
+        const outputPath = await mergePDFs({
+            files: pdfs,
+        });
+
+        console.log('Merged PDF path:', outputPath);
+        return outputPath;
+    } catch (error) {
+        console.error('Error merging PDFs:', error);
+    }
+};

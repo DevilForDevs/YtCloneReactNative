@@ -1,0 +1,200 @@
+import { create } from "zustand";
+import {
+    downloadImageToPdf,
+    downloadPdf,
+    getInjectedJsForToi, getRequiredDate,
+    handleDainikJagran, handlePrabhatKhabar, mergePdfs
+} from "./backends/imgDownloader";
+
+import RNFS from 'react-native-fs';
+type PdfReaderScreenState = {
+    pdfUri: string | undefined,
+    continueDownloading: boolean,
+    downloadProgress: string,
+    initiate: (item: epaperItem) => void;
+    requiredJs: string,
+    requiredUrl: string,
+    item: epaperItem | undefined,
+    data: any,
+    handleWebViewResponse: () => void;
+    setData: (data: any) => void
+};
+
+const initialData = {
+    pdfUri: undefined,
+    downloadProgress: "Downloding .... 0/0",
+    requiredJs: "",
+    requiredUrl: "https://bcclepaper.indiatimes.com/",
+    data: "",
+    item: undefined,
+    continueDownloading: true
+
+
+
+}
+
+export const usePdfReaderScreenStore = create<PdfReaderScreenState>((set, get) => ({
+    ...initialData,
+    initiate: async (item) => {
+        console.log("loading");
+
+        set({ item })
+        const date = getRequiredDate(item);
+        const pdfUris: string[] = []
+
+        if (item.url.includes("indiatimes")) {
+            const jsonUrl = `https://asset.harnscloud.com/PublicationData/TOI/${item.edition}/${date.year}/${date.month}/${date.day}/DayIndex/${date.day}_${date.month}_${date.year}_${item.edition}.json`;
+            set({ requiredJs: getInjectedJsForToi(jsonUrl) })
+        }
+
+        if (item.url.includes("jagran")) {
+            set({ data: {} })
+            const monthNames = ["Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep", "Oct", "Nov", "Dec"];
+            const monthIndex = parseInt(date.month, 10) - 1;
+            const monthStr = monthNames[monthIndex] || "Jan";
+            const formattedEditionName = item.editionName?.replace(/\s+/g, "-") ?? "";
+            const url = `https://epaper.jagran.com/epaper/${date.day}-${monthStr}-${date.year}-${item.edition}-edition-${formattedEditionName}.html`;
+            console.log(url);
+            const pdfsUrls = await handleDainikJagran(url);
+
+
+            for (let i = 0; i < pdfsUrls.length; i++) {
+                const { continueDownloading } = get()
+                const downloadProgress = `Downloading page ${i + 1}/${pdfsUrls.length}`
+                set({ downloadProgress })
+                if (continueDownloading) {
+                    const newPdfUri = await downloadPdf(pdfsUrls[i], `jagranpdf${i}.pdf`)
+                    if (newPdfUri) {
+                        const fileExists = await RNFS.exists(newPdfUri.replace('file://', '')); // remove file:// prefix for RNFS
+                        if (fileExists) {
+                            pdfUris.push(newPdfUri)
+                        } else {
+                            console.log("filenotexist");
+                        }
+                    }
+                }
+            }
+        }
+
+        if (item.url.includes("https://economictimes")) {
+            const jsonUrl = `https://asset.harnscloud.com/PublicationData/ET/${item.edition}/${date.year}/${date.month}/${date.day}/DayIndex/${date.day}_${date.month}_${date.year}_${item.edition}.json`;
+            set({ requiredJs: getInjectedJsForToi(jsonUrl) })
+        }
+
+        if (item.url.includes("prabhatkhabar")) {
+            set({ data: {} })
+            const requiredUrl = `https://epaper.prabhatkhabar.com/api/published-editions/slug/${item.edition}/${date.year}-${date.month}-${date.day}`
+            const pdfsUrls = await handlePrabhatKhabar(requiredUrl)
+            for (let i = 0; i < pdfsUrls.length; i++) {
+                const { continueDownloading } = get()
+                const downloadProgress = `Downloading page${i = 1}  ${i + 1}/${pdfsUrls.length}`
+                set({ downloadProgress })
+                if (continueDownloading) {
+                    const newPdfUri = await downloadPdf(pdfsUrls[i], `prabhatkhabar${i}.pdf`)
+                    if (newPdfUri) {
+                        const fileExists = await RNFS.exists(newPdfUri.replace('file://', '')); // remove file:// prefix for RNFS
+                        if (fileExists) {
+                            pdfUris.push(newPdfUri)
+                        }
+                    }
+                }
+
+            }
+        }
+
+
+        console.log("merging pdfs");
+        const pdfUri = await mergePdfs(pdfUris, (page) => {
+            console.log(page);
+            const percent = Math.round((page / pdfUris.length) * 100);
+            const downloadProgress = `Merging PDFs ${percent}%`;
+
+            set({ downloadProgress })
+        })
+        set({ pdfUri: pdfUri })
+    },
+    handleWebViewResponse: async () => {
+
+
+        const { item, data } = get()
+        if (!item) return;
+        const date = getRequiredDate(item);
+
+        const pdfUris: string[] = []
+
+        if (item.url.includes("indiatimes")) {
+
+
+            const pages = data.DayIndex;
+            const headers = {
+                Referer: "https://bcclepaper.indiatimes.com/",
+                "User-Agent": "Mozilla/5.0",
+            };
+
+            for (let i = 0; i < pages.length; i++) {
+                const { continueDownloading } = get()
+                if (continueDownloading) {
+                    const page = pages[i];
+
+                    const downloadProgress = `Downloading ${page.PageName}  ${i + 1}/${pages.length}`
+                    set({ downloadProgress })
+
+                    const imageUrl = `https://asset.harnscloud.com/PublicationData/TOI/${item.edition}/${date.year}/${date.month}/${date.day}/Page/${page.PageName}.jpg`;
+                    const newPdfUri = await downloadImageToPdf(imageUrl, headers, `${page.PageName}.pdf`);
+                    if (newPdfUri) {
+                        const fileExists = await RNFS.exists(newPdfUri.replace('file://', ''));
+                        if (fileExists) {
+                            pdfUris.push(newPdfUri)
+                        }
+                    }
+                }
+
+
+            }
+        }
+
+        if (item.url.includes("https://economictimes")) {
+            const pages = data.DayIndex;
+
+            const headers = {
+                Referer: "https://bcclepaper.indiatimes.com/",
+                "User-Agent": "Mozilla/5.0",
+            };
+
+            for (let i = 0; i < pages.length; i++) {
+                const { continueDownloading } = get()
+                if (continueDownloading) {
+                    const page = pages[i];
+                    const downloadProgress = `Downloading ${page.PageName}  ${i + 1}/${pages.length}`
+                    set({ downloadProgress })
+                    const imageUrl = `https://asset.harnscloud.com/PublicationData/ET/${item.edition}/${date.year}/${date.month}/${date.day}/Page/${page.PageName}.jpg`;
+                    const newPdfUri = await downloadImageToPdf(imageUrl, headers, `${page.PageName}.pdf`);
+                    if (newPdfUri) {
+
+                        const fileExists = await RNFS.exists(newPdfUri.replace('file://', ''));
+                        if (fileExists) {
+                            pdfUris.push(newPdfUri)
+                        }
+
+                    }
+                }
+
+            }
+        }
+        const pdfUri = await mergePdfs(pdfUris, (page) => {
+
+            const percent = Math.round((page / pdfUris.length) * 100);
+            const downloadProgress = `Merging PDFs ${percent}%`;
+
+            set({ downloadProgress })
+        })
+        set({ pdfUri })
+
+    },
+    setData: (data) => {
+        set({ data })
+        const { handleWebViewResponse } = get()
+        handleWebViewResponse();
+    }
+
+}));

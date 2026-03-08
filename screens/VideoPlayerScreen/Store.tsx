@@ -18,6 +18,7 @@ const extractPlaylistId = (url: string): string | undefined => {
 };
 
 type VideoPlayerState = {
+    showBottomSheet: boolean,
     isPlaylist: boolean,
     continuation: string | undefined;
     watchVisitorData: string;
@@ -54,10 +55,14 @@ type VideoPlayerState = {
     loadPlaylist: (link: string) => void;
     nextBrowse: () => void;
     handleYtIntents: (files: SharedFile[], short: (video: Video) => void) => void;
+    setShowBottomSheet: (val: boolean) => void,
+    changeResolution: (res: VideoTrack) => void
+
 
 };
 
 const initialState = {
+    showBottomSheet: false,
     isPlaylist: false,
     continuation: undefined,
     watchVisitorData: "",
@@ -111,7 +116,11 @@ export const useVideoPlayerStore = create<VideoPlayerState>((set, get) => ({
         alterStyle(insets.top, insets.right, insets.bottom);
     },
 
-    handleMoreVert: () => { },
+    handleMoreVert: () => {
+        const { tracks } = get()
+        if (tracks.length === 0) return;
+        set({ showBottomSheet: true });
+    },
 
     savePosition: (url, position) => {
         set((state) => ({
@@ -306,8 +315,23 @@ export const useVideoPlayerStore = create<VideoPlayerState>((set, get) => ({
         set({ suggestedVideos: result.videos });
         set({ continuation: result.continuationToken ?? undefined });
         loadVideo(result.videos[0]);
-    }
+    },
+    setShowBottomSheet: (val) => {
+        set({ showBottomSheet: val });
+    },
+    changeResolution: (res) => {
+        const index = res.trakIndex ?? 0;
 
+        set((state) => ({
+            selectedTrack: index,
+            tracks: state.tracks.map(t => ({
+                ...t,
+                selected: t.trakIndex === index,
+            })),
+            showBottomSheet: false
+        }));
+
+    }
 
 }));
 

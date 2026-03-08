@@ -15,6 +15,7 @@ import VideoItemView from '../HomeScreen/widgets/VideoItemView/VideoItemView';
 import ShortsHeader from '../HomeScreen/widgets/ShortsHeader/ShortsHeader';
 import ShortsItemView from '../HomeScreen/widgets/ShortsItemView/ShortsItemView';
 import { useSharedFilesStore } from '../../utils/Store';
+import ResolutionBottomSheet from './widgets/ResolutionBottomSheet';
 type NavigationProp = RouteProp<
     RootStackParamList,
     "VideoPlayerScreen"
@@ -43,7 +44,9 @@ export default function VideoPlayerScreen() {
         isFetchingMore,
         nextBrowse,
         handleYtIntents,
-        loadPlaylist
+        loadPlaylist,
+        setShowBottomSheet,
+        changeResolution
     } = useVideoPlayerStore()
 
     const suggestedVideos = useVideoPlayerStore(state => state.suggestedVideos);
@@ -56,6 +59,8 @@ export default function VideoPlayerScreen() {
     const selectedTrack = useVideoPlayerStore(state => state.selectedTrack);
     const seekTo = useVideoPlayerStore(state => state.seekTo);
     const posterUrl = useVideoPlayerStore(state => state.playerPoster);
+    const traks = useVideoPlayerStore(state => state.tracks);
+    const showBottomSheet = useVideoPlayerStore(state => state.showBottomSheet);
 
 
     useEffect(() => {
@@ -85,7 +90,6 @@ export default function VideoPlayerScreen() {
         handleYtIntents(files, (short) => {
             console.log("shorts")
         })
-        clearFiles();
 
     }, [files])
 
@@ -132,6 +136,9 @@ export default function VideoPlayerScreen() {
             );
         }
     }, []);
+
+
+
 
     return (
         // ✅ flex: 1 ensures the container fills the screen
@@ -188,6 +195,12 @@ export default function VideoPlayerScreen() {
                     onEndReachedThreshold={0.5}
                 />
             )}
+            <ResolutionBottomSheet
+                visible={showBottomSheet}
+                resolutions={traks}
+                onSelect={changeResolution}
+                onClose={() => setShowBottomSheet(false)}
+            />
         </View>
     )
 }
