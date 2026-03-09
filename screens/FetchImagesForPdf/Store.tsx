@@ -3,12 +3,15 @@ import {
     downloadImageToPdf,
     downloadPdf,
     getInjectedJsForToi, getRequiredDate,
-    handleDainikJagran, handlePrabhatKhabar, mergePdfs
+    handleDainikJagran, handlePrabhatKhabar
 } from "./backends/imgDownloader";
-
+import { NativeModules } from "react-native";
 import RNFS from 'react-native-fs';
+
+
 type PdfReaderScreenState = {
     pdfUri: string | undefined,
+    finalPdfUri: string | undefined,
     continueDownloading: boolean,
     downloadProgress: string,
     initiate: (item: epaperItem) => void;
@@ -22,9 +25,10 @@ type PdfReaderScreenState = {
 
 const initialData = {
     pdfUri: undefined,
+    finalPdfUri: undefined,
     downloadProgress: "Downloding .... 0/0",
     requiredJs: "",
-    requiredUrl: "https://bcclepaper.indiatimes.com/",
+    requiredUrl: "https://epaper.indiatimes.com/",
     data: "",
     item: undefined,
     continueDownloading: true
@@ -38,9 +42,13 @@ export const usePdfReaderScreenStore = create<PdfReaderScreenState>((set, get) =
     initiate: async (item) => {
         console.log("loading");
 
+        const { MyNativeModule } = NativeModules;
+
         set({ item })
         const date = getRequiredDate(item);
         const pdfUris: string[] = []
+
+
 
         if (item.url.includes("indiatimes")) {
             const jsonUrl = `https://asset.harnscloud.com/PublicationData/TOI/${item.edition}/${date.year}/${date.month}/${date.day}/DayIndex/${date.day}_${date.month}_${date.year}_${item.edition}.json`;
@@ -102,25 +110,41 @@ export const usePdfReaderScreenStore = create<PdfReaderScreenState>((set, get) =
             }
         }
 
+        if (pdfUris.length > 0) {
+            console.log("merging");
 
-        console.log("merging pdfs");
-        const pdfUri = await mergePdfs(pdfUris, (page) => {
-            console.log(page);
-            const percent = Math.round((page / pdfUris.length) * 100);
-            const downloadProgress = `Merging PDFs ${percent}%`;
+            try {
+                const outputPath = `${RNFS.DocumentDirectoryPath}/merged.pdf`;
 
-            set({ downloadProgress })
-        })
-        set({ pdfUri: pdfUri })
+                const mergedPath = await MyNativeModule.mergePdfs(
+                    pdfUris,
+                    outputPath
+                );
+
+                set({ pdfUri: mergedPath });
+
+            } catch (error) {
+                console.error("Failed to merge PDFs:", error);
+                set({ downloadProgress: "Merge failed" });
+            }
+
+        } else {
+            console.log("No PDFs downloaded to merge");
+            set({ downloadProgress: "No PDFs to merge" });
+        }
+
+
+
     },
     handleWebViewResponse: async () => {
 
-
+        const { MyNativeModule } = NativeModules;
         const { item, data } = get()
         if (!item) return;
         const date = getRequiredDate(item);
 
         const pdfUris: string[] = []
+
 
         if (item.url.includes("indiatimes")) {
 
@@ -131,7 +155,7 @@ export const usePdfReaderScreenStore = create<PdfReaderScreenState>((set, get) =
                 "User-Agent": "Mozilla/5.0",
             };
 
-            for (let i = 0; i < pages.length; i++) {
+            for (let i = 0; i < 5; i++) {
                 const { continueDownloading } = get()
                 if (continueDownloading) {
                     const page = pages[i];
@@ -181,14 +205,29 @@ export const usePdfReaderScreenStore = create<PdfReaderScreenState>((set, get) =
 
             }
         }
-        const pdfUri = await mergePdfs(pdfUris, (page) => {
 
-            const percent = Math.round((page / pdfUris.length) * 100);
-            const downloadProgress = `Merging PDFs ${percent}%`;
+        if (pdfUris.length > 0) {
+            console.log("merging");
 
-            set({ downloadProgress })
-        })
-        set({ pdfUri })
+            try {
+                const outputPath = `${RNFS.DocumentDirectoryPath}/merged.pdf`;
+
+                const mergedPath = await MyNativeModule.mergePdfs(
+                    pdfUris,
+                    outputPath
+                );
+
+                set({ pdfUri: mergedPath });
+
+            } catch (error) {
+                console.error("Failed to merge PDFs:", error);
+                set({ downloadProgress: "Merge failed" });
+            }
+
+        } else {
+            console.log("No PDFs downloaded to merge");
+            set({ downloadProgress: "No PDFs to merge" });
+        }
 
     },
     setData: (data) => {

@@ -4,7 +4,7 @@ import {
     NativeModules,
 } from 'react-native'
 import ReactNativeBlobUtil from "react-native-blob-util";
-import mergePDFs from "react-native-merge-pdf";
+
 
 
 
@@ -121,7 +121,16 @@ export function getInjectedJsForToi(jsonUrl: string): string {
     const injectedJSForToi = `
         setTimeout(async () => {
             try {
-                const res = await fetch("${jsonUrl}");
+                const res = await fetch("${jsonUrl}", {
+                    method: "GET",
+                    headers: {
+                        "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 Chrome/145 Safari/537.36",
+                        "Referer": "https://bcclepaper.indiatimes.com/",
+                        "Origin": "https://bcclepaper.indiatimes.com",
+                        "Accept": "application/json, text/plain, */*"
+                    }
+                });
+
                 const data = await res.json();
                 window.ReactNativeWebView.postMessage(JSON.stringify(data));
             } catch (e) {
@@ -130,8 +139,7 @@ export function getInjectedJsForToi(jsonUrl: string): string {
         }, 6000);
         true;
     `;
-    return injectedJSForToi
-
+    return injectedJSForToi;
 }
 
 export function getRequiredDate(item: epaperItem) {
@@ -323,32 +331,3 @@ export async function clearPdfFolder() {
         throw error;
     }
 }
-
-const pdfs = [
-    {
-        uri: 'file:///path/to/file1.pdf',
-        name: 'file1.pdf',
-        size: 12345,
-        type: 'application/pdf'
-    },
-    {
-        uri: 'file:///path/to/file2.pdf',
-        name: 'file2.pdf',
-        size: 67890,
-        type: 'application/pdf'
-    }
-];
-
-// Merge PDFs and get file path
-const mergeAndGetPath = async () => {
-    try {
-        const outputPath = await mergePDFs({
-            files: pdfs,
-        });
-
-        console.log('Merged PDF path:', outputPath);
-        return outputPath;
-    } catch (error) {
-        console.error('Error merging PDFs:', error);
-    }
-};

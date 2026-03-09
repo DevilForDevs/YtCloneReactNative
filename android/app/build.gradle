@@ -19,8 +19,8 @@ android {
         applicationId "com.jsranjan.ivideodownloader"
         minSdkVersion rootProject.ext.minSdkVersion
         targetSdkVersion rootProject.ext.targetSdkVersion
-        versionCode 27
-        versionName "6.3"
+        versionCode 28
+        versionName "6.4"
     }
     signingConfigs {
         debug {
@@ -40,7 +40,7 @@ android {
         abi {
             enable true
             reset()
-            include("arm64-v8a")
+            include("arm64-v8a","armeabi-v7a")
             universalApk false
         }
     }
@@ -55,6 +55,17 @@ android {
             proguardFiles getDefaultProguardFile("proguard-android.txt"), "proguard-rules.pro"
         }
     }
+
+    packagingOptions {
+        exclude 'META-INF/DEPENDENCIES'
+        exclude 'META-INF/LICENSE'
+        exclude 'META-INF/LICENSE.txt'
+        exclude 'META-INF/NOTICE'
+        exclude 'META-INF/NOTICE.txt'
+    }
+
+   
+
 }
 
 dependencies {
@@ -70,7 +81,7 @@ dependencies {
     implementation("org.jetbrains.kotlinx:kotlinx-coroutines-android:1.7.3")
     implementation(files("libs/muxer.jar"))
     implementation("org.jsoup:jsoup:1.17.2")
-   
+    implementation("com.tom-roush:pdfbox-android:2.0.27.0")
 }
 apply from: "../../node_modules/react-native-vector-icons/fonts.gradle"
 

@@ -12,14 +12,10 @@ export default function FetchImagesForPdf() {
     const {
         initiate,
         data,
-        handleWebViewResponse,
         setData,
         pdfUri,
         requiredJs,
         requiredUrl,
-
-
-
     } = usePdfReaderScreenStore()
 
     const route = useRoute<NavigationProp>();
@@ -57,6 +53,8 @@ export default function FetchImagesForPdf() {
                             key={pdfUri}
                             source={{ uri: pdfUri }}
                             style={{ flex: 1 }}
+                            enablePaging={true}
+                            horizontal={true}
 
                         />
                     </View>
