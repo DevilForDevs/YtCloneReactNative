@@ -10,8 +10,9 @@ import RNFS from 'react-native-fs';
 
 
 type PdfReaderScreenState = {
+    pagesDownloadedCount: number,
+    currentPage: number,
     pdfUri: string | undefined,
-    finalPdfUri: string | undefined,
     continueDownloading: boolean,
     downloadProgress: string,
     initiate: (item: epaperItem) => void;
@@ -20,12 +21,16 @@ type PdfReaderScreenState = {
     item: epaperItem | undefined,
     data: any,
     handleWebViewResponse: () => void;
-    setData: (data: any) => void
+    setData: (data: any) => void,
+    setCurrentPage: (p: number) => void,
+    stopDownload: () => void,
+    resetStore: () => void
 };
 
 const initialData = {
+    pagesDownloadedCount: 0,
+    currentPage: 1,
     pdfUri: undefined,
-    finalPdfUri: undefined,
     downloadProgress: "Downloding .... 0/0",
     requiredJs: "",
     requiredUrl: "https://epaper.indiatimes.com/",
@@ -33,15 +38,13 @@ const initialData = {
     item: undefined,
     continueDownloading: true
 
-
-
 }
 
 export const usePdfReaderScreenStore = create<PdfReaderScreenState>((set, get) => ({
     ...initialData,
     initiate: async (item) => {
-        console.log("loading");
-
+        const { resetStore } = get();
+        resetStore(); // reset previous state
         const { MyNativeModule } = NativeModules;
 
         set({ item })
@@ -62,7 +65,7 @@ export const usePdfReaderScreenStore = create<PdfReaderScreenState>((set, get) =
             const monthStr = monthNames[monthIndex] || "Jan";
             const formattedEditionName = item.editionName?.replace(/\s+/g, "-") ?? "";
             const url = `https://epaper.jagran.com/epaper/${date.day}-${monthStr}-${date.year}-${item.edition}-edition-${formattedEditionName}.html`;
-            console.log(url);
+
             const pdfsUrls = await handleDainikJagran(url);
 
 
@@ -75,9 +78,8 @@ export const usePdfReaderScreenStore = create<PdfReaderScreenState>((set, get) =
                     if (newPdfUri) {
                         const fileExists = await RNFS.exists(newPdfUri.replace('file://', '')); // remove file:// prefix for RNFS
                         if (fileExists) {
-                            pdfUris.push(newPdfUri)
-                        } else {
-                            console.log("filenotexist");
+                            pdfUris.push(newPdfUri);
+                            set({ pagesDownloadedCount: i + 1 })
                         }
                     }
                 }
@@ -86,6 +88,7 @@ export const usePdfReaderScreenStore = create<PdfReaderScreenState>((set, get) =
 
         if (item.url.includes("https://economictimes")) {
             const jsonUrl = `https://asset.harnscloud.com/PublicationData/ET/${item.edition}/${date.year}/${date.month}/${date.day}/DayIndex/${date.day}_${date.month}_${date.year}_${item.edition}.json`;
+
             set({ requiredJs: getInjectedJsForToi(jsonUrl) })
         }
 
@@ -93,26 +96,28 @@ export const usePdfReaderScreenStore = create<PdfReaderScreenState>((set, get) =
             set({ data: {} })
             const requiredUrl = `https://epaper.prabhatkhabar.com/api/published-editions/slug/${item.edition}/${date.year}-${date.month}-${date.day}`
             const pdfsUrls = await handlePrabhatKhabar(requiredUrl)
+
             for (let i = 0; i < pdfsUrls.length; i++) {
                 const { continueDownloading } = get()
-                const downloadProgress = `Downloading page${i = 1}  ${i + 1}/${pdfsUrls.length}`
+                const downloadProgress = `Downloading page ${i + 1}  ${i + 1}/${pdfsUrls.length}`
                 set({ downloadProgress })
                 if (continueDownloading) {
-                    const newPdfUri = await downloadPdf(pdfsUrls[i], `prabhatkhabar${i}.pdf`)
+                    const newPdfUri = await downloadPdf(pdfsUrls[i], `prabhatkhabar${i + 1}.pdf`)
                     if (newPdfUri) {
                         const fileExists = await RNFS.exists(newPdfUri.replace('file://', '')); // remove file:// prefix for RNFS
                         if (fileExists) {
                             pdfUris.push(newPdfUri)
+                            set({ pagesDownloadedCount: i + 1 })
                         }
                     }
                 }
-
             }
         }
 
         if (pdfUris.length > 0) {
-            console.log("merging");
 
+            const downloadProgress = `Merging ${pdfUris.length} pages`
+            set({ downloadProgress });
             try {
                 const outputPath = `${RNFS.DocumentDirectoryPath}/merged.pdf`;
 
@@ -129,10 +134,9 @@ export const usePdfReaderScreenStore = create<PdfReaderScreenState>((set, get) =
             }
 
         } else {
-            console.log("No PDFs downloaded to merge");
+
             set({ downloadProgress: "No PDFs to merge" });
         }
-
 
 
     },
@@ -142,6 +146,7 @@ export const usePdfReaderScreenStore = create<PdfReaderScreenState>((set, get) =
         const { item, data } = get()
         if (!item) return;
         const date = getRequiredDate(item);
+
 
         const pdfUris: string[] = []
 
@@ -155,11 +160,11 @@ export const usePdfReaderScreenStore = create<PdfReaderScreenState>((set, get) =
                 "User-Agent": "Mozilla/5.0",
             };
 
-            for (let i = 0; i < 5; i++) {
-                const { continueDownloading } = get()
-                if (continueDownloading) {
-                    const page = pages[i];
+            for (let i = 0; i < pages.length; i++) {
 
+                const { continueDownloading } = get()
+                const page = pages[i];
+                if (continueDownloading) {
                     const downloadProgress = `Downloading ${page.PageName}  ${i + 1}/${pages.length}`
                     set({ downloadProgress })
 
@@ -169,6 +174,7 @@ export const usePdfReaderScreenStore = create<PdfReaderScreenState>((set, get) =
                         const fileExists = await RNFS.exists(newPdfUri.replace('file://', ''));
                         if (fileExists) {
                             pdfUris.push(newPdfUri)
+                            set({ pagesDownloadedCount: i + 1 })
                         }
                     }
                 }
@@ -186,9 +192,10 @@ export const usePdfReaderScreenStore = create<PdfReaderScreenState>((set, get) =
             };
 
             for (let i = 0; i < pages.length; i++) {
+
                 const { continueDownloading } = get()
+                const page = pages[i];
                 if (continueDownloading) {
-                    const page = pages[i];
                     const downloadProgress = `Downloading ${page.PageName}  ${i + 1}/${pages.length}`
                     set({ downloadProgress })
                     const imageUrl = `https://asset.harnscloud.com/PublicationData/ET/${item.edition}/${date.year}/${date.month}/${date.day}/Page/${page.PageName}.jpg`;
@@ -198,17 +205,19 @@ export const usePdfReaderScreenStore = create<PdfReaderScreenState>((set, get) =
                         const fileExists = await RNFS.exists(newPdfUri.replace('file://', ''));
                         if (fileExists) {
                             pdfUris.push(newPdfUri)
+                            set({ pagesDownloadedCount: i + 1 })
                         }
 
                     }
                 }
 
+
             }
         }
 
         if (pdfUris.length > 0) {
-            console.log("merging");
-
+            const downloadProgress = `Merging ${pdfUris.length} pages`
+            set({ downloadProgress });
             try {
                 const outputPath = `${RNFS.DocumentDirectoryPath}/merged.pdf`;
 
@@ -225,7 +234,7 @@ export const usePdfReaderScreenStore = create<PdfReaderScreenState>((set, get) =
             }
 
         } else {
-            console.log("No PDFs downloaded to merge");
+
             set({ downloadProgress: "No PDFs to merge" });
         }
 
@@ -234,6 +243,23 @@ export const usePdfReaderScreenStore = create<PdfReaderScreenState>((set, get) =
         set({ data })
         const { handleWebViewResponse } = get()
         handleWebViewResponse();
-    }
+    },
+    setCurrentPage: (p) => set({ currentPage: p }),
+    stopDownload: () => {
+        set({ continueDownloading: false })
+    },
+    resetStore: () => {
+        set({
+            pagesDownloadedCount: 0,
+            currentPage: 1,
+            pdfUri: undefined,
+            downloadProgress: "Downloading ... 0/0",
+            requiredJs: "",
+            requiredUrl: "https://epaper.indiatimes.com/",
+            data: "",
+            item: undefined,
+            continueDownloading: true,
+        });
+    },
 
 }));

@@ -1,6 +1,7 @@
-import { StyleSheet } from 'react-native'
+import { StyleSheet, Platform } from 'react-native'
 import React, { useRef } from 'react'
 import WebView from 'react-native-webview';
+
 
 type WebViewRncProps = {
     uri: string;
@@ -9,7 +10,9 @@ type WebViewRncProps = {
     onError: (err: any) => void;
 };
 
+
 export default function WebViewRnc(props: WebViewRncProps) {
+
     const webRef = useRef<WebView>(null);
     return (
         <WebView
