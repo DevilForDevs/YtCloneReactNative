@@ -70,7 +70,8 @@ declare global {
         FetchImagesForPdf: { item: epaperItem },
         ViewerScreen: undefined,
         CreateQuizScreen: undefined,
-        AskFeatureCode: undefined
+        AskFeatureCode: undefined,
+        NativePlayer: undefined
     };
 
     type navStack = NativeStackNavigationProp<

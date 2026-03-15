@@ -36,14 +36,7 @@ android {
            keyPassword MYAPP_UPLOAD_KEY_PASSWORD
        }
     }
-    splits {
-        abi {
-            enable true
-            reset()
-            include("arm64-v8a","armeabi-v7a")
-            universalApk false
-        }
-    }
+    
     buildTypes {
         debug {
             signingConfig signingConfigs.debug
@@ -55,16 +48,6 @@ android {
             proguardFiles getDefaultProguardFile("proguard-android.txt"), "proguard-rules.pro"
         }
     }
-
-    packagingOptions {
-        exclude 'META-INF/DEPENDENCIES'
-        exclude 'META-INF/LICENSE'
-        exclude 'META-INF/LICENSE.txt'
-        exclude 'META-INF/NOTICE'
-        exclude 'META-INF/NOTICE.txt'
-    }
-
-   
 
 }
 
@@ -82,6 +65,8 @@ dependencies {
     implementation(files("libs/muxer.jar"))
     implementation("org.jsoup:jsoup:1.17.2")
     implementation("com.tom-roush:pdfbox-android:2.0.27.0")
+    implementation("androidx.media3:media3-exoplayer:1.2.1")
+    implementation("androidx.media3:media3-ui:1.2.1")
 }
 apply from: "../../node_modules/react-native-vector-icons/fonts.gradle"
 

@@ -1,4 +1,4 @@
-import { StyleSheet, Text, View, TextInput, TouchableOpacity } from 'react-native'
+import { StyleSheet, Text, View, TextInput, Linking, TouchableOpacity } from 'react-native'
 import React, { useEffect, useState } from 'react'
 import { useNavigation } from "@react-navigation/native";
 import { useAskFeatureStore } from './AskFeatureStore';
@@ -8,17 +8,29 @@ import { useSharedFilesStore } from "../../utils/Store";
 
 export default function AskFeatureCode() {
     const navigation = useNavigation<navStack>();
-    const { files, addFile, setFiles, clearFiles } = useSharedFilesStore();
+    const { files } = useSharedFilesStore();
     const { acessCodeText,
         setAccessCodeText,
         insertAcessCode,
-        initDb,
         checkValid,
         handleYtIntents
 
     } = useAskFeatureStore()
 
     async function handleActivate() {
+
+        if (!acessCodeText || acessCodeText.trim() === "") {
+            const helpUrl = "https://studyzem.com/"; // Replace with your help URL
+            Linking.canOpenURL(helpUrl).then(supported => {
+                if (supported) {
+                    Linking.openURL(helpUrl);
+                } else {
+                    ToastAndroid.show("Cannot open help URL", ToastAndroid.SHORT);
+                }
+            });
+            return; // Stop further execution
+        }
+
         insertAcessCode(() => {
             ToastAndroid.show("Feature Activated", ToastAndroid.SHORT);
             navigation.navigate("SuggestedSites");
