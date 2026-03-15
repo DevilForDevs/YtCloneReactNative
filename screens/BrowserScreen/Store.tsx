@@ -47,6 +47,7 @@ export const useBrowserScreenStore = create<BrowserScreenStore>((set, get) => ({
                 set({ chunkBuffers: { ...buffers } });
 
                 if (baseType === "YT_INITIAL_DATA") {
+
                     const visitor =
                         payload.data?.responseContext?.webResponseContextExtensionData
                             ?.ytConfigData?.visitorData;
@@ -71,21 +72,21 @@ export const useBrowserScreenStore = create<BrowserScreenStore>((set, get) => ({
                         });
                     });
 
-                    videoGroup.shorts.forEach((element: any) => {
-                        if (!element.video_id) return;
+                    // videoGroup.shorts.forEach((element: any) => {
+                    //     if (!element.video_id) return;
 
-                        freshShorts.push({
-                            type: "video",
-                            videoId: element.video_id,
-                            title: element.title ?? "",
-                            views: element.views ?? "null",
-                        });
-                    });
-                    addVideo({
-                        type: "shorts",
-                        videos: freshShorts,
-                        videoId: freshShorts[0].videoId,
-                    });
+                    //     freshShorts.push({
+                    //         type: "video",
+                    //         videoId: element.video_id,
+                    //         title: element.title ?? "",
+                    //         views: element.views ?? "null",
+                    //     });
+                    // });
+                    // addVideo({
+                    //     type: "shorts",
+                    //     videos: freshShorts,
+                    //     videoId: freshShorts[0].videoId,
+                    // });
 
                     setContinuation(videoGroup.continuationTokens?.[0] ?? "");
                     console.log("browserscreen")

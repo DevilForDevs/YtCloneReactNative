@@ -34,7 +34,6 @@ export default function VideoPlayerScreen() {
     const {
         toggleFlatList,
         handleMoreVert,
-        savePosition,
         setAutoplayEnabled,
         setEndedAsScreen,
         setTracks,
@@ -150,7 +149,7 @@ export default function VideoPlayerScreen() {
                 videoId={posterUrl}
                 toggleFlatList={toggleFlatList}
                 showMenu={handleMoreVert}
-                onProgressSave={savePosition}
+                onProgressSave={() => null}
                 seekTo={seekTo}
                 distroyScreen={handleDestroy}
                 onToggle={(val) => setAutoplayEnabled(val)}

@@ -37,8 +37,6 @@ type VideoPlayerState = {
     endedAsScreen: boolean;
     showFlatList: boolean;
     insets: { top: number; right: number; bottom: number };
-    // actions
-    savePosition: (url: string, position: number) => void;
     getPosition: (url: string) => number;
     toggleFlatList: () => void;
     setInsets: (top: number, right: number, bottom: number) => void;
@@ -97,11 +95,7 @@ export const useVideoPlayerStore = create<VideoPlayerState>((set, get) => ({
         set({
             containerStyle: {
                 flex: 1,
-                paddingTop: showFlatList
-                    ? Platform.OS === "android"
-                        ? StatusBar.currentHeight
-                        : insetsTop
-                    : 0,
+                paddingTop: insetsTop,
                 paddingRight: !showFlatList ? right : 0,
                 paddingBottom: showFlatList ? bottom : 0,
 
@@ -122,11 +116,7 @@ export const useVideoPlayerStore = create<VideoPlayerState>((set, get) => ({
         set({ showBottomSheet: true });
     },
 
-    savePosition: (url, position) => {
-        set((state) => ({
-            savedPositions: { ...state.savedPositions, [url]: position },
-        }));
-    },
+
 
     getPosition: (url) => get().savedPositions[url] ?? 0,
 

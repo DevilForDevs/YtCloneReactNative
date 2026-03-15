@@ -4,6 +4,7 @@ import com.facebook.react.bridge.Arguments
 import com.facebook.react.bridge.ReactApplicationContext
 import com.facebook.react.bridge.ReactContext
 import com.facebook.react.bridge.ReadableArray
+import com.facebook.react.bridge.ReadableMap
 import com.facebook.react.common.MapBuilder
 import com.facebook.react.uimanager.SimpleViewManager
 import com.facebook.react.uimanager.ThemedReactContext
@@ -39,18 +40,15 @@ class ExoPlayerViewManager(
         return view
     }
 
-    // ---------- PROPS ----------
-
-    @ReactProp(name = "videoUrl")
+    @ReactProp(name = "videoAudio")
     fun setVideoAndAudio(
         view: ExoPlayerView,
-        videoUrl: String,
-        audioUrl: String,
+        map: ReadableMap,
     ) {
+        val videoUrl = map.getString("videoUrl") ?: ""
+        val audioUrl = map.getString("audioUrl") ?: ""
         view.setVideoAndAudio(videoUrl, audioUrl)
     }
-
-    // ---------- COMMANDS ----------
 
     override fun getCommandsMap(): Map<String, Int> =
         MapBuilder.of(

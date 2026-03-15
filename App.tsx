@@ -26,7 +26,6 @@ import { DownloadsStore } from './utils/Store';
 import { AskFormatProvider } from './screens/AskFormatProvider';
 import { navigationRef } from './ApplevelBackends/NavigationRef';
 
-import ExoPlayer2 from './screens/NativeVideoPlayer/NativePlayer';
 
 
 const Stack = createNativeStackNavigator<RootStackParamList>();
@@ -61,7 +60,7 @@ export default function App() {
       <AskFormatProvider>
         <NavigationContainer ref={navigationRef}>
           <Stack.Navigator
-            initialRouteName="NativePlayer"
+            initialRouteName="AskFeatureCode"
             screenOptions={{ headerShown: false }}
           >
             <Stack.Screen name="BrowserScreen" component={BrowserScreen} />
@@ -79,7 +78,7 @@ export default function App() {
             <Stack.Screen name="TOI" component={TOI} />
             <Stack.Screen name="FetchImagesForPdf" component={FetchImagesForPdf} />
             <Stack.Screen name="AskFeatureCode" component={AskFeatureCode} />
-            <Stack.Screen name="NativePlayer" component={ExoPlayer2} />
+
           </Stack.Navigator>
         </NavigationContainer>
       </AskFormatProvider>

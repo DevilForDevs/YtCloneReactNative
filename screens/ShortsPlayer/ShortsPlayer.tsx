@@ -16,13 +16,10 @@ import type { VideoDescription, Video as typeV } from "../../utils/types";
 type NavigationProp = RouteProp<RootStackParamList, "ShortsPlayerScreen">;
 type Navstack = NativeStackNavigationProp<RootStackParamList, "BottomNav">;
 import { Gesture, GestureDetector } from 'react-native-gesture-handler';
-import RNFS from 'react-native-fs';
 import { fetchHlsUrl } from '../../utils/downloadFunctions';
 import { useAskFormat } from '../AskFormatContext';
 import { parseShortMeta } from '../../utils/shortsMetaParser';
 import { SQLiteDatabase } from 'react-native-sqlite-storage';
-import { initDB } from "../../utils/dbfunctions";
-import { addHistory } from '../SavedScreen/backend/dbo';
 import ResolutionBottomSheet from '../VideoPlayerScreen/widgets/ResolutionBottomSheet';
 import {
     SelectedVideoTrackType,
@@ -80,15 +77,8 @@ export default function ShortsPlayer() {
     }, [files])
 
 
-
-
     async function playVideo(hlsUrl: string, videoId: string) {
-
-
-
-
-
-
+        setMediaUrl(hlsUrl);
     }
 
 
@@ -209,17 +199,17 @@ export default function ShortsPlayer() {
 
 
 
-    const SWIPE_THRESHOLD = screenHeight * 0.15; // 15% of screen height
+    const SWIPE_THRESHOLD = screenHeight * 0.15;
 
     const swipeGesture = Gesture.Pan()
-        .activeOffsetY([-20, 20])
-        .failOffsetX([-999, 999])
+        .activeOffsetY([-10, 10])
+        .failOffsetX([-100, 100])
         .minPointers(1)
         .onEnd((e) => {
             console.log("swipe delta:", e.translationY);
             if (e.translationY < -SWIPE_THRESHOLD && !buffering) {
                 playNextVideo();
-            } else if (e.translationY > SWIPE_THRESHOLD) {
+            } else if (e.translationY > SWIPE_THRESHOLD && !buffering) {
                 playPrev();
             }
         });
