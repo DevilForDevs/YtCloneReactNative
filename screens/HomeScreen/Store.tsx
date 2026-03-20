@@ -41,6 +41,7 @@ export const useHomeScreenStore = create<HomeScreenState>((set, get) => ({
             );
 
             const videoGroup = parseYTInitialData(JSON.parse(raw));
+            console.log(videoGroup);
             const freshShorts: Video[] = [];
 
             videoGroup.videos.forEach((element: any) => {

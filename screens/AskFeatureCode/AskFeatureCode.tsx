@@ -4,7 +4,7 @@ import { useNavigation } from "@react-navigation/native";
 import { useAskFeatureStore } from './AskFeatureStore';
 import { ToastAndroid } from "react-native";
 import { useSharedFilesStore } from "../../utils/Store";
-
+import { StatusBar } from "react-native";
 
 export default function AskFeatureCode() {
     const navigation = useNavigation<navStack>();
@@ -60,7 +60,7 @@ export default function AskFeatureCode() {
 
     return (
         <View style={styles.container}>
-
+            <StatusBar barStyle="light-content" />
             <Text style={styles.title}>Enter Feature Code</Text>
 
             <TextInput

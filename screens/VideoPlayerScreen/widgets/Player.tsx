@@ -13,7 +13,7 @@ import Orientation from "react-native-orientation-locker"
 import {
     SelectedVideoTrackType, SelectedTrackType
 } from "react-native-video";
-import { freezeEnabled } from 'react-native-screens';
+import ImmersiveMode from "react-native-immersive-mode";
 
 
 type Props = {
@@ -31,6 +31,7 @@ type Props = {
     videoHeaders?: VideoHeaders,
     onTracks?: (tracks: VideoTrack[]) => void;
     selectedTrack?: number | "auto";
+    handleBack?: () => boolean
 }
 
 export default function Player(props: Props) {
@@ -61,14 +62,27 @@ export default function Player(props: Props) {
         setCurrentTime(newTime);
     }
 
+    const enableImmersive = () => {
+        ImmersiveMode.fullLayout(true);
+        ImmersiveMode.setBarMode("Full"); // hides nav + status bar
+    };
+
+    const disableImmersive = () => {
+        ImmersiveMode.fullLayout(false);
+        ImmersiveMode.setBarMode("Normal");
+    };
+
+
     const toggleFullscreen = () => {
         props.toggleFlatList();
         if (isFullscreen) {
             Orientation.lockToPortrait(); // exit fullscreen
             setFullScreen(false);
+            disableImmersive();
         } else {
             Orientation.lockToLandscape(); // enter fullscreen
             setFullScreen(true);
+            enableImmersive();
         }
     }
 
@@ -76,6 +90,7 @@ export default function Player(props: Props) {
 
         const onBackPress = () => {
             if (isFullscreen) {
+                disableImmersive();
                 Orientation.lockToPortrait();
                 setFullScreen(false);
 
@@ -83,7 +98,8 @@ export default function Player(props: Props) {
 
                 return true; // consume back press
             }
-            return false;
+
+            return props.handleBack?.() ?? false;
         };
 
         const subscription = BackHandler.addEventListener(
@@ -103,7 +119,7 @@ export default function Player(props: Props) {
         if (props.startAsScreen) toggleFullscreen();
         setDuration(data.duration);
         setIsBuffering(false);
-        console.log(data);
+
 
         if (!data.videoTracks?.length) return;
 
@@ -201,103 +217,100 @@ export default function Player(props: Props) {
                     onProgress={onProgress}
                     onBuffer={onBuffer}
                     onEnd={onEnd}
-                    poster={`https://i.ytimg.com/vi/${props.videoId}/hqdefault.jpg`} // optional poster
+                    poster={`https://i.ytimg.com/vi/${props.videoId}/hqdefault.jpg`}
                     posterResizeMode="cover"
                     onError={(e) => {
-                        console.log("Video error:", e);
-
-                        // Access nested error properties safely
-                        const errorMessage =
+                        const msg =
                             e.error?.errorString?.replace("ExoPlaybackException:", "") ??
                             e.error?.errorException ??
                             e.error?.errorCode ??
                             "Unable to play video";
 
-                        ToastAndroid.show(errorMessage, ToastAndroid.SHORT);
+                        ToastAndroid.show(msg, ToastAndroid.SHORT);
                     }}
                     selectedVideoTrack={
                         props.selectedTrack === "auto" || props.selectedTrack == null
                             ? { type: SelectedVideoTrackType.AUTO }
-                            : {
-                                type: SelectedVideoTrackType.INDEX,
-                                value: props.selectedTrack,
-                            }
+                            : { type: SelectedVideoTrackType.INDEX, value: props.selectedTrack }
                     }
-                    selectedAudioTrack={
-                        {
-                            type: SelectedTrackType.INDEX,
-                            value: ati,
-                        }
-                    }
-
-
-
+                    selectedAudioTrack={{
+                        type: SelectedTrackType.INDEX,
+                        value: ati,
+                    }}
                 />
 
+                {/* Gesture Layer */}
                 <Pressable
+                    style={StyleSheet.absoluteFill}
                     onPress={(e) => {
                         const now = Date.now();
 
                         if (now - lastTap.current < DOUBLE_TAP_DELAY) {
-                            if (singleTapTimeout.current) {
-                                clearTimeout(singleTapTimeout.current);
-                                singleTapTimeout.current = null;
-                            }
+                            clearTimeout(singleTapTimeout.current!);
 
-                            const { locationX } = e.nativeEvent;
-                            const screenWidth = e.nativeEvent.pageX * 2;
+                            const { locationX, pageX } = e.nativeEvent;
+                            const screenWidth = pageX * 2;
 
-                            if (locationX < screenWidth / 2) seekBy(-10);
-                            else seekBy(15);
+                            locationX < screenWidth / 2 ? seekBy(-10) : seekBy(15);
                         } else {
                             singleTapTimeout.current = setTimeout(() => {
-                                setShowControls(s => !s);
+                                setShowControls((s) => !s);
                             }, DOUBLE_TAP_DELAY);
                         }
 
                         lastTap.current = now;
                     }}
-                    style={StyleSheet.absoluteFill}
                 />
 
+                {/* Center Controls */}
+                {showControls && (
+                    <TouchableOpacity onPress={togglePlayPause} style={styles.controlBtn}>
+                        <Image
+                            source={
+                                paused
+                                    ? require("../../../assets/play.png")
+                                    : require("../../../assets/pause.png")
+                            }
+                            style={styles.playPause}
+                        />
+                        {isBuffering && <ActivityIndicator size="large" color="red" />}
+                    </TouchableOpacity>
+                )}
 
-                {showControls ? <TouchableOpacity onPress={togglePlayPause} style={styles.controlBtn}>
-                    <Image source={paused ? require("../../../assets/play.png") : require("../../../assets/pause.png")} style={styles.playPause} />
-                    {isBuffering ? (
-                        <ActivityIndicator size="large" color="red" />
-                    ) : null}
-                </TouchableOpacity> : <View />}
-                {
-                    showControls ?
-                        <TopConrols distroyScreen={props.distroyScreen} showMenu={props.showMenu} onToggle={(val) => props.onToggle?.(val)} /> : <View />
-                }
-                {
-                    showControls ? <View style={isFullscreen ? styles.fullScrren : styles.bottomControls}>
+                {/* Top Controls */}
+                {showControls && (
+                    <TopConrols
+                        distroyScreen={props.distroyScreen}
+                        showMenu={props.showMenu}
+                        onToggle={(val) => props.onToggle?.(val)}
+                    />
+                )}
 
-                        <Text style={styles.durationLabel}>{formatSeconds(currentTime)}</Text>
+                {/* Bottom Controls */}
+                {showControls && (
+                    <View style={isFullscreen ? styles.fullScrren : styles.bottomControls}>
+                        <Text style={styles.durationLabel}>
+                            {formatSeconds(currentTime)}
+                        </Text>
 
+                        <View style={{ flexDirection: "row", gap: 5 }}>
+                            <Text style={styles.durationLabel}>
+                                {formatSeconds(duration)}
+                            </Text>
 
-
-                        <View style={{
-                            flexDirection: "row",
-                            gap: 5
-                        }}>
-                            <Text style={styles.durationLabel}>{formatSeconds(duration)}</Text>
                             <TouchableOpacity onPress={toggleFullscreen}>
-                                {isFullscreen ? (
-                                    <Icon name="contract" size={24} color="white" />
-                                ) : (
-                                    <Icon name="expand" size={24} color="white" />
-                                )}
+                                <Icon
+                                    name={isFullscreen ? "contract" : "expand"}
+                                    size={24}
+                                    color="white"
+                                />
                             </TouchableOpacity>
-
                         </View>
-
-
-                    </View> : <View />
-
-                }
+                    </View>
+                )}
             </View>
+
+            {/* Slider */}
             {(!isFullscreen || showControls) && (
                 <Slider
                     style={isFullscreen ? styles.fullSlider : styles.slider}
@@ -305,14 +318,13 @@ export default function Player(props: Props) {
                     minimumValue={0}
                     maximumValue={Math.max(duration, 0.0001)}
                     onSlidingComplete={onSlidingComplete}
-                    minimumTrackTintColor="red"   // progress bar color
-                    maximumTrackTintColor="lightgray" // background bar
-                    thumbTintColor="transparent"  // hides the thumb ball
+                    minimumTrackTintColor="red"
+                    maximumTrackTintColor="lightgray"
+                    thumbTintColor="transparent"
                 />
             )}
-
         </View>
-    )
+    );
 }
 
 const styles = StyleSheet.create({
@@ -333,9 +345,9 @@ const styles = StyleSheet.create({
         marginRight: -15
     },
     fullSlider: {
-        marginTop: -20,
-        marginLeft: -15,
-        marginRight: -15
+        position: "absolute",
+        bottom: 15,
+        width: "100%"
     },
     controlBtn: {
         padding: 8,
@@ -365,7 +377,7 @@ const styles = StyleSheet.create({
     ,
     fullScrren: {
         position: "absolute",
-        bottom: 30,
+        bottom: 35,
         flexDirection: "row",
         width: "100%",
         justifyContent: "space-between",

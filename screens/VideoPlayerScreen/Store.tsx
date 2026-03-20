@@ -19,12 +19,14 @@ const extractPlaylistId = (url: string): string | undefined => {
 
 type VideoPlayerState = {
     showBottomSheet: boolean,
+    isGoingBack: boolean,
     isPlaylist: boolean,
     continuation: string | undefined;
     watchVisitorData: string;
     isFetchingMore: boolean,
     playerPoster: string,
     suggestedVideos: (Video | ShortVideo)[],
+    watchHistory: Video[],
     currentVideo: VideoDescription | undefined,
     db: SQLiteDatabase | undefined,
     containerStyle: object;
@@ -54,7 +56,9 @@ type VideoPlayerState = {
     nextBrowse: () => void;
     handleYtIntents: (files: SharedFile[], short: (video: Video) => void) => void;
     setShowBottomSheet: (val: boolean) => void,
-    changeResolution: (res: VideoTrack) => void
+    changeResolution: (res: VideoTrack) => void,
+    handleBackPress: () => boolean,
+    setGoingBack: (val: boolean) => void;
 
 
 };
@@ -71,6 +75,8 @@ const initialState = {
     db: undefined,
     showFlatList: true,
     endedAsScreen: false,
+    isGoingBack: false,
+    watchHistory: [],
     insets: { top: 0, right: 0, bottom: 0 },
     containerStyle: { flex: 1 },
     mediaUrl: "https://commondatastorage.googleapis.com/gtv-videos-bucket/sample/BigBuckBunny.mp4",
@@ -150,10 +156,51 @@ export const useVideoPlayerStore = create<VideoPlayerState>((set, get) => ({
     setSelectedTrack: (track) => set({ selectedTrack: track }), // ← added
     reset: () => set(initialState),                            // ← added
     loadVideo: async (mvideo: Video) => {
+
         set({ playerPoster: mvideo.videoId })
         const { MyNativeModule } = NativeModules;
 
-        const { db, isPlaylist } = get()
+        const { db, isPlaylist, loadPlaylist,
+            loadVideo, currentVideo,
+            isGoingBack
+        } = get()
+
+
+        if (!isGoingBack) {
+            if (currentVideo) {
+                set((state) => {
+                    const newVideo = currentVideo.video;
+
+                    // remove if already exists
+                    const filtered = state.watchHistory.filter(
+                        (v) => v.videoId !== newVideo.videoId
+                    );
+
+                    return {
+                        watchHistory: [
+                            newVideo,
+                            ...filtered
+                        ].slice(0, 50) // limit to last 50
+                    };
+                });
+            }
+        }
+
+
+
+        if (mvideo.playlistId) {
+            if (mvideo.videoId.includes("PL")) {
+                loadPlaylist(`https://www.youtube.com/playlist?list=${mvideo.videoId}`)
+            }
+            if (mvideo.videoId.includes("RD")) {
+                loadVideo({
+                    ...mvideo,
+                    videoId: mvideo.playlistId
+                })
+            }
+            return;
+        }
+
         if (!db) {
             const db = await initDB();
             set({ db })
@@ -172,6 +219,7 @@ export const useVideoPlayerStore = create<VideoPlayerState>((set, get) => ({
             )
 
             const ytInitialData = JSON.parse(jsonString);
+
             const parseResult = parseWatchHtml(ytInitialData)
 
             const videoDes: VideoDescription = {
@@ -321,7 +369,29 @@ export const useVideoPlayerStore = create<VideoPlayerState>((set, get) => ({
             showBottomSheet: false
         }));
 
-    }
+    },
+    handleBackPress: () => {
+        console.log("backed");
+        const { loadVideo, watchHistory } = get();
+
+        if (watchHistory.length > 0) {
+            const lastVideo = watchHistory[0]; // latest
+
+            set((state) => ({
+                isGoingBack: true,
+                watchHistory: state.watchHistory.slice(1) // ✅ remove first item
+            }));
+
+
+
+            loadVideo(lastVideo);
+
+            return true;
+        }
+
+        return false;
+    },
+    setGoingBack: (val) => set({ isGoingBack: val }),
 
 }));
 

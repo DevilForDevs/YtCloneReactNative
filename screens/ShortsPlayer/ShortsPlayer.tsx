@@ -1,344 +1,56 @@
 import {
-    StyleSheet, Text, View, Pressable,
-    ActivityIndicator, TouchableOpacity,
-    NativeModules, Dimensions
+    StyleSheet, Text, View, PanResponder,
+    TouchableOpacity, ActivityIndicator
 } from 'react-native'
-import React, { useEffect, useState } from 'react'
+import React, { useEffect, useRef } from "react";
 import { RouteProp, useNavigation, useRoute } from '@react-navigation/native';
-import { SafeAreaView } from 'react-native-safe-area-context';
+import { useShortsStore } from './Store';
 import Icon from 'react-native-vector-icons/Ionicons';
 import IconMat from 'react-native-vector-icons/MaterialCommunityIcons';
-import Video, { OnLoadData, OnProgressData } from "react-native-video";
-import RightControls from './RightControls';
-import BottomControls from './BottomControls';
-import { NativeStackNavigationProp } from "@react-navigation/native-stack";
-import type { VideoDescription, Video as typeV } from "../../utils/types";
-type NavigationProp = RouteProp<RootStackParamList, "ShortsPlayerScreen">;
-type Navstack = NativeStackNavigationProp<RootStackParamList, "BottomNav">;
-import { Gesture, GestureDetector } from 'react-native-gesture-handler';
-import { fetchHlsUrl } from '../../utils/downloadFunctions';
-import { useAskFormat } from '../AskFormatContext';
-import { parseShortMeta } from '../../utils/shortsMetaParser';
-import { SQLiteDatabase } from 'react-native-sqlite-storage';
-import ResolutionBottomSheet from '../VideoPlayerScreen/widgets/ResolutionBottomSheet';
 import {
     SelectedVideoTrackType,
 } from "react-native-video";
-import { videoId } from '../../utils/Interact';
-import { useSharedFilesStore } from "../../utils/Store";
+import RightControls from './RightControls';
+import BottomControls from './BottomControls';
+import Video, { OnLoadData, OnProgressData } from "react-native-video";
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
+import ResolutionBottomSheet from '../VideoPlayerScreen/widgets/ResolutionBottomSheet';
+type NavigationProp = RouteProp<RootStackParamList, "ShortsPlayerScreen">;
 
-const { height: screenHeight } = Dimensions.get("window");
 export default function ShortsPlayer() {
+    const insets = useSafeAreaInsets();
     const route = useRoute<NavigationProp>();
-    const navigation = useNavigation<Navstack>();
+    const navigation = useNavigation<navStack>();
     const { arrivedVideo } = route.params;
-    const [currentVideoId, setCurrentVideoId] = useState("")
-    const [mediaUrl, setMediaUrl] = useState("");
-    const [paused, setPaused] = useState(false);
-    const [showPlayIcon, setShowPlayIcon] = useState(false);
-    const [buffering, setBuffering] = useState(false);
-    const { MyNativeModule } = NativeModules
-    const [currentVideoInfo, setCurrentVideoInfo] = useState<VideoDescription>();
-    const [resolutions, setResolutions] = useState<string[]>([]);
-    const [currentResolutionIndex, setCurrentResolutionIndex] = useState(0);
-    const [unusedIds, setUnusedIds] = useState<string[]>([]);
-    const [nextVideoInfo, setNextVideoInfo] = useState<VideoDescription>();
-    const [prevStack, setPrevStack] = useState<VideoDescription[]>([]);
-    const { openAskFormat } = useAskFormat();
-    const [db, setDb] = useState<SQLiteDatabase | null>(null);
-    const [showBottomSheet, setShowBottomSheet] = useState(false);
-    const [tracks, setTracks] = useState<VideoTrack[]>([]);
-    const [selectedTrack, setSelectedTrack] = useState<number | "auto">("auto");
-    const { files, addFile, setFiles, clearFiles } = useSharedFilesStore();
 
+    const { loadVideo, loadNext,
+        loadPrev, setTraks,
+        changeResolution, close, openBottomSheet } = useShortsStore()
+    const mediaUrl = useShortsStore((state) => state.mediaUrl)
+    const selectedTrack = useShortsStore((state) => state.selectedTrack)
+    const buffering = useShortsStore((state) => state.buffering)
+    const currentVideoInfo = useShortsStore((state) => state.currentVideoInfo)
+    const showPlayIcon = useShortsStore((state) => state.showPlayIcon)
+    const paused = useShortsStore((state) => state.paused)
+    const currentVideId = useShortsStore((state) => state.currentVideId)
+    const tracks = useShortsStore((state) => state.tracks)
+    const showBottomSheet = useShortsStore((state) => state.showBottomSheet)
 
     useEffect(() => {
-        for (const item of files as SharedFile[]) {
-            if (item.weblink) {
+        loadVideo(arrivedVideo)
+    }, [])
 
-                const ytVideoId = videoId(item.weblink)
+    const panResponder = useRef(
+        PanResponder.create({
+            onMoveShouldSetPanResponder: () => true,
+            onPanResponderRelease: (evt, gestureState) => {
+                const { dy } = gestureState;
 
-                const requiredVideo: typeV = {
-                    type: 'video',
-                    videoId: ytVideoId,
-                    title: '',
-                    views: 'NO views',
-                };
-                if (item.weblink.includes("shorts")) {
-                    setCurrentVideoId(ytVideoId);
-                    setBuffering(true);
-                    loadInitial()
-                } else {
-                    navigation.navigate("VideoPlayerScreen", { arrivedVideo: requiredVideo, playlistId: undefined })
-                }
-                break;
+                if (dy > 50) loadPrev();
+                else if (dy < -50) loadNext();
             }
-        }
-    }, [files])
-
-
-    async function playVideo(hlsUrl: string, videoId: string) {
-        setMediaUrl(hlsUrl);
-    }
-
-
-    async function safeGetShortMeta(videoId: string): Promise<any | null> {
-        try {
-            const raw = await MyNativeModule.getShortMeta(videoId);
-            return typeof raw === "string" ? JSON.parse(raw) : raw;
-        } catch (err) {
-            return null;
-        }
-    }
-
-    const refillUnusedIds = async (seedVideoId?: string): Promise<string[]> => {
-        const raw = await MyNativeModule.getRelatedShortVideoIds(
-            seedVideoId ?? currentVideoId
-        );
-
-        let ids: string[] = [];
-
-        try {
-            ids = typeof raw === "string" ? JSON.parse(raw) : raw;
-        } catch {
-            if (typeof raw === "string" && raw.length === 11) ids = [raw];
-        }
-
-        return ids.filter(id => typeof id === "string" && id.length === 11);
-    };
-
-    async function playPrev() {
-        if (prevStack.length === 0) {
-            console.warn("No previous video");
-            return;
-        }
-
-        const last = prevStack[prevStack.length - 1];
-        const remaining = prevStack.slice(0, -1);
-
-        // push current back into "next" slot
-        setNextVideoInfo(currentVideoInfo);
-
-        setPrevStack(remaining);
-        setCurrentVideoInfo(last);
-
-        await playVideo(
-            last.hlsUrl ?? "",
-            last.video.videoId
-        );
-    }
-
-
-    async function playNextVideo() {
-        console.log(nextVideoInfo);
-
-        if (!nextVideoInfo || !nextVideoInfo.hlsUrl) {
-            console.warn("Next video not ready yet");
-            return;
-        }
-
-        setPrevStack(prev => [...prev, currentVideoInfo!]);
-        setCurrentVideoInfo(nextVideoInfo);
-
-        await playVideo(
-            nextVideoInfo.hlsUrl,
-            nextVideoInfo.video.videoId
-        );
-
-        preloadNextFromQueue(nextVideoInfo.video.videoId);
-    }
-
-
-    async function preloadNextFromQueue(baseVideoId: string) {
-        let queue = [...unusedIds];
-
-        if (queue.length === 0) {
-            queue = await refillUnusedIds(baseVideoId);
-        }
-
-        while (queue.length > 0) {
-            const id = queue.shift()!; // remove immediately
-
-            const result = await safeGetShortMeta(id);
-            const meta = parseShortMeta(result);
-
-            if (!meta) continue;
-
-            const hlsUrl = await fetchHlsUrl(id);
-            if (!hlsUrl) continue;
-
-            setNextVideoInfo({
-                title: meta.title ?? "",
-                views: 0,
-                uploaded: "unknown",
-                hashTags: "",
-                likes: meta.likes ?? "",
-                dislikes: "",
-                subscriber: "",
-                commentsCount: meta.comments ?? "",
-                channelName: meta.channelName ?? "",
-                channelPhoto: meta.channelThumbnail ?? "",
-                video: {
-                    type: "video",
-                    videoId: id,
-                    title: meta.title ?? "",
-                    views: "",
-                },
-                hlsUrl,
-                channelId: meta.canonicalUrl
-            });
-
-            setUnusedIds(queue); // ✅ clean queue
-            console.log("next video ready");
-            return;
-        }
-
-        setUnusedIds([]);
-    }
-
-
-
-
-    const SWIPE_THRESHOLD = screenHeight * 0.15;
-
-    const swipeGesture = Gesture.Pan()
-        .activeOffsetY([-10, 10])
-        .failOffsetX([-100, 100])
-        .minPointers(1)
-        .onEnd((e) => {
-            console.log("swipe delta:", e.translationY);
-            if (e.translationY < -SWIPE_THRESHOLD && !buffering) {
-                playNextVideo();
-            } else if (e.translationY > SWIPE_THRESHOLD && !buffering) {
-                playPrev();
-            }
-        });
-
-    async function loadInitial() {
-
-
-        const videoId = arrivedVideo.videoId;
-        const meta = await safeGetShortMeta(videoId);
-        const result = parseShortMeta(meta);
-        if (!meta) return;
-        const hlsUrl = await fetchHlsUrl(videoId);
-
-        if (!hlsUrl) console.log("streamingData not found");
-        setCurrentVideoInfo({
-            title: result.title,
-            views: 0,
-            uploaded: "unknown",
-            hashTags: "",
-            likes: result.likes,
-            dislikes: "",
-            subscriber: "",
-            commentsCount: result.comments,
-            channelName: result.channelName,
-            channelPhoto: result.channelThumbnail,
-            video: {
-                type: "video",
-                videoId,
-                title: result.title,
-                views: "",
-            },
-            hlsUrl: hlsUrl ?? "",
-            channelId: result.canonicalUrl
-        });
-
-        playVideo(hlsUrl ?? "", videoId);
-
-
-
-
-
-        const ids = await refillUnusedIds(videoId);
-        const remaining: string[] = [];
-
-        for (const id of ids) {
-            console.log("loading next", id);
-
-            const jsonString = await safeGetShortMeta(id);
-            const nextMeta = parseShortMeta(jsonString);
-            if (!nextMeta) {
-                console.log(`Dropping videoId ${id}`);
-                continue; // ❌ removed
-            }
-
-            const nextHlsUrl = await fetchHlsUrl(id);
-            if (!nextHlsUrl) {
-                console.log(`Dropping videoId ${id}`);
-                continue; // ❌ removed
-            }
-
-            setNextVideoInfo({
-                title: nextMeta.title ?? "",
-                views: 0,
-                uploaded: "unknown",
-                hashTags: "",
-                likes: nextMeta.likes ?? "",
-                dislikes: "",
-                subscriber: "",
-                commentsCount: nextMeta.comments ?? "",
-                channelName: nextMeta.channelName ?? "",
-                channelPhoto: nextMeta.channelThumbnail ?? "",
-                video: {
-                    type: "video",
-                    videoId: id,
-                    title: nextMeta.title ?? "",
-                    views: "",
-                },
-                hlsUrl: nextHlsUrl,
-                channelId: nextMeta.canonicalUrl
-            });
-
-            console.log("loaded next video");
-
-            // everything AFTER this stays
-            const index = ids.indexOf(id);
-            remaining.push(...ids.slice(index + 1));
-            break;
-        }
-
-        setUnusedIds(remaining);
-    }
-
-
-
-    useEffect(() => {
-        setCurrentVideoId(arrivedVideo.videoId);
-        setBuffering(true);
-        loadInitial()
-    }, []);
-
-    const togglePlayPause = () => {
-        setPaused(prev => !prev);
-        setShowPlayIcon(true);
-        setTimeout(() => setShowPlayIcon(false), 800);
-    }
-
-    function changeResolution(res: VideoTrack) {
-        const index = res.trakIndex ?? 0;
-
-        // native player
-        setSelectedTrack(index);
-
-        // update local track state
-        setTracks(prev =>
-            prev.map(t => ({
-                ...t,
-                selected: t.trakIndex === index,
-            }))
-        );
-
-        setShowBottomSheet(false);
-    }
-
-
-    function handleMoreVert() {
-        if (tracks.length === 0) return;
-        setShowBottomSheet(true);
-    }
-
+        })
+    ).current;
 
     function onLoad(data: OnLoadData) {
 
@@ -357,6 +69,7 @@ export default function ShortsPlayer() {
             // mark as active if this track matches naturalSize
             const isActive =
                 t.height === naturalHeight && t.width === naturalWidth;
+
 
             const isBetterBitrate =
                 !existing || (t.bitrate ?? 0) > (existing.bitrate ?? 0);
@@ -377,154 +90,122 @@ export default function ShortsPlayer() {
         const tracks: VideoTrack[] = Array.from(unique.values()).sort(
             (a, b) => (a.height ?? 0) - (b.height ?? 0)
         );
-        setTracks(tracks);
+        setTraks(tracks);
     }
 
 
-
-
-
     return (
-        <GestureDetector gesture={swipeGesture}>
-            <SafeAreaView style={styles.root}>
+        <View style={[styles.container, { bottom: insets.bottom }]}>
 
-                <View style={styles.topBar}>
-                    <TouchableOpacity onPress={() => navigation.goBack()}>
-                        <Icon name='arrow-back' size={28} color="white" />
-                    </TouchableOpacity>
-                    <IconMat name='camera-outline' size={28} color="white" />
-                </View>
-                <View style={StyleSheet.absoluteFill} pointerEvents="none">
-                    <Video
-                        source={{ uri: mediaUrl }}
-                        poster={`https://i.ytimg.com/vi/${currentVideoId}/hqdefault.jpg`}
-                        posterResizeMode="cover"
-                        style={StyleSheet.absoluteFill}
-                        resizeMode="cover"
-                        paused={paused}
-                        repeat={true}
-                        onBuffer={({ isBuffering }) => setBuffering(isBuffering)}
-                        onLoadStart={() => setBuffering(true)}
-                        onLoad={onLoad}
-                        onError={(e) => {
-                            const error = e?.error;
-                            console.log(error);
-
-                            //24003
-                            const isBadHttp =
-                                error?.errorCode === "22004" ||
-                                error?.errorString?.includes("BAD_HTTP_STATUS");
-
-                            if (isBadHttp) {
-                                playNextVideo()
-                            }
-                        }}
-                        selectedVideoTrack={
-                            selectedTrack === "auto" || selectedTrack == null
-                                ? { type: SelectedVideoTrackType.AUTO }
-                                : {
-                                    type: SelectedVideoTrackType.INDEX,
-                                    value: selectedTrack,
-                                }
+            <Video
+                key={mediaUrl}
+                source={{
+                    uri: mediaUrl
+                }}
+                resizeMode="cover"
+                repeat
+                style={styles.video}
+                selectedVideoTrack={
+                    selectedTrack === "auto" || selectedTrack == null
+                        ? { type: SelectedVideoTrackType.AUTO }
+                        : {
+                            type: SelectedVideoTrackType.INDEX,
+                            value: selectedTrack,
                         }
-                    />
+                }
+                onError={(error) => loadNext()}
+                onLoad={onLoad}
+                posterResizeMode='cover'
+                poster={`https://i.ytimg.com/vi/${currentVideoInfo?.video.videoId ?? currentVideId}/maxresdefault.jpg`}
+            />
 
 
+            <View style={styles.gestureLayer} {...panResponder.panHandlers} />
 
-                    {buffering && (
-                        <View style={styles.centerIcon}>
-                            <ActivityIndicator size="large" color="red" />
-                        </View>
-                    )}
+            <View style={[
+                styles.topBar,
+                {
+                    paddingTop: insets.top,
 
-                    <RightControls
-                        likes={currentVideoInfo?.likes ?? "No likes"}
-                        commentCount={currentVideoInfo?.commentsCount ?? ""}
-                        onDownload={() => console.log("not supported")}
-                        onMenuPress={handleMoreVert}
-                    />
+                } // 👈 safe spacing
+            ]}>
+                <TouchableOpacity onPress={() => navigation.goBack()}>
+                    <Icon name="arrow-back" size={28} color="white" />
+                </TouchableOpacity>
+                <IconMat name="camera-outline" size={28} color="white" />
+            </View>
 
-                    <BottomControls
-                        channelName={currentVideoInfo?.channelName ?? ""}
-                        channelThumbnail={currentVideoInfo?.channelPhoto ?? ""}
-                        title={currentVideoInfo?.title ?? "Loading..."}
-                        onChannePress={() => navigation.navigate("ChannelScreen", { channelUrl: currentVideoInfo?.channelId ?? "" })}
-                    />
-
+            {buffering && (
+                <View style={styles.centerIcon}>
+                    <ActivityIndicator size="large" color="red" />
                 </View>
-                <Pressable
-                    onPress={togglePlayPause}
-                    style={StyleSheet.absoluteFill} // covers full video
-                >
-                    {showPlayIcon && (
-                        <View style={styles.centerIcon}>
-                            <Icon
-                                name={paused ? "play-circle-outline" : "pause-circle-outline"}
-                                size={80}
-                                color="white"
-                            />
-                        </View>
-                    )}
-                </Pressable>
+            )}
 
-                <ResolutionBottomSheet
-                    visible={showBottomSheet}
-                    resolutions={tracks}
-                    onSelect={changeResolution}
-                    onClose={() => setShowBottomSheet(false)}
-                />
+            <RightControls
+                likes={currentVideoInfo?.likes ?? "No likes"}
+                commentCount={currentVideoInfo?.commentsCount ?? ""}
+                onDownload={() => console.log("nts")}
+                onMenuPress={openBottomSheet}
+            />
+            <BottomControls
+                channelName={currentVideoInfo?.channelName ?? ""}
+                channelThumbnail={currentVideoInfo?.channelPhoto ?? ""}
+                title={currentVideoInfo?.title ?? "Loading..."}
+                onChannePress={() => navigation.navigate("ChannelScreen", { channelUrl: currentVideoInfo?.channelId ?? "" })}
+            />
 
-            </SafeAreaView>
-        </GestureDetector>
+            {showPlayIcon && (
+                <TouchableOpacity style={styles.centerIcon} onPress={() => console.log("toggle")}>
+                    <Icon
+                        name={paused ? "play-circle-outline" : "pause-circle-outline"}
+                        size={80}
+                        color="white"
+                    />
+                </TouchableOpacity>
+            )}
+
+            <ResolutionBottomSheet
+                visible={showBottomSheet}
+                resolutions={tracks}
+                onSelect={changeResolution}
+                onClose={() => close()}
+            />
+
+        </View>
     )
 }
+
 const styles = StyleSheet.create({
-    root: {
+    container: {
         flex: 1,
-        backgroundColor: "#0A0A0A",
+        backgroundColor: "black",
+
     },
+
+    video: {
+        ...StyleSheet.absoluteFillObject
+    },
+
+    gestureLayer: {
+        ...StyleSheet.absoluteFillObject,
+        zIndex: 5
+    },
+
     topBar: {
+        position: "absolute",
+        top: 40, // important
+        left: 0,
+        right: 0,
         flexDirection: "row",
         justifyContent: "space-between",
-        backgroundColor: "#0A0A0A",
-        paddingVertical: 10,
-        paddingHorizontal: 10
-    },
-    videoContainer: {
-        position: 'relative',
-        backgroundColor: 'black',
-        height: "90%"
+        paddingHorizontal: 15,
+        zIndex: 10
     },
     centerIcon: {
         position: 'absolute',
         top: '45%',
-        left: '45%',
+        left: '37%',
         justifyContent: 'center',
         alignItems: 'center',
     },
-    modalOverlay: {
-        flex: 1,
-        backgroundColor: '#00000066',
-    },
-    bottomSheet: {
-        position: 'absolute',
-        bottom: 0,
-        left: 0,
-        right: 0,
-        backgroundColor: 'white',
-        padding: 10,
-        borderTopLeftRadius: 16,
-        borderTopRightRadius: 16,
-        elevation: 10,
-        shadowColor: '#000',
-        shadowOffset: { width: 0, height: -3 },
-        shadowOpacity: 0.3,
-        shadowRadius: 4,
-    },
-
-    swithResolution: {
-        backgroundColor: "white",
-        padding: 7,
-        borderRadius: 7
-    }
-});
+})

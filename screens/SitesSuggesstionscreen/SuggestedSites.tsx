@@ -6,6 +6,7 @@ import { useNavigation } from "@react-navigation/native";
 import { HOME_HTML } from "../../utils/suggestedsiteshtml";
 import { useAskFeatureStore } from "../AskFeatureCode/AskFeatureStore";
 import { SQLiteDatabase } from 'react-native-sqlite-storage';
+import { StatusBar } from "react-native";
 
 export default function SuggestedSites() {
     const navigation = useNavigation<navStack>();
@@ -103,7 +104,12 @@ export default function SuggestedSites() {
 
 
     return (
-        <SafeAreaView style={styles.container}>
+        <View style={styles.container}>
+            <StatusBar
+                backgroundColor="black"     // Android only
+                barStyle="light-content"   // white icons
+            />
+
             <View style={{ flex: 1 }}>
                 <View style={styles.urlBar}>
                     <Text style={styles.urlText} numberOfLines={1}>
@@ -133,7 +139,7 @@ export default function SuggestedSites() {
                 />
 
             </View>
-        </SafeAreaView>
+        </View>
     );
 }
 

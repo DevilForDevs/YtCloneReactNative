@@ -9,8 +9,10 @@ export interface Video {
   channelUrl?: string,
   channelName?: string,
   thumbnail?: string,
+  playlistId?: string  //actually it will be a videoId and not playlistid
   pageUrl?: string,
-  hls?: string; // 👈 NEW (optional)
+  hls?: string; // 👈 NEW (optional),
+
 }
 
 export interface VideoDescription {

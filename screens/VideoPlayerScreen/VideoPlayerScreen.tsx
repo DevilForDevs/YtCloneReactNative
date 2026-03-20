@@ -45,7 +45,8 @@ export default function VideoPlayerScreen() {
         handleYtIntents,
         loadPlaylist,
         setShowBottomSheet,
-        changeResolution
+        changeResolution,
+        handleBackPress
     } = useVideoPlayerStore()
 
     const suggestedVideos = useVideoPlayerStore(state => state.suggestedVideos);
@@ -60,6 +61,7 @@ export default function VideoPlayerScreen() {
     const posterUrl = useVideoPlayerStore(state => state.playerPoster);
     const traks = useVideoPlayerStore(state => state.tracks);
     const showBottomSheet = useVideoPlayerStore(state => state.showBottomSheet);
+    const setGoingBack = useVideoPlayerStore(s => s.setGoingBack);
 
 
     useEffect(() => {
@@ -77,10 +79,13 @@ export default function VideoPlayerScreen() {
 
     }, [])
 
+
+
     function handleDestroy() { }
 
     const handleLoadVideo = React.useCallback((video: Video) => {
         flatListRef.current?.scrollToOffset({ offset: 0, animated: true });
+        setGoingBack(false);
         loadVideo(video);
     }, []);
 
@@ -139,10 +144,12 @@ export default function VideoPlayerScreen() {
 
 
 
+
+
     return (
         // ✅ flex: 1 ensures the container fills the screen
         <View style={[containerStyle, { flex: 1 }]}>
-            <StatusBar hidden={!showFlatList} />
+            <StatusBar hidden={!showFlatList} barStyle="dark-content" />
             <Player
                 startAsScreen={endedAsScreen}
                 url={mediaUrl}
@@ -158,6 +165,7 @@ export default function VideoPlayerScreen() {
                 }}
                 onTracks={setTracks}
                 selectedTrack={selectedTrack}
+                handleBack={handleBackPress}
 
             />
 

@@ -15,7 +15,7 @@ type Props = {
 
 export default function VideoItemView(props: Props) {
 
-  const [thumb, setThumb] = useState(ytThumbs(props.item.videoId).hq);
+  const [thumb, setThumb] = useState(ytThumbs(props.item.playlistId || props.item.videoId).hq);
 
 
   return (

@@ -20,7 +20,6 @@ import {
   FetchImagesForPdf,
   AskFeatureCode
 } from "./screens";
-
 import { useShareIntent } from './ApplevelBackends/shareIntent';
 import { DownloadsStore } from './utils/Store';
 import { AskFormatProvider } from './screens/AskFormatProvider';

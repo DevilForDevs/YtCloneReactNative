@@ -45,7 +45,8 @@ const styles = StyleSheet.create({
         right: 10,
         bottom: "10%",
         alignItems: "center",
-        gap: 7
+        gap: 7,
+        zIndex: 5
     },
     button: {
         alignItems: "center"

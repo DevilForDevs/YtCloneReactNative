@@ -20,7 +20,7 @@ export default function PlaylistCard(props: Props) {
                 <Image
                     source={{
                         uri: props.item.videoId
-                            ? `https://i.ytimg.com/vi/${item.videoId}/hqdefault.jpg`
+                            ? `https://i.ytimg.com/vi/${props.item.videoId}/hqdefault.jpg`
                             : undefined,
                     }}
                     style={styles.thumbnail}

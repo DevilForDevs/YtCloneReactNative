@@ -1,6 +1,6 @@
 import React from "react";
-import { StyleSheet, Text, View, FlatList, Pressable, ActivityIndicator } from "react-native";
-import { SafeAreaView, useSafeAreaInsets } from "react-native-safe-area-context";
+import { StyleSheet, StatusBar, Text, View, FlatList, Pressable, ActivityIndicator } from "react-native";
+import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { useVideoStore } from "../../utils/Store";
 import TopBar from "./widgets/TopBar/TopBar";
 import Menu from "./widgets/TopBar/widgets/Menu";
@@ -64,7 +64,8 @@ export default function HomeScreen() {
   );
 
   return (
-    <SafeAreaView style={[styles.root, { paddingTop: insets.top }]}>
+    <View style={[styles.root, { paddingTop: insets.top }]}>
+      <StatusBar barStyle="dark-content" />
       <TopBar onLensPress={() => navigation.navigate("SearchScreen")} />
       <FlatList
         data={totalVideos}
@@ -89,7 +90,7 @@ export default function HomeScreen() {
         onEndReached={nextBroswe}
         onEndReachedThreshold={0.5}
       />
-    </SafeAreaView>
+    </View>
   );
 }
 

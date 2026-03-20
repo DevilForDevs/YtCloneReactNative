@@ -263,17 +263,53 @@ function processWatchItems(
                 "browseId",
             ]);
 
-            videos.push({
-                type: "video",
-                videoId: r.lockupViewModel.contentId,
-                title: title ?? "",
-                views: views ?? "",
-                publishedOn: uploadedAgo,
-                channel: channelPhoto,
-                channelName,
-                channelUrl,
-                duration
-            });
+            if (r.lockupViewModel.contentType == "LOCKUP_CONTENT_TYPE_VIDEO") {
+                videos.push({
+                    type: "video",
+                    videoId: r.lockupViewModel.contentId,
+                    title: title ?? "",
+                    views: views ?? "",
+                    publishedOn: uploadedAgo,
+                    channel: channelPhoto,
+                    channelName,
+                    channelUrl,
+                    duration,
+
+                });
+            }
+            if (r.lockupViewModel.contentType == "LOCKUP_CONTENT_TYPE_PLAYLIST") {
+
+                try {
+                    const playistvid = get<string>(r, [
+                        "lockupViewModel",
+                        "rendererContext",
+                        "commandContext",
+                        "onTap",
+                        "innertubeCommand",
+                        "watchEndpoint",
+                        "videoId"
+                    ]);
+
+
+                    videos.push({
+                        type: "video",
+                        videoId: r.lockupViewModel.contentId,
+                        title: title ?? "",
+                        views: views ?? "",
+                        publishedOn: uploadedAgo,
+                        channel: channelPhoto,
+                        channelName,
+                        channelUrl,
+                        duration,
+                        playlistId: playistvid
+
+                    });
+                } catch (error) {
+                    console.log(error);
+                }
+            }
+
+
         }
 
         /* ================= SHORTS ================= */
