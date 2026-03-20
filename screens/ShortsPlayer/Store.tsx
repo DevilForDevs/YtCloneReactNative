@@ -26,7 +26,10 @@ type ShortsStoreType = {
     setTraks: (traks: VideoTrack[]) => void,
     changeResolution: (res: VideoTrack) => void,
     close: () => void,
-    openBottomSheet: () => void
+    openBottomSheet: () => void,
+    setPaused: (value: boolean) => void,
+    setShowPlayIcon: (value: boolean) => void,
+    togglePlayback: () => void
 
 }
 
@@ -204,7 +207,17 @@ export const useShortsStore = create<ShortsStoreType>((set, get) => ({
     },
     openBottomSheet: () => {
         set({ showBottomSheet: true })
-    }
+    },
+    setPaused: (value) => set({ paused: value }),
+
+    setShowPlayIcon: (value) => set({ showPlayIcon: value }),
+
+    togglePlayback: () => {
+        set((state) => ({
+            paused: !state.paused,
+            showPlayIcon: true
+        }))
+    },
 
 }))
 

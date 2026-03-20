@@ -42,12 +42,18 @@ export default function ShortsPlayer() {
 
     const panResponder = useRef(
         PanResponder.create({
-            onMoveShouldSetPanResponder: () => true,
-            onPanResponderRelease: (evt, gestureState) => {
-                const { dy } = gestureState;
+            onMoveShouldSetPanResponder: (_, gestureState) => {
+                return Math.abs(gestureState.dy) > 10; // only vertical swipe
+            },
+            onPanResponderRelease: (_, gestureState) => {
+                const { dy, vy } = gestureState;
 
-                if (dy > 50) loadPrev();
-                else if (dy < -50) loadNext();
+                // require distance OR velocity
+                if (dy > 80 || vy > 0.8) {
+                    loadPrev();
+                } else if (dy < -80 || vy < -0.8) {
+                    loadNext();
+                }
             }
         })
     ).current;
@@ -93,11 +99,34 @@ export default function ShortsPlayer() {
         setTraks(tracks);
     }
 
+    const hideTimeout = useRef<ReturnType<typeof setTimeout> | null>(null);
+
+    const toggleControls = () => {
+        const { paused, setPaused, setShowPlayIcon } = useShortsStore.getState();
+
+        // toggle pause
+        setPaused(!paused);
+
+        // show controls
+        setShowPlayIcon(true);
+
+        // clear old timer
+        if (hideTimeout.current) {
+            clearTimeout(hideTimeout.current);
+        }
+
+        // auto hide after 2 sec
+        hideTimeout.current = setTimeout(() => {
+            useShortsStore.getState().setShowPlayIcon(false);
+        }, 2000);
+    };
+
 
     return (
         <View style={[styles.container, { bottom: insets.bottom }]}>
 
             <Video
+                paused={paused}
                 key={mediaUrl}
                 source={{
                     uri: mediaUrl
@@ -120,7 +149,16 @@ export default function ShortsPlayer() {
             />
 
 
-            <View style={styles.gestureLayer} {...panResponder.panHandlers} />
+            <View
+                style={styles.gestureLayer}
+                {...panResponder.panHandlers}
+            >
+                <TouchableOpacity
+                    activeOpacity={1}
+                    style={{ flex: 1 }}
+                    onPress={toggleControls}
+                />
+            </View>
 
             <View style={[
                 styles.topBar,
@@ -193,7 +231,7 @@ const styles = StyleSheet.create({
 
     topBar: {
         position: "absolute",
-        top: 40, // important
+        top: 5, // important
         left: 0,
         right: 0,
         flexDirection: "row",

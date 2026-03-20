@@ -81,7 +81,9 @@ export default function VideoPlayerScreen() {
 
 
 
-    function handleDestroy() { }
+    function handleDestroy() {
+        navigation.goBack();
+    }
 
     const handleLoadVideo = React.useCallback((video: Video) => {
         flatListRef.current?.scrollToOffset({ offset: 0, animated: true });

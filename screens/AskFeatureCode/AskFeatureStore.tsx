@@ -169,8 +169,9 @@ export const useAskFeatureStore = create<AskFeatureState>((set, get) => ({
         const db = await initDB();
         set({ db })
         const activeFeatures = await getActiveFeatureIds(db);
-        console.log(activeFeatures);
-        if (activeFeatures.includes(1)) {
+
+        const ytActiateIds = [1, 6, 7]
+        if (ytActiateIds.some(id => activeFeatures.includes(id))) {
             for (const item of files as SharedFile[]) {
                 if (item.weblink) {
 
@@ -184,10 +185,8 @@ export const useAskFeatureStore = create<AskFeatureState>((set, get) => ({
                     };
                     if (item.weblink.includes("shorts")) {
                         short(requiredVideo);
-                        // navigation.navigate("ShortsPlayerScreen", { arrivedVideo: requiredVideo })
                     } else {
                         video(requiredVideo);
-                        // navigation.navigate("VideoPlayerScreen", { arrivedVideo: requiredVideo, playlistId: undefined })
                     }
                     break;
                 }

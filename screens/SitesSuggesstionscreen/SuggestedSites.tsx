@@ -1,6 +1,5 @@
 import React, { useEffect, useRef, useState } from "react";
 import { StyleSheet, View, BackHandler, Platform, Text } from "react-native";
-import { SafeAreaView } from "react-native-safe-area-context";
 import { WebView } from "react-native-webview";
 import { useNavigation } from "@react-navigation/native";
 import { HOME_HTML } from "../../utils/suggestedsiteshtml";
@@ -52,18 +51,31 @@ export default function SuggestedSites() {
             const { db } = useAskFeatureStore.getState();
             const activeFeatures = await getActiveFeatureIds(db);
 
-            if (currentUrl?.includes("https://epaper.indiatimes.com/timesepaper") && activeFeatures.includes(2)) {
+            const idsfortoi = [2, 7]
+            const idsforjagran = [3, 6, 7]
+            const idsforprabhat = [4, 6, 7]
+            const idsforyt = [1, 6, 7]
+            const idsmcqbuddy = [5, 6, 7]
+
+            if (currentUrl?.includes("https://epaper.indiatimes.com/timesepaper") && idsfortoi.some(id => activeFeatures.includes(id))) {
                 navigation.navigate("TOI");
             }
-            if (currentUrl?.includes("https://epaper.jagran.com/") && activeFeatures.includes(3)) {
+            if (currentUrl?.includes("https://epaper.jagran.com/") && idsforjagran.some(id => activeFeatures.includes(id))) {
                 navigation.navigate("TOI");
             }
-            if (currentUrl?.includes("https://epaper.prabhatkhabar.com/") && activeFeatures.includes(4)) {
+            if (currentUrl?.includes("https://epaper.prabhatkhabar.com/") && idsforprabhat.some(id => activeFeatures.includes(id))) {
                 navigation.navigate("TOI");
             }
-            if (currentUrl === "https://m.youtube.com/" && activeFeatures.includes(1)) {
+            if (currentUrl === "https://m.youtube.com/" && idsforyt.some(id => activeFeatures.includes(id))) {
                 navigation.navigate("BrowserScreen", { name: "" });
             }
+
+            if (currentUrl === "https://www.mcqbuddy.com/") {
+                if (!idsmcqbuddy.some(id => activeFeatures.includes(id))) {
+                    webViewRef.current?.goBack();
+                }
+            }
+
         }
 
         checkFeatureNavigation();
