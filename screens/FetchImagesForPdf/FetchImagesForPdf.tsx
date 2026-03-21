@@ -62,12 +62,8 @@ export default function FetchImagesForPdf() {
                         source={{ uri: pdfUri }}
                         style={{ flex: 1 }}
                         enablePaging
-                        horizontal
+
                         onPageChanged={(page) => setCurrentPage(page)}
-                        // optional: enable scale for old PDF before switching
-                        scale={1.0}
-                        minScale={1.0}
-                        maxScale={3.0}
                     />
 
 

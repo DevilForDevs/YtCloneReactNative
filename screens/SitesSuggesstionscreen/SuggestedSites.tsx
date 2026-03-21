@@ -6,8 +6,10 @@ import { HOME_HTML } from "../../utils/suggestedsiteshtml";
 import { useAskFeatureStore } from "../AskFeatureCode/AskFeatureStore";
 import { SQLiteDatabase } from 'react-native-sqlite-storage';
 import { StatusBar } from "react-native";
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 export default function SuggestedSites() {
+    const insets = useSafeAreaInsets();
     const navigation = useNavigation<navStack>();
     const webViewRef = useRef<WebView>(null);
     const [canGoBack, setCanGoBack] = useState(false);
@@ -116,7 +118,7 @@ export default function SuggestedSites() {
 
 
     return (
-        <View style={styles.container}>
+        <View style={[styles.container, { paddingTop: insets.top, paddingBottom: insets.bottom }]}>
             <StatusBar
                 backgroundColor="black"     // Android only
                 barStyle="light-content"   // white icons

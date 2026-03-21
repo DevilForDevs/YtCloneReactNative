@@ -83,6 +83,7 @@ export default function Player(props: Props) {
             Orientation.lockToLandscape(); // enter fullscreen
             setFullScreen(true);
             enableImmersive();
+
         }
     }
 
@@ -173,6 +174,7 @@ export default function Player(props: Props) {
 
             })
         }
+        setPaused(false);
     }
 
     function onProgress(data: OnProgressData) {
@@ -205,6 +207,7 @@ export default function Player(props: Props) {
         <View>
             <View style={isFullscreen ? styles.fullScreenWrapper : styles.videoWrapper}>
                 <Video
+                    key={props.url}
                     ref={videoRef}
                     source={{
                         uri: props.url,

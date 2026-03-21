@@ -3,7 +3,7 @@ import { createPdf } from 'react-native-images-to-pdf';
 import {
     NativeModules,
 } from 'react-native'
-import ReactNativeBlobUtil from "react-native-blob-util";
+
 
 
 
@@ -196,7 +196,7 @@ export async function downloadImageToPdf(
             outputPath,
         });
 
-        console.log('PDF created at:', createdPdfPath);
+
 
         // 6️⃣ Clean up temporary image
         await RNFS.unlink(tempImagePath);

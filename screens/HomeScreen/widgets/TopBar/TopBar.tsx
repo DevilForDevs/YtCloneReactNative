@@ -6,7 +6,7 @@ type topBarCallbacks = {
     onLensPress: () => void
 }
 
-export default function TopBar({onLensPress}:topBarCallbacks) {
+export default function TopBar({ onLensPress }: topBarCallbacks) {
     const assetsFolder = "../../../../assets"
     return (
         <View style={styles.root}>
@@ -43,7 +43,6 @@ const styles = StyleSheet.create({
     ,
     root: {
         marginHorizontal: 12,
-        marginTop: 12
     }
     ,
     otherIcons: {

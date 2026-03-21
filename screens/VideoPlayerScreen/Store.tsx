@@ -17,6 +17,8 @@ const extractPlaylistId = (url: string): string | undefined => {
     return match ? match[1] : undefined;
 };
 
+
+
 type VideoPlayerState = {
     showBottomSheet: boolean,
     isGoingBack: boolean,
@@ -83,7 +85,7 @@ const initialState = {
     selectedTrack: "auto" as number | "auto",  // ← fixed
     savedPositions: {} as Record<string, number>,
     seekTo: 0,
-    autoplayEnabled: false,
+    autoplayEnabled: true,
     tracks: [] as VideoTrack[],
 };
 
@@ -148,6 +150,7 @@ export const useVideoPlayerStore = create<VideoPlayerState>((set, get) => ({
             return;
         }
         loadVideo(nextVideo);
+
 
     },
     setTracks: (tracks) => set({ tracks }),
@@ -214,6 +217,7 @@ export const useVideoPlayerStore = create<VideoPlayerState>((set, get) => ({
 
             set({ mediaUrl: streamingData.hlsManifestUrl });
 
+
             const jsonString = await MyNativeModule.getYtInitialData(
                 'https://www.youtube.com/watch?v=' + mvideo.videoId
             )
@@ -240,10 +244,36 @@ export const useVideoPlayerStore = create<VideoPlayerState>((set, get) => ({
             }
             set({ currentVideo: videoDes });
 
+
+
             if (!isPlaylist) {
-                set({ suggestedVideos: parseResult.items })
-                set({ watchVisitorData: parseResult.visitorData })
-                set({ continuation: parseResult.continuation ?? undefined })
+                if (parseResult.items.length == 0) {
+
+
+                    const delay = (ms: number) => new Promise<void>((res) => setTimeout(() => res(), ms));
+
+                    for (let i = 1; i <= 5; i++) {
+                        const jsonString = await MyNativeModule.getYtInitialData(
+                            'https://www.youtube.com/watch?v=' + mvideo.videoId
+                        );
+
+                        const ytInitialData = JSON.parse(jsonString);
+                        const result = parseWatchHtml(ytInitialData);
+
+                        if (result.items.length > 0) {
+                            set({ suggestedVideos: result.items });
+                            break;
+                        }
+
+                        console.log("Retry:", i);
+                        await delay(500);
+                    }
+
+                } else {
+                    set({ suggestedVideos: parseResult.items })
+                    set({ watchVisitorData: parseResult.visitorData })
+                    set({ continuation: parseResult.continuation ?? undefined })
+                }
             }
 
         } catch (e) {
@@ -371,7 +401,7 @@ export const useVideoPlayerStore = create<VideoPlayerState>((set, get) => ({
 
     },
     handleBackPress: () => {
-        console.log("backed");
+
         const { loadVideo, watchHistory } = get();
 
         if (watchHistory.length > 0) {
