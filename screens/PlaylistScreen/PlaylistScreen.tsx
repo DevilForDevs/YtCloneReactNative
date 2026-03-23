@@ -93,6 +93,7 @@ export default function PlaylistScreen() {
 
     useEffect(() => {
         if (playlistlink) {
+            clearVideos();
             fetchPlaylistInfo();
         }
     }, [playlistlink]);
@@ -104,7 +105,7 @@ export default function PlaylistScreen() {
 
         navigation.navigate("VideoPlayerScreen", {
             arrivedVideo: firstVideo,
-            playlistId: extractPlaylistId(playlistlink),
+            playlistId: playlistlink,
         });
     }
 
@@ -122,7 +123,7 @@ export default function PlaylistScreen() {
                         keyExtractor={(_, index) => index.toString()}
                         renderItem={({ item, index }) => {
                             if (item.type === "video") {
-                                return <PlaylistItemView video={item} onItemClick={() => navigation.navigate("VideoPlayerScreen", { arrivedVideo: item, playlistId: undefined })} onMenuClick={() => openAskFormat(item)} />;
+                                return <PlaylistItemView video={item} onItemClick={() => navigation.navigate("VideoPlayerScreen", { arrivedVideo: item, playlistId: undefined })} onMenuClick={() => console.log("not supoorted")} />;
                             } else {
                                 return <View />;
                             }

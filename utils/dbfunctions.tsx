@@ -73,6 +73,49 @@ export async function removeDownload(
     return rowsAffected;
 }
 
+export async function createScreensTable(db: SQLiteDatabase) {
+    await db.executeSql(`
+        CREATE TABLE IF NOT EXISTS app_state (
+            id INTEGER PRIMARY KEY NOT NULL,
+            screen TEXT,
+            params TEXT
+        );
+    `);
+}
+
+export async function saveScreen(
+    db: SQLiteDatabase,
+    screen: string,
+    params?: any
+) {
+    const paramsJson = params ? JSON.stringify(params) : null;
+
+    await db.executeSql(
+        `INSERT OR REPLACE INTO app_state (id, screen, params) VALUES (1, ?, ?);`,
+        [screen, paramsJson]
+    );
+}
+
+export async function getSavedScreen(
+    db: SQLiteDatabase
+): Promise<{ screen: keyof RootStackParamList; params: any } | null> {
+
+    const result = await db.executeSql(
+        `SELECT screen, params FROM app_state WHERE id = 1;`
+    );
+
+    if (result[0].rows.length > 0) {
+        const row = result[0].rows.item(0);
+
+        return {
+            screen: row.screen,
+            params: row.params ? JSON.parse(row.params) : null
+        };
+    }
+
+    return null;
+}
+
 
 
 

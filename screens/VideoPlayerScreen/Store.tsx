@@ -1,6 +1,6 @@
 // Store.ts
 import { create } from "zustand";
-import { Platform, StatusBar } from "react-native";
+import { Platform, StatusBar, ToastAndroid } from "react-native";
 import { SQLiteDatabase } from 'react-native-sqlite-storage';
 import { initDB } from "../../utils/dbfunctions";
 import { getIosPlayerResponse } from "../../utils/EndPoints";
@@ -168,6 +168,8 @@ export const useVideoPlayerStore = create<VideoPlayerState>((set, get) => ({
             isGoingBack
         } = get()
 
+        console.log(isPlaylist);
+
 
         if (!isGoingBack) {
             if (currentVideo) {
@@ -196,10 +198,13 @@ export const useVideoPlayerStore = create<VideoPlayerState>((set, get) => ({
                 loadPlaylist(`https://www.youtube.com/playlist?list=${mvideo.videoId}`)
             }
             if (mvideo.videoId.includes("RD")) {
+
                 loadVideo({
                     ...mvideo,
                     videoId: mvideo.playlistId
-                })
+                });
+
+
             }
             return;
         }
@@ -248,36 +253,25 @@ export const useVideoPlayerStore = create<VideoPlayerState>((set, get) => ({
 
             if (!isPlaylist) {
                 if (parseResult.items.length == 0) {
+                    const jsonString = await MyNativeModule.getYtInitialData(
+                        'https://www.youtube.com/watch?v=' + mvideo.videoId
+                    )
 
+                    const ytInitialData = JSON.parse(jsonString);
 
-                    const delay = (ms: number) => new Promise<void>((res) => setTimeout(() => res(), ms));
-
-                    for (let i = 1; i <= 5; i++) {
-                        const jsonString = await MyNativeModule.getYtInitialData(
-                            'https://www.youtube.com/watch?v=' + mvideo.videoId
-                        );
-
-                        const ytInitialData = JSON.parse(jsonString);
-                        const result = parseWatchHtml(ytInitialData);
-
-                        if (result.items.length > 0) {
-                            set({ suggestedVideos: result.items });
-                            break;
-                        }
-
-                        console.log("Retry:", i);
-                        await delay(500);
-                    }
+                    const parseResult2 = parseWatchHtml(ytInitialData)
+                    set({ suggestedVideos: parseResult2.items })
 
                 } else {
                     set({ suggestedVideos: parseResult.items })
                     set({ watchVisitorData: parseResult.visitorData })
                     set({ continuation: parseResult.continuation ?? undefined })
                 }
+
             }
 
-        } catch (e) {
-            console.log(e)
+        } catch (e: any) {
+            ToastAndroid.show(e?.message || "Something went wrong", ToastAndroid.SHORT);
         }
 
     },
@@ -285,6 +279,7 @@ export const useVideoPlayerStore = create<VideoPlayerState>((set, get) => ({
 
         const { MyNativeModule } = NativeModules;
         const { isFetchingMore, continuation, playerPoster, watchVisitorData, isPlaylist } = get();
+
 
         if (!continuation) return;
         if (isFetchingMore) return;
@@ -335,6 +330,8 @@ export const useVideoPlayerStore = create<VideoPlayerState>((set, get) => ({
         set({ isFetchingMore: false });
     },
     handleYtIntents: async (files, short) => {
+        set({ isPlaylist: false })
+        set({ suggestedVideos: [] })
 
         const db = await initDB();
 
@@ -372,7 +369,6 @@ export const useVideoPlayerStore = create<VideoPlayerState>((set, get) => ({
 
         const { loadVideo } = get();
         const { MyNativeModule } = NativeModules;
-        set({ isPlaylist: true })
         const playlistId = extractPlaylistId(link);
         const browseId = `VL${playlistId}`;
         const jsonString = await MyNativeModule.getYtPlaylistBrowse(
@@ -380,8 +376,17 @@ export const useVideoPlayerStore = create<VideoPlayerState>((set, get) => ({
             browseId, null
         );
         const result = extractPlaylistData(JSON.parse(jsonString));
-        set({ suggestedVideos: result.videos });
+
+
+        const updatedVideos = result.videos.map(video => ({
+            ...video,
+            channel: result.metadata?.channelAvatar
+        }));
+
+
+        set({ suggestedVideos: updatedVideos });
         set({ continuation: result.continuationToken ?? undefined });
+        set({ isPlaylist: true });
         loadVideo(result.videos[0]);
     },
     setShowBottomSheet: (val) => {

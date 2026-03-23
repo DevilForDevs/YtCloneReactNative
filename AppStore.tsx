@@ -4,6 +4,9 @@ import {
     initDB,
     createDownloadsTable,
     loadDownloads,
+    createScreensTable,
+    getSavedScreen,
+    saveScreen,
 } from './utils/dbfunctions';
 import { createHistoryTable } from './screens/SavedScreen/backend/dbo';
 import { Video, DownloadItem } from './utils/types';
@@ -12,9 +15,18 @@ import { convertBytes } from './utils/Interact';
 
 
 
+type ScreenState = {
+    screen: keyof RootStackParamList;
+    params: any;
+};
+
+
 type AppState = {
     db: SQLiteDatabase,
-    loadDownloads: (addToDownload: (item: DownloadItem) => void) => void
+    loadDownloads: (addToDownload: (item: DownloadItem) => void) => void,
+    setUpScreenDb: () => void,
+    currentScreen: ScreenState | null;
+    saveScreenToDb: (screen: string, params?: any) => void
 }
 
 async function getFileSize(folder: string, fileName: string) {
@@ -38,7 +50,7 @@ async function getFileSize(folder: string, fileName: string) {
 
 export const useAppStore = create<AppState>((set, get) => ({
     db: null,
-
+    currentScreen: null,
     loadDownloads: async (addToDownload) => {
         const dbInstance = await initDB();
         await createDownloadsTable(dbInstance);
@@ -67,6 +79,35 @@ export const useAppStore = create<AppState>((set, get) => ({
             };
             addToDownload(downloadItem);
         }
+    },
+    setUpScreenDb: async () => {
+        let { db } = get();
+
+        if (!db) {
+            db = await initDB();
+            set({ db }); // ✅ store db
+        }
+
+        await createScreensTable(db);
+
+        const saved = await getSavedScreen(db);
+
+        console.log(saved);
+
+        set({
+            currentScreen: saved // { screen, params }
+        });
+    },
+
+    saveScreenToDb: async (screen, params) => {
+        let { db } = get();
+
+        if (!db) {
+            db = await initDB();
+            set({ db }); // safety fallback
+        }
+
+        await saveScreen(db, screen, params); // ✅ save params too
     }
 
 

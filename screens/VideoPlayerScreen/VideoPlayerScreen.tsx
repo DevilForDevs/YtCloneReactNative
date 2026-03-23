@@ -46,7 +46,8 @@ export default function VideoPlayerScreen() {
         loadPlaylist,
         setShowBottomSheet,
         changeResolution,
-        handleBackPress
+        handleBackPress,
+        reset
     } = useVideoPlayerStore()
 
     const suggestedVideos = useVideoPlayerStore(state => state.suggestedVideos);
@@ -69,11 +70,13 @@ export default function VideoPlayerScreen() {
     }, [insets]);
 
     useEffect(() => {
-
+        reset();
         alterStyle(insets.top, insets.right, insets.bottom);
         if (playlistId) {
+            console.log("loadingplaylist");
             loadPlaylist(playlistId)
         } else {
+
             loadVideo(arrivedVideo);
         }
 
@@ -82,12 +85,26 @@ export default function VideoPlayerScreen() {
 
 
     function handleDestroy() {
-        navigation.goBack();
+        if (navigation.canGoBack()) {
+            navigation.goBack();
+        } else {
+            navigation.navigate("AskFeatureCode");
+        }
+
     }
 
     const handleLoadVideo = React.useCallback((video: Video) => {
+
         flatListRef.current?.scrollToOffset({ offset: 0, animated: true });
         setGoingBack(false);
+        if (video.playlistId) {
+            if (video.videoId.startsWith("RD")) {
+                loadVideo({ ...video, videoId: video.playlistId, playlistId: undefined })
+                return;
+            }
+
+        }
+
         loadVideo(video);
     }, []);
 
@@ -104,7 +121,6 @@ export default function VideoPlayerScreen() {
             navigation.navigate("ChannelScreen", { channelUrl: item.channelUrl })
         }
     }
-
 
     const renderItem = React.useCallback(({ item, index }: { item: Video | ShortVideo; index: number }) => {
         if (item.type === "video") {
@@ -182,6 +198,7 @@ export default function VideoPlayerScreen() {
                     ListHeaderComponent={
                         currentVideo ? (
                             <VideoDetails
+                                key={mediaUrl}
                                 videoDes={currentVideo}
                                 onDownloadPress={() => console.log("notsupported")}
                                 onChannelClick={() => navigation.navigate("ChannelScreen", { channelUrl: currentVideo.channelId ?? "" })}

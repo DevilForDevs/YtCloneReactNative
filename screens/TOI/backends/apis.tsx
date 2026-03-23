@@ -173,8 +173,13 @@ export async function getNewsPapers(database: SQLiteDatabase): Promise<Section[]
 
     const activeFeatures = rows.map((item) => item.coupanItemId)
 
+    const idsfortoi = [2, 7]
+    const idsforjagran = [3, 6, 7]
+    const idsforprabhat = [4, 6, 7]
+
+
     // Feature 1 → Times of India
-    if (activeFeatures.includes(2)) {
+    if (idsfortoi.some(id => activeFeatures.includes(id))) {
         scrappedSections.push({
             title: "Times of India",
             items: Object.entries(TOI_CITY_MAP).map(([code, city]) => ({
@@ -186,7 +191,7 @@ export async function getNewsPapers(database: SQLiteDatabase): Promise<Section[]
     }
 
     // Feature 2 → Economic Times
-    if (activeFeatures.includes(2)) {
+    if (idsfortoi.some(id => activeFeatures.includes(id))) {
         scrappedSections.push({
             title: "The Economic Times",
             items: Object.entries(ET_CITY_MAP).map(([code, city]) => ({
@@ -198,7 +203,7 @@ export async function getNewsPapers(database: SQLiteDatabase): Promise<Section[]
     }
 
     // Feature 3 → Jagran
-    if (activeFeatures.includes(3)) {
+    if (idsforjagran.some(id => activeFeatures.includes(id))) {
         scrappedSections.push({
             title: "Dainik Jagran",
             items: Object.entries(editionMap).map(([key, name]) => ({
@@ -210,7 +215,7 @@ export async function getNewsPapers(database: SQLiteDatabase): Promise<Section[]
     }
 
     // Feature 4 → Prabhat Khabar
-    if (activeFeatures.includes(4)) {
+    if (idsforprabhat.some(id => activeFeatures.includes(id))) {
         scrappedSections.push({
             title: "प्रभात खबर",
             items: Object.entries(cityUrlMap).map(([key, name]) => ({

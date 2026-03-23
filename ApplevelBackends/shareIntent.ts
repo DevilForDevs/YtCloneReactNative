@@ -1,26 +1,31 @@
-import { useEffect, useRef } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import { AppState, Platform } from 'react-native';
 import ReceiveSharingIntent from 'react-native-receive-sharing-intent';
 import { useSharedFilesStore } from '../utils/Store';
+
 export function useShareIntent() {
     const appState = useRef(AppState.currentState);
     const { setFiles, clearFiles } = useSharedFilesStore();
+
+    const [isFromShareIntent, setIsFromShareIntent] = useState(false);
 
     const checkForShare = () => {
         ReceiveSharingIntent.getReceivedFiles(
             (files: SharedFile[]) => {
                 if (files?.length) {
-                    clearFiles()
-                    setFiles(files)
+                    clearFiles();
+                    setFiles(files);
+
+                    // ✅ mark as intent launch
+                    setIsFromShareIntent(true);
                 }
             },
             (_error: unknown) => {
-                console.log(_error)
+                console.log(_error);
             },
-            'com.jsranjan.ivideodownloader' // MUST match applicationId
+            'com.jsranjan.ivideodownloader'
         );
     };
-
 
     useEffect(() => {
         if (Platform.OS !== 'android') return;
@@ -42,4 +47,6 @@ export function useShareIntent() {
             sub.remove();
         };
     }, []);
+
+    return { isFromShareIntent };
 }

@@ -1,5 +1,5 @@
-import React, { useEffect } from 'react';
-import { NativeEventEmitter } from 'react-native';
+import React, { useEffect, useRef } from 'react';
+import { NativeEventEmitter, Text, BackHandler } from 'react-native';
 import { NavigationContainer } from '@react-navigation/native';
 import { createNativeStackNavigator } from '@react-navigation/native-stack';
 import { GestureHandlerRootView } from 'react-native-gesture-handler';
@@ -24,16 +24,14 @@ import { useShareIntent } from './ApplevelBackends/shareIntent';
 import { DownloadsStore } from './utils/Store';
 import { AskFormatProvider } from './screens/AskFormatProvider';
 import { navigationRef } from './ApplevelBackends/NavigationRef';
-
+import { useAppStore } from './AppStore';
 
 
 const Stack = createNativeStackNavigator<RootStackParamList>();
 const eventEmitter = new NativeEventEmitter();
 
 
-
 export default function App() {
-  useShareIntent();
   const { updateItem, loadDownloads } = DownloadsStore();
 
   useEffect(() => {
@@ -53,15 +51,19 @@ export default function App() {
   }, []);
 
 
+
+
   /* ---------------- NAVIGATION ---------------- */
   return (
     <GestureHandlerRootView style={{ flex: 1 }}>
       <AskFormatProvider>
         <NavigationContainer ref={navigationRef}>
+
           <Stack.Navigator
-            initialRouteName="AskFeatureCode"
             screenOptions={{ headerShown: false }}
+            initialRouteName="AskFeatureCode"
           >
+            <Stack.Screen name="AskFeatureCode" component={AskFeatureCode} />
             <Stack.Screen name="BrowserScreen" component={BrowserScreen} />
             <Stack.Screen name="BottomNav" component={BottomNav} />
             <Stack.Screen name="VideoPlayerScreen" component={VideoPlayerScreen} />
@@ -76,12 +78,12 @@ export default function App() {
             <Stack.Screen name="SuggestedSites" component={SuggestedSites} />
             <Stack.Screen name="TOI" component={TOI} />
             <Stack.Screen name="FetchImagesForPdf" component={FetchImagesForPdf} />
-            <Stack.Screen name="AskFeatureCode" component={AskFeatureCode} />
+
 
           </Stack.Navigator>
         </NavigationContainer>
       </AskFormatProvider>
-    </GestureHandlerRootView>
+    </GestureHandlerRootView >
   );
 }
 
