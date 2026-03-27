@@ -11,12 +11,11 @@ import com.facebook.react.module.annotations.ReactModule
 import com.facebook.react.modules.core.DeviceEventManagerModule
 import com.jsranjan.ivideodownloader.extractors.HtmlExtractor
 import com.jsranjan.ivideodownloader.extractors.metaporn.JsonHtmlBridge
-import com.jsranjan.ivideodownloader.extractors.xhamster.XhInitialsFetcher
-import com.jsranjan.ivideodownloader.extractors.xhamster.XhRelatedFetcher
 import com.jsranjan.ivideodownloader.extractors.youtube.FeedRouter
 import com.jsranjan.ivideodownloader.extractors.youtube.NativeFileDownloader
 import com.jsranjan.ivideodownloader.extractors.youtube.RelatedShortsFetcher
 import com.jsranjan.ivideodownloader.extractors.youtube.ShortMetaFetcher
+import com.jsranjan.ivideodownloader.extractors.youtube.WatchNextBrowse
 import com.jsranjan.ivideodownloader.extractors.youtube.YtInitialDataFetcher
 import com.jsranjan.ivideodownloader.extractors.youtube.YtPlaylistBrowseFetcher
 import com.jsranjan.ivideodownloader.extractors.youtube.YtSearchFetcher
@@ -55,6 +54,7 @@ class MyNativeModule(
             try {
                 val result =
                     FeedRouter.fetch(
+                        context = reactContext,
                         videoId = videoId,
                         continuation = continuation,
                         visitorData = visitorData,
@@ -98,17 +98,6 @@ class MyNativeModule(
     }
 
     @ReactMethod
-    fun getXhInitials(
-        pageUrl: String,
-        promise: Promise,
-    ) {
-        backThread.launch(Dispatchers.IO) {
-            val result = XhInitialsFetcher.fetch(pageUrl)
-            promise.resolve(result)
-        }
-    }
-
-    @ReactMethod
     fun htmlJsonBridge(
         pageUrl: String,
         schemaJson: String,
@@ -148,50 +137,33 @@ class MyNativeModule(
     }
 
     @ReactMethod
-    fun getXhRelated(
-        paramsJsonString: String,
-        pageUrl: String,
-        promise: Promise,
-    ) {
-        backThread.launch(Dispatchers.IO) {
-            try {
-                val paramsJson = JSONObject(paramsJsonString)
-
-                val headers =
-                    mapOf(
-                        "User-Agent" to
-                            "Mozilla/5.0 (Windows NT 10.0; Win64; x64)",
-                        "Accept" to "application/json",
-                        "X-Requested-With" to "XMLHttpRequest",
-                        "Referer" to pageUrl,
-                        "Sec-Fetch-Mode" to "cors",
-                        "Sec-Fetch-Site" to "same-origin",
-                    )
-
-                val result =
-                    XhRelatedFetcher.fetch(
-                        paramsJson = paramsJson,
-                        headers = headers,
-                    )
-
-                promise.resolve(result)
-            } catch (e: Exception) {
-                promise.reject(
-                    "XH_RELATED_ERROR",
-                    e.message ?: "unknown error",
-                )
-            }
-        }
-    }
-
-    @ReactMethod
     fun getYtInitialData(
-        watchUrl: String,
+        videoId: String?,
+        visitorData: String?,
+        continuation: String?,
         promise: Promise,
     ) {
         backThread.launch(Dispatchers.IO) {
             try {
-                val result = YtInitialDataFetcher.fetch(watchUrl)
+                val result =
+                    if (visitorData.isNullOrBlank() || videoId.isNullOrBlank()) {
+                        if (videoId.isNullOrBlank()) {
+                            throw IllegalArgumentException("videoId is required for initial fetch")
+                        }
+
+                        // build watch URL internally
+                        val watchUrl = "https://www.youtube.com/watch?v=$videoId"
+                        YtInitialDataFetcher.fetch(watchUrl)
+                    } else {
+                        // youtubei API (supports continuation)
+                        WatchNextBrowse.fetch(
+                            context = reactContext,
+                            videoId = videoId,
+                            continuation = continuation,
+                            visitorData = visitorData,
+                        )
+                    }
+
                 promise.resolve(result.toString())
             } catch (e: Exception) {
                 promise.reject("ERROR", e.message, e)

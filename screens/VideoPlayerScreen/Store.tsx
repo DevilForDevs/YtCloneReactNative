@@ -10,6 +10,8 @@ import { parseWatchHtml } from "../../utils/watchHtmlParser";
 import { VideoDescription, ShortVideo } from "../../utils/types";
 import { videoId } from "../../utils/Interact";
 import { extractPlaylistData } from "../../utils/playlistParser";
+import { enableScreens } from "react-native-screens";
+import { useVideoStore } from "../../utils/Store";
 
 
 const extractPlaylistId = (url: string): string | undefined => {
@@ -23,8 +25,8 @@ type VideoPlayerState = {
     showBottomSheet: boolean,
     isGoingBack: boolean,
     isPlaylist: boolean,
-    continuation: string | undefined;
-    watchVisitorData: string;
+    continuation: string | null;
+    watchVisitorData: string | null;
     isFetchingMore: boolean,
     playerPoster: string,
     suggestedVideos: (Video | ShortVideo)[],
@@ -68,8 +70,8 @@ type VideoPlayerState = {
 const initialState = {
     showBottomSheet: false,
     isPlaylist: false,
-    continuation: undefined,
-    watchVisitorData: "",
+    continuation: null,
+    watchVisitorData: null,
     isFetchingMore: false,
     playerPoster: "",
     suggestedVideos: [],
@@ -165,11 +167,13 @@ export const useVideoPlayerStore = create<VideoPlayerState>((set, get) => ({
 
         const { db, isPlaylist, loadPlaylist,
             loadVideo, currentVideo,
-            isGoingBack
+            isGoingBack,
+            watchVisitorData
         } = get()
 
-        console.log(isPlaylist);
-
+        const { visitorData,
+            setVisitorData
+        } = useVideoStore.getState()
 
         if (!isGoingBack) {
             if (currentVideo) {
@@ -224,7 +228,7 @@ export const useVideoPlayerStore = create<VideoPlayerState>((set, get) => ({
 
 
             const jsonString = await MyNativeModule.getYtInitialData(
-                'https://www.youtube.com/watch?v=' + mvideo.videoId
+                mvideo.videoId, visitorData, null
             )
 
             const ytInitialData = JSON.parse(jsonString);
@@ -254,12 +258,11 @@ export const useVideoPlayerStore = create<VideoPlayerState>((set, get) => ({
             if (!isPlaylist) {
                 if (parseResult.items.length == 0) {
                     const jsonString = await MyNativeModule.getYtInitialData(
-                        'https://www.youtube.com/watch?v=' + mvideo.videoId
+                        mvideo.videoId, null, null
                     )
-
                     const ytInitialData = JSON.parse(jsonString);
-
                     const parseResult2 = parseWatchHtml(ytInitialData)
+                    setVisitorData(parseResult2.visitorData);
                     set({ suggestedVideos: parseResult2.items })
 
                 } else {
@@ -271,6 +274,7 @@ export const useVideoPlayerStore = create<VideoPlayerState>((set, get) => ({
             }
 
         } catch (e: any) {
+            console.log(e);
             ToastAndroid.show(e?.message || "Something went wrong", ToastAndroid.SHORT);
         }
 

@@ -9,6 +9,7 @@ import { StatusBar } from "react-native";
 export default function AskFeatureCode() {
     const navigation = useNavigation<navStack>();
     const { files } = useSharedFilesStore();
+
     const { acessCodeText,
         setAccessCodeText,
         insertAcessCode,
@@ -18,24 +19,21 @@ export default function AskFeatureCode() {
     } = useAskFeatureStore()
 
     async function handleActivate() {
-
         if (!acessCodeText || acessCodeText.trim() === "") {
-            const helpUrl = "https://studyzem.com/"; // Replace with your help URL
-            Linking.canOpenURL(helpUrl).then(supported => {
-                if (supported) {
-                    Linking.openURL(helpUrl);
-                } else {
-                    ToastAndroid.show("Cannot open help URL", ToastAndroid.SHORT);
-                }
-            });
-            return; // Stop further execution
+            const helpUrl = "https://studyzem.com/";
+
+            try {
+                await Linking.openURL(helpUrl);
+            } catch (err) {
+                ToastAndroid.show("Unable to open url", ToastAndroid.SHORT);
+            }
+            return;
         }
 
         insertAcessCode(() => {
             ToastAndroid.show("Feature Activated", ToastAndroid.SHORT);
             navigation.navigate("SuggestedSites");
-        })
-
+        });
     }
 
 

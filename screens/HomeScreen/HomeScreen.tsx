@@ -39,26 +39,7 @@ export default function HomeScreen() {
         );
       }
 
-      return (
-        <View style={styles.shortParentContainer}>
-          <ShortsHeader />
-          <FlatList
-            data={item.videos}
-            horizontal
-            keyExtractor={(short) => short.videoId}
-            renderItem={({ item: short }) => (
-              <ShortsItemView
-                item={short}
-                onItemPress={() =>
-                  navigation.navigate("ShortsPlayerScreen", { arrivedVideo: short })
-                }
-              />
-            )}
-            showsHorizontalScrollIndicator={false}
-            contentContainerStyle={styles.shortsContainer}
-          />
-        </View>
-      );
+      return null;
     },
     []
   );

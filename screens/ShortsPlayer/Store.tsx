@@ -184,7 +184,23 @@ export const useShortsStore = create<ShortsStoreType>((set, get) => ({
         });
     },
     setTraks: (tracks) => {
-        set({ tracks: tracks });
+        let selected: number | "auto" = "auto";
+
+        if (tracks.length >= 3 && tracks[2].trakIndex != null) {
+            selected = tracks[2].trakIndex;
+        } else if (tracks.length > 0 && tracks[0].trakIndex != null) {
+            selected = tracks[Math.floor(tracks.length / 2)].trakIndex!;
+        }
+
+        const updatedTracks = tracks.map((t) => ({
+            ...t,
+            selected: t.trakIndex === selected
+        }));
+
+        set({
+            tracks: updatedTracks,
+            selectedTrack: selected
+        });
     },
     changeResolution: (res) => {
         const index = res.trakIndex ?? 0;

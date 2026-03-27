@@ -24,7 +24,6 @@ import { useShareIntent } from './ApplevelBackends/shareIntent';
 import { DownloadsStore } from './utils/Store';
 import { AskFormatProvider } from './screens/AskFormatProvider';
 import { navigationRef } from './ApplevelBackends/NavigationRef';
-import { useAppStore } from './AppStore';
 
 
 const Stack = createNativeStackNavigator<RootStackParamList>();
@@ -33,7 +32,7 @@ const eventEmitter = new NativeEventEmitter();
 
 export default function App() {
   const { updateItem, loadDownloads } = DownloadsStore();
-
+  useShareIntent();
   useEffect(() => {
     loadDownloads()
     const sub = eventEmitter.addListener('DownloadProgress', data => {
@@ -87,3 +86,6 @@ export default function App() {
   );
 }
 
+
+
+// npx @react-native-community/cli@latest init MyApp

@@ -1,6 +1,7 @@
 import {
     StyleSheet, Text, View, PanResponder,
-    TouchableOpacity, ActivityIndicator
+    TouchableOpacity, ActivityIndicator,
+    ToastAndroid
 } from 'react-native'
 import React, { useEffect, useRef } from "react";
 import { RouteProp, useNavigation, useRoute } from '@react-navigation/native';
@@ -97,6 +98,7 @@ export default function ShortsPlayer() {
             (a, b) => (a.height ?? 0) - (b.height ?? 0)
         );
         setTraks(tracks);
+
     }
 
     const hideTimeout = useRef<ReturnType<typeof setTimeout> | null>(null);
@@ -135,14 +137,17 @@ export default function ShortsPlayer() {
                 repeat
                 style={styles.video}
                 selectedVideoTrack={
-                    selectedTrack === "auto" || selectedTrack == null
+                    selectedTrack == null
                         ? { type: SelectedVideoTrackType.AUTO }
                         : {
                             type: SelectedVideoTrackType.INDEX,
                             value: selectedTrack,
                         }
                 }
-                onError={(error) => loadNext()}
+                onError={(error) => {
+                    ToastAndroid.show("Unable to play, Skipping", ToastAndroid.SHORT);
+                    loadNext()
+                }}
                 onLoad={onLoad}
                 posterResizeMode='cover'
                 poster={`https://i.ytimg.com/vi/${currentVideoInfo?.video.videoId ?? currentVideId}/maxresdefault.jpg`}

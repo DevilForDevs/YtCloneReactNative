@@ -223,13 +223,9 @@ export default function Player(props: Props) {
                     poster={`https://i.ytimg.com/vi/${props.videoId}/hqdefault.jpg`}
                     posterResizeMode="cover"
                     onError={(e) => {
-                        const msg =
-                            e.error?.errorString?.replace("ExoPlaybackException:", "") ??
-                            e.error?.errorException ??
-                            e.error?.errorCode ??
-                            "Unable to play video";
+                        ToastAndroid.show("Unable to play, Skipping", ToastAndroid.SHORT);
 
-                        ToastAndroid.show(msg, ToastAndroid.SHORT);
+
                     }}
                     selectedVideoTrack={
                         props.selectedTrack === "auto" || props.selectedTrack == null

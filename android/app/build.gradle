@@ -19,8 +19,8 @@ android {
         applicationId "com.jsranjan.ivideodownloader"
         minSdkVersion rootProject.ext.minSdkVersion
         targetSdkVersion rootProject.ext.targetSdkVersion
-        versionCode 29
-        versionName "6.5"
+        versionCode 32
+        versionName "6.8"
     }
     signingConfigs {
         debug {

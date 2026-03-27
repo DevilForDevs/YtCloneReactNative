@@ -1,9 +1,11 @@
 package com.jsranjan.ivideodownloader.extractors.youtube
 
+import android.content.Context
 import org.json.JSONObject
 
 object FeedRouter {
     fun fetch(
+        context: Context,
         videoId: String?,
         continuation: String?,
         visitorData: String,
@@ -18,6 +20,7 @@ object FeedRouter {
 
         if (videoId != null && continuation != null) {
             return WatchNextBrowse.fetch(
+                context,
                 videoId = videoId,
                 continuation = continuation,
                 visitorData = visitorData,
