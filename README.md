@@ -1,5 +1,7 @@
 # iVideo — React Native Media & News Viewer
 
+> A React Native YouTube-style app focused on media playback, content browsing, and built-in epaper/news viewing.
+
 <p align="center">
   <img src="https://img.shields.io/badge/React%20Native-blue?style=for-the-badge" />
   <img src="https://img.shields.io/badge/Android-green?style=for-the-badge" />
